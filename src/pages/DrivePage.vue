@@ -23,31 +23,29 @@
 
           <!-- 文件列表头部 -->
           <div class="mb-6 flex items-center">
-            <!-- 左侧区域：固定宽度确保位置一致 -->
-            <div class="flex items-center justify-between w-80">
-              <div class="flex-1">
-                <h2 class="text-xl font-bold text-morandi-900">
-                  {{ getCurrentLevelTitle() }}
-                </h2>
-                <span class="text-sm text-morandi-500">
-                  {{ filteredItems.length }} 个项目
-                </span>
-              </div>
+            <!-- 左侧区域：标题和统计 -->
+            <div class="w-72">
+              <h2 class="text-xl font-bold text-morandi-900">
+                {{ getCurrentLevelTitle() }}
+              </h2>
+              <span class="text-sm text-morandi-500">
+                {{ filteredItems.length }} 个项目
+              </span>
+            </div>
+            
+            <!-- 中间区域：刷新按钮 + 搜索框和控制按钮 -->
+            <div class="flex-1 flex justify-center items-center gap-6">
               <button
                 @click="refreshItems"
                 :disabled="isRefreshing"
-                class="p-3 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
+                class="p-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
                 title="刷新"
               >
-                <HardDrive :size="24" :class="{ 'animate-spin': isRefreshing }" />
+                <HardDrive :size="18" :class="{ 'animate-spin': isRefreshing }" />
               </button>
-            </div>
-            
-            <!-- 中间区域：搜索框和控制按钮 -->
-            <div class="flex-1 flex justify-center items-center gap-4">
               <input
-                v-model="searchQuery"
-                :placeholder="isInRecycleBin ? '搜索回收站...' : '搜索文件...'"
+                v-model="driveStore.searchQuery"
+                :placeholder="driveStore.isInRecycleBin ? '搜索回收站...' : '搜索文件...'"
                 class="px-4 py-2 w-80 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
               />
               
@@ -55,11 +53,10 @@
               <div class="relative">
                 <button
                   @click.stop="toggleSortMenu"
-                  class="flex items-center gap-2 px-3 py-2 rounded-lg border border-morandi-300 text-morandi-700 text-sm bg-white hover:bg-morandi-50 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
+                  class="flex items-center gap-1 px-3 py-2 rounded-lg border border-morandi-300 text-morandi-700 text-sm bg-white hover:bg-morandi-50 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
                   title="排序选项"
                 >
                   <FileText :size="16" />
-                  <span>排序</span>
                   <ChevronRight :size="12" :class="{ 'rotate-90': showSortMenu }" class="transition-transform" />
                 </button>
                 
@@ -148,14 +145,6 @@
                 >
                   <HardDrive :size="16" />
                   <span>一键删除</span>
-                </button>
-                <button
-                  @click="exitRecycleBin"
-                  class="flex items-center gap-1 px-3 py-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-colors text-sm"
-                  title="返回云盘"
-                >
-                  <HardDrive :size="16" />
-                  <span>返回</span>
                 </button>
               </div>
             </div>
