@@ -13,7 +13,7 @@
     <Topbar />
     
     <!-- 主内容区域 -->
-    <main class="flex-1 ml-[150px] pt-[80px] bg-liteisle-bg rounded-r-[40px] overflow-hidden">
+    <main class="flex-1 ml-[150px] pt-[80px] bg-liteisle-bg rounded-tr-[40px] overflow-hidden">
       <router-view />
     </main>
     
