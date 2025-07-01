@@ -6,6 +6,7 @@
         <div class="card h-full flex flex-col">
           <!-- 面包屑导航 -->
           <nav class="flex items-center gap-2 text-sm mb-6 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-3 rounded-lg border border-teal-100 shadow-sm">
+            <div class="font-semibold text-morandi-800 mr-2 flex-shrink-0">导航栏:</div>
             <button
               v-for="(path, index) in breadcrumbPaths"
               :key="index"
@@ -114,37 +115,34 @@
             </div>
             
             <!-- 右侧区域：固定宽度确保位置一致 -->
-            <div class="w-80 flex justify-end">
+            <div class="w-24 flex justify-end">
               <!-- 正常模式：回收站按钮 -->
               <button
                 v-if="!driveStore.isInRecycleBin"
                 @click="openRecycleBin"
-                class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
+                class="flex items-center justify-center w-10 h-10 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
                 title="回收站"
               >
                 <HardDrive :size="20" />
-                <span class="font-medium">回收站</span>
               </button>
               
               <!-- 回收站模式：操作按钮 -->
               <div v-if="driveStore.isInRecycleBin" class="flex items-center gap-2">
                 <button
                   @click="restoreAllItems"
-                  class="flex items-center gap-1 px-3 py-2 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors text-sm"
+                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors"
                   title="一键还原"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
                   <HardDrive :size="16" />
-                  <span>一键还原</span>
                 </button>
                 <button
                   @click="deleteAllItems"
-                  class="flex items-center gap-1 px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors text-sm"
+                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
                   title="一键删除"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
                   <HardDrive :size="16" />
-                  <span>一键删除</span>
                 </button>
               </div>
             </div>

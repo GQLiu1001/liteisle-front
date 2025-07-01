@@ -19,7 +19,66 @@
 @layer components {
   .card {
     @apply bg-liteisle-card rounded-[40px] border border-liteisle-border p-6 transition-all duration-200 hover:shadow-md;
-    min-width: 240px;
+    min-width: 280px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  
+  /* Electron 环境下的特殊处理 */
+  @media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .card {
+      min-width: 300px;
+      max-width: none;
+    }
+    
+    /* 确保主容器在 Electron 中有足够的空间 */
+    .max-w-7xl {
+      max-width: 90%;
+    }
+  }
+  
+  /* 音乐页面响应式优化 */
+  @media screen and (max-width: 1024px) {
+    /* 移动端音乐页面优化 */
+    .music-grid {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 1rem !important;
+    }
+    
+    /* 移动端卡片优化 */
+    .card {
+      min-width: unset;
+      padding: 1rem;
+    }
+    
+    /* 音乐列表项间距调整 */
+    .music-item {
+      padding: 0.75rem !important;
+    }
+    
+    /* 音乐封面大小调整 */
+    .album-cover {
+      width: 2.5rem !important;
+      height: 2.5rem !important;
+    }
+  }
+
+  /* 中等屏幕优化 */
+  @media screen and (min-width: 1024px) and (max-width: 1279px) {
+    /* 调整音乐页面网格比例 */
+    .music-left-panel {
+      min-width: 250px;
+    }
+    
+    .music-center-panel {
+      flex: 1;
+      min-width: 400px;
+    }
+    
+    .music-right-panel {
+      min-width: 280px;
+    }
   }
   
   .btn-primary {

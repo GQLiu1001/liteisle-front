@@ -6,6 +6,10 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'electron': '1200px',  // Electron 应用的推荐断点
+        'electron-lg': '1400px',  // Electron 大屏幕断点
+      },
       colors: {
         // 莫兰迪配色
         morandi: {

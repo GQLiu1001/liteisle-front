@@ -1,5 +1,30 @@
 /// <reference types="vite/client" />
 
+declare module 'vue-activity-calendar' {
+  import { DefineComponent } from 'vue'
+  
+  interface ActivityCalendarProps {
+    data?: Array<{ date: string; count: number }>
+    width?: number
+    height?: number
+    cellLength?: number
+    cellInterval?: number
+    cellBorderRadius?: number
+    colors?: string[]
+    levelMapper?: (count: number) => number
+    fontSize?: number
+    showLevelFlag?: boolean
+    levelFlagText?: string[]
+    showHeader?: boolean
+    showWeekDayFlag?: boolean
+    header?: string[]
+    backgroundColor?: string
+  }
+  
+  export const ActivityCalendar: DefineComponent<ActivityCalendarProps>
+  export default ActivityCalendar
+}
+
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
   const component: DefineComponent<{}, {}, any>
@@ -14,12 +39,6 @@ declare module '@/*' {
 declare module '*.ts' {
   const value: any
   export default value
-}
-
-declare module 'vue' {
-  const value: any
-  export default value
-  export const createApp: any
 }
 
 declare module 'pinia' {

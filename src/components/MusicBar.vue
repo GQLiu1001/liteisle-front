@@ -1,7 +1,7 @@
 <template>
-  <!-- 浮动音乐栏 - 与内容区域对齐 -->
+  <!-- 浮动音乐栏 - 与内容区域对齐，响应式适配 -->
   <div 
-    class="fixed bottom-0 left-[150px] right-0 z-20 px-6"
+    class="fixed bottom-0 left-[150px] right-0 z-20 px-4 lg:px-6"
     @mouseenter="showMusicBar"
     @mouseleave="hideMusicBar"
   >
@@ -17,10 +17,76 @@
     
     <!-- 完整音乐栏 -->
     <div 
-      class="bg-liteisle-sidebar rounded-t-[40px] shadow-xl border border-morandi-300 border-b-0 px-8 py-4 backdrop-blur-sm transition-all duration-300 ease-out"
+      class="bg-liteisle-sidebar rounded-t-[40px] shadow-xl border border-morandi-300 border-b-0 px-4 lg:px-8 py-3 lg:py-4 backdrop-blur-sm transition-all duration-300 ease-out"
       :class="isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'"
     >
-      <div class="flex items-center justify-between">
+      <!-- 移动端布局 -->
+      <div class="lg:hidden">
+        <div class="flex items-center justify-between">
+          <!-- 左侧 - 音乐信息（简化版） -->
+          <div class="flex items-center gap-3 min-w-0 flex-1">
+            <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-teal-500 rounded-xl flex items-center justify-center">
+              <Music :size="20" class="text-white" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="font-semibold text-morandi-900 truncate text-sm">{{ musicStore.currentTrackInfo.name }}</p>
+              <p class="text-xs text-morandi-700">{{ musicStore.formatTime(musicStore.currentTime) }} / {{ musicStore.formatTime(musicStore.duration) }}</p>
+            </div>
+          </div>
+
+          <!-- 右侧 - 主要播放控制（简化版） -->
+          <div class="flex items-center gap-2">
+            <button 
+              @click="musicStore.previousTrack" 
+              class="w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              title="上一首"
+            >
+              <SkipBack :size="16" />
+            </button>
+            
+            <button 
+              @click="musicStore.togglePlay" 
+              class="w-10 h-10 rounded-full bg-white text-morandi-800 flex items-center justify-center hover:shadow-lg transition-all duration-200"
+              :title="musicStore.isPlaying ? '暂停' : '播放'"
+            >
+              <Play v-if="!musicStore.isPlaying" :size="18" />
+              <Pause v-else :size="18" />
+            </button>
+            
+            <button 
+              @click="musicStore.nextTrack" 
+              class="w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              title="下一首"
+            >
+              <SkipForward :size="16" />
+            </button>
+
+            <!-- 音量按钮（移动端） -->
+            <button 
+              @click="musicStore.toggleMute"
+              class="w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              :title="musicStore.isMuted ? '取消静音' : '静音'"
+            >
+              <Volume2 v-if="!musicStore.isMuted" :size="16" />
+              <VolumeX v-else :size="16" />
+            </button>
+
+            <!-- 播放列表按钮（移动端） -->
+            <button 
+              @click="togglePlaylistPanel" 
+              class="w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              :class="{ 'bg-white/60': showPlaylistPanel }"
+              data-playlist-button
+              title="播放列表"
+            >
+              <List :size="16" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 桌面端布局 -->
+      <div class="hidden lg:flex items-center justify-between">
         <!-- 左侧区域 - 音乐信息 -->
         <div class="flex items-center gap-4 min-w-0 flex-1">
           <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-teal-500 rounded-2xl flex items-center justify-center">
@@ -125,11 +191,11 @@
       </div>
     </div>
 
-    <!-- 播放列表展开面板 -->
+    <!-- 播放列表展开面板 - 响应式调整 -->
     <div 
       v-if="showPlaylistPanel"
       ref="playlistRef"
-      class="fixed bottom-20 right-6 w-80 bg-white rounded-lg shadow-xl border border-morandi-200 z-30 max-h-96 flex flex-col"
+      class="fixed bottom-16 lg:bottom-20 right-4 lg:right-6 w-72 lg:w-80 bg-white rounded-lg shadow-xl border border-morandi-200 z-30 max-h-80 lg:max-h-96 flex flex-col"
     >
       <!-- 面板头部 - 快速切换歌单 -->
       <div class="p-4 border-b border-morandi-200">

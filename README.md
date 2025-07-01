@@ -59,7 +59,7 @@ liteisle-front/
 │   └── vite-env.d.ts       # TypeScript类型声明
 ├── public/                 # 静态资源
 │   ├── islepic/           # 岛屿图片资源
-│   │   ├── isle1.png ~ isle6.png
+│   │   ├── isle1.png ~ isle8.png
 │   │   └── README.md
 │   ├── titlepic.png       # Logo图片
 │   └── favicon.ico
@@ -146,9 +146,12 @@ liteisle-front/
   - 选歌体验：选择歌单后保持播放列表开启
 
 ### 🏝️ 净化岛屿
-- **图片轮播**: 6张岛屿图片的左右箭头切换
-- **数量统计**: 当前净化岛屿数量显示
-- **视觉效果**: 渐变背景和圆形展示
+- **三段式响应式布局**: 根据窗口宽度，智能切换显示模式：
+  - **大屏 (>=1280px)**: 单一岛屿放大轮播，聚焦展示。
+  - **中屏 (1024px-1279px)**: 三岛屿并排分页，完美适配Electron最小宽度。
+  - **小屏 (<1024px)**: 多岛屿网格平铺，一览所有。
+- **数据扩充**: 岛屿数量已扩充至8个，丰富了视觉和交互体验。
+- **交互切换**: 统一的左右箭头，在不同模式下控制轮播或分页。
 
 ### 🗂️ 智能文件管理
 - **统一数据管理**: 
@@ -212,6 +215,7 @@ npm install
 npm run dev
 
 # Electron开发模式
+# (需同时开启Web开发服务)
 npm run electron:dev
 ```
 
@@ -222,34 +226,26 @@ npm run electron:dev
 npm run build
 
 # 构建并打包Electron应用
-npm run build && npm run electron:pack
-
-# 一键构建和打包
-npm run build && npx electron-builder
+# 注意: electron-builder会读取vite构建后的dist目录
+npm run build && electron-builder
 ```
 
 ### 开发脚本
 
-```bash
-# Web开发服务器
-npm run dev                    # 启动Vite开发服务器 (http://localhost:5174)
-
-# Electron开发
-npx electron .                 # 直接运行Electron
-npm run electron:dev           # 开发模式 (如果有该脚本)
-
-# 构建相关
-npm run build                  # 构建生产版本
-npx vite build                 # 直接调用Vite构建
-npx electron-builder          # 打包Electron应用
+```json
+"scripts": {
+  "dev": "vite",
+  "build": "vue-tsc && vite build",
+  "preview": "vite preview",
+  "electron:dev": "electron ."
+}
 ```
 
 ## 🔧 配置说明
 
 ### Electron配置
 - **无边框窗口**: `frame: false`, `titleBarStyle: 'hidden'`
-- **窗口控制**: 自定义最小化、最大化、关闭按钮
-- **IPC通信**: 主进程和渲染进程间的窗口控制通信
+- **最小尺寸**: `minWidth: 1200px`，确保核心布局稳定。
 
 ### 路由配置
 - **Hash模式**: 兼容Electron环境

@@ -7,10 +7,10 @@ let mainWindow
 function createWindow() {
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 1024,
-    minHeight: 600,
+    width: 1400,
+    height: 900,
+    minWidth: 1200,  // 增加最小宽度，避免与 lg 断点(1024px)冲突
+    minHeight: 700,  // 适当增加最小高度
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,

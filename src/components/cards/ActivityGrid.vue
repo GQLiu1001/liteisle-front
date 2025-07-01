@@ -1,99 +1,149 @@
 <template>
-  <div class="card h-full flex flex-col">
-    <div class="flex items-center justify-between mb-6">
-      <h3 class="text-2xl font-semibold text-morandi-900">学习活跃度</h3>
-      <span class="text-base text-morandi-600">最近4个月</span>
+  <div class="card h-full flex flex-col min-h-0 overflow-hidden w-full p-4 lg:p-6">
+    <div class="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
+      <h3 class="text-lg lg:text-xl font-semibold text-morandi-900">专注记录</h3>
+      <span class="text-xs lg:text-sm text-morandi-600">{{ currentMonthName }}</span>
     </div>
     
-    <!-- 月份标签 -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="text-sm text-morandi-600 grid grid-cols-4 gap-10 flex-1 ml-10">
-        <span v-for="month in months" :key="month">{{ month }}</span>
-      </div>
-    </div>
-    
-    <!-- 活跃度网格 -->
-    <div class="flex gap-2 flex-1 min-h-0">
-      <!-- 星期标签 -->
-      <div class="flex flex-col gap-1.5 mr-3">
-        <div class="h-3 text-xs text-morandi-600 flex items-center">周</div>
-        <div v-for="day in ['一', '二', '三', '四', '五', '六', '日']" :key="day" class="h-3 text-xs text-morandi-600 flex items-center">
+    <!-- 简单日历 -->
+    <div class="flex-1 min-h-0 overflow-auto mb-2">
+      <!-- 星期标题 -->
+      <div class="grid grid-cols-7 gap-1 mb-2 flex-shrink-0">
+        <div v-for="day in weekDays" :key="day" 
+             class="text-xs text-morandi-500 text-center py-1">
           {{ day }}
         </div>
       </div>
       
-      <!-- 网格数据 -->
-      <div class="grid grid-cols-20 gap-1 flex-1">
-        <div
-          v-for="(activity, index) in activityData"
-          :key="index"
-          class="w-3 h-3 rounded-sm cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-sage-400"
-          :class="getActivityClass(activity)"
-          :title="`${activity.date}: ${activity.count} 次学习`"
-        ></div>
+      <!-- 日期网格 -->
+      <div class="grid grid-cols-7 gap-1 pb-2">
+        <div v-for="(day, index) in calendarDays" :key="index"
+             :class="[
+               'aspect-square flex items-center justify-center rounded-lg text-xs font-medium relative min-h-[28px] max-h-[36px]',
+               day.date ? 'cursor-pointer transition-colors' : '',
+               day.date && day.isToday ? 'ring-2 ring-blue-400' : '',
+               day.date && day.hasFocus ? 'bg-blue-400 text-white' : day.date ? 'bg-morandi-100 text-morandi-700' : 'bg-transparent'
+             ]">
+          <span v-if="day.date" class="relative z-10">{{ day.date }}</span>
+          <!-- 专注时长提示 -->
+          <div v-if="day.date && day.focusMinutes > 0" 
+               class="absolute inset-0 flex items-end justify-end p-0.5">
+            <div class="w-1.5 h-1.5 bg-green-400 rounded-full" 
+                 :title="`专注${day.focusMinutes}分钟`"></div>
+          </div>
+        </div>
       </div>
     </div>
     
-    <!-- 图例 -->
-    <div class="flex items-center justify-between mt-4 pt-3 border-t border-morandi-200 flex-shrink-0">
-      <span class="text-xs text-morandi-600">Less</span>
-      <div class="flex items-center gap-1">
-        <div class="w-3 h-3 bg-morandi-200 rounded-sm"></div>
-        <div v-for="level in 4" :key="level" class="w-3 h-3 rounded-sm" :class="getActivityClass({ count: level * 2 })"></div>
+    <!-- 统计信息 -->
+    <div class="mt-2 lg:mt-3 pt-2 lg:pt-3 border-t border-morandi-200 flex-shrink-0">
+      <div class="flex items-center justify-between text-xs lg:text-sm text-morandi-600 mb-2">
+        <span>本月签到: {{ monthlyStats.checkedDays }}天</span>
+        <span>总专注: {{ Math.round(monthlyStats.totalMinutes/60) }}小时</span>
       </div>
-      <span class="text-xs text-morandi-600">More</span>
+      <!-- 图例 -->
+      <div class="hidden sm:flex items-center justify-center gap-4 text-xs text-morandi-500">
+        <div class="flex items-center gap-1">
+          <div class="w-3 h-3 bg-morandi-100 rounded-sm border"></div>
+          <span>未签到</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-3 h-3 bg-blue-400 rounded-sm"></div>
+          <span>已签到</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useFocusStore } from '@/store/FocusStore'
 
-interface ActivityData {
-  date: string
-  count: number
-}
+const focusStore = useFocusStore()
 
-// 月份标签
-const months = ['3月', '4月', '5月', '6月']
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
-// 生成模拟的活跃度数据 (20周 x 7天 = 140天)
-const activityData = computed((): ActivityData[] => {
-  const data: ActivityData[] = []
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - 139) // 140天前
+// 当前月份名称
+const currentMonthName = computed(() => {
+  const now = new Date()
+  return `${now.getFullYear()}年${now.getMonth() + 1}月`
+})
+
+// 生成当前月份的日历数据
+const calendarDays = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
   
-  for (let i = 0; i < 140; i++) {
-    const currentDate = new Date(startDate)
-    currentDate.setDate(startDate.getDate() + i)
+  // 本月第一天
+  const firstDay = new Date(year, month, 1)
+  // 本月最后一天
+  const lastDay = new Date(year, month + 1, 0)
+  // 第一天是星期几（0=周日）
+  const firstDayOfWeek = firstDay.getDay()
+  // 本月有多少天
+  const daysInMonth = lastDay.getDate()
+  
+  const days = []
+  
+  // 添加前面的空白天数
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    days.push({ date: null, hasFocus: false, focusMinutes: 0, isToday: false })
+  }
+  
+  // 添加本月的所有天数
+  for (let date = 1; date <= daysInMonth; date++) {
+    const currentDate = new Date(year, month, date)
+    const dateStr = currentDate.toISOString().split('T')[0]
+    const focusMinutes = focusStore.dailyFocusData.get(dateStr) || 0
+    const isToday = date === now.getDate()
     
-    // 生成随机活跃度数据
-    let count = 0
-    const random = Math.random()
-    if (random > 0.7) count = Math.floor(Math.random() * 8) + 1
-    else if (random > 0.4) count = Math.floor(Math.random() * 3) + 1
-    
-    data.push({
-      date: currentDate.toLocaleDateString('zh-CN'),
-      count
+    days.push({
+      date,
+      hasFocus: focusMinutes >= 30,
+      focusMinutes,
+      isToday
     })
   }
   
-  return data
+  return days
 })
 
-// 根据活跃度获取对应的样式类
-const getActivityClass = (activity: { count: number }) => {
-  if (activity.count === 0) return 'bg-morandi-200'
-  if (activity.count <= 2) return 'bg-sage-200'
-  if (activity.count <= 4) return 'bg-sage-300'
-  if (activity.count <= 6) return 'bg-sage-400'
-  return 'bg-sage-500'
-}
+// 本月统计
+const monthlyStats = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  
+  let checkedDays = 0
+  let totalMinutes = 0
+  
+  for (let date = 1; date <= new Date(year, month + 1, 0).getDate(); date++) {
+    const currentDate = new Date(year, month, date)
+    const dateStr = currentDate.toISOString().split('T')[0]
+    const focusMinutes = focusStore.dailyFocusData.get(dateStr) || 0
+    
+    if (focusMinutes >= 30) {
+      checkedDays++
+    }
+    totalMinutes += focusMinutes
+  }
+  
+  return {
+    checkedDays,
+    totalMinutes
+  }
+})
 </script>
 
 <style scoped>
-.grid-cols-20 {
-  grid-template-columns: repeat(20, minmax(0, 1fr));
+/* 确保日历网格适应容器 */
+.grid {
+  gap: 0.5rem;
 }
-</style> 
+
+/* 移除任何可能影响布局的样式 */
+</style>
+
+ 

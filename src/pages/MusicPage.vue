@@ -1,9 +1,126 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6">
+  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
     <div class="max-w-7xl mx-auto">
-      <div class="grid grid-cols-12 gap-6 h-[calc(100vh-12rem)]">
-        <!-- 左侧播放列表导航 -->
-        <div class="col-span-3">
+      <!-- 移动端布局 - 垂直堆叠 -->
+      <div class="lg:hidden space-y-4">
+        <!-- 当前播放信息 - 移动端置顶 -->
+        <div class="card">
+          <div class="flex items-center gap-4 p-4">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-teal-500 flex items-center justify-center flex-shrink-0">
+              <Music :size="32" class="text-white" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
+              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
+              <div class="flex items-center justify-between text-xs text-morandi-500 mt-2">
+                <span>{{ musicStore.formatTime(musicStore.currentTime) }}</span>
+                <span>{{ musicStore.formatTime(musicStore.duration) }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- 播放进度条 -->
+          <div class="px-4 pb-4">
+            <div 
+              class="w-full bg-morandi-200 rounded-full h-2 cursor-pointer"
+              @click="seekToPosition"
+            >
+              <div 
+                class="bg-teal-500 h-2 rounded-full transition-all duration-100"
+                :style="{ width: progressPercentage + '%' }"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 播放列表选择器 - 移动端 -->
+        <div class="card">
+          <div class="p-4">
+            <h3 class="text-lg font-bold text-morandi-900 mb-4">播放列表</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div
+                v-for="playlist in musicStore.playlists.slice(0, 4)"
+                :key="playlist.id"
+                @click="selectPlaylist(playlist)"
+                :class="[
+                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
+                  musicStore.currentPlaylist?.id === playlist.id 
+                    ? 'bg-teal-100 text-teal-800 border border-teal-300' 
+                    : 'hover:bg-morandi-100'
+                ]"
+              >
+                <HardDrive :size="16" class="text-blue-500 flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate text-sm">{{ playlist.name }}</p>
+                  <p class="text-xs text-morandi-500">{{ getPlaylistDisplayCount(playlist) }} 首</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 歌曲列表 - 移动端 -->
+        <div class="card">
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-lg font-bold text-morandi-900">
+                  {{ musicStore.currentPlaylist?.name || '选择播放列表' }}
+                </h2>
+                <p class="text-sm text-morandi-500">{{ filteredTracks.length }} 首歌曲</p>
+              </div>
+              <button
+                v-if="musicStore.currentPlaylist"
+                @click="playAll"
+                class="flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors text-sm"
+              >
+                <Music :size="14" />
+                播放全部
+              </button>
+            </div>
+            
+            <!-- 搜索框 - 移动端 -->
+            <div class="mb-4">
+              <input
+                v-model="musicStore.searchQuery"
+                placeholder="搜索音乐..."
+                class="w-full px-3 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+              />
+            </div>
+
+            <!-- 歌曲列表 -->
+            <div class="space-y-2 max-h-96 overflow-auto">
+              <div
+                v-for="(track, index) in filteredTracks.slice(0, 10)"
+                :key="track.id"
+                @click="playTrackImmediately(index)"
+                :class="[
+                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
+                  musicStore.currentTrack?.id === track.id 
+                    ? 'bg-teal-50 border border-teal-300' 
+                    : 'hover:bg-morandi-50'
+                ]"
+              >
+                <div class="w-6 text-center">
+                  <Music v-if="musicStore.currentTrack?.id === track.id" :size="14" class="text-teal-600" />
+                  <span v-else class="text-sm text-morandi-500">{{ index + 1 }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-morandi-900 truncate text-sm">{{ track.name }}</p>
+                  <p class="text-xs text-morandi-500 truncate">{{ track.artist }}</p>
+                </div>
+                <div class="text-xs text-morandi-500">
+                  {{ musicStore.formatTime(track.duration) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 桌面端布局 - 切换为更稳健的 Flexbox 布局 -->
+      <div class="hidden lg:flex gap-6 h-[calc(100vh-12rem)]">
+        <!-- 左侧播放列表导航: 固定宽度，绝不压缩 -->
+        <div class="w-72 flex-shrink-0">
           <div class="card h-full">
             <!-- 搜索框 -->
             <div class="mb-6">
@@ -47,8 +164,8 @@
           </div>
         </div>
 
-        <!-- 中间歌曲列表 -->
-        <div class="col-span-6">
+        <!-- 中间歌曲列表: 自动填充所有剩余空间 -->
+        <div class="flex-1 min-w-0">
           <div class="card h-full flex flex-col">
             <!-- 列表头部 -->
             <div class="flex items-center justify-between mb-6">
@@ -70,9 +187,23 @@
                   <Music :size="16" />
                   播放全部
                 </button>
+                
+                <!-- 右侧面板切换按钮 - 始终显示 -->
+                <button
+                  @click="showRightPanel = !showRightPanel"
+                  :class="[
+                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
+                    showRightPanel 
+                      ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
+                      : 'bg-morandi-200 text-morandi-700 hover:bg-morandi-300'
+                  ]"
+                >
+                  {{ showRightPanel ? '隐藏详情' : '显示详情' }}
+                </button>
               </div>
             </div>
 
+            <!-- 歌曲列表内容保持不变 -->
             <!-- 歌曲列表 -->
             <div class="flex-1 overflow-auto">
               <div v-if="filteredTracks.length > 0" class="space-y-1">
@@ -99,10 +230,10 @@
                           : 'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
                       ]"
                     >
-                                             <!-- 拖动图标 -->
-                       <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
-                         <div class="w-1 h-4 bg-morandi-400 rounded-full flex-shrink-0"></div>
-                       </div>
+                      <!-- 拖动图标 -->
+                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
+                        <div class="w-1 h-4 bg-morandi-400 rounded-full flex-shrink-0"></div>
+                      </div>
 
                       <!-- 序号 / 播放状态 -->
                       <div class="w-8 text-center">
@@ -202,13 +333,14 @@
           </div>
         </div>
 
-        <!-- 右侧播放详情 -->
-        <div class="col-span-3">
+        <!-- 右侧播放详情: 固定宽度，绝不压缩 -->
+        <div v-if="showRightPanel" class="w-80 flex-shrink-0">
           <div class="card h-full flex flex-col">
+            
             <!-- 专辑封面 -->
             <div class="text-center mb-6">
-              <div class="w-48 h-48 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-400 to-teal-500 flex items-center justify-center">
-                <Music :size="64" class="text-white" />
+              <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-400 to-teal-500 flex items-center justify-center">
+                <Music :size="48" class="text-white" />
               </div>
               <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
               <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
@@ -231,8 +363,6 @@
               </div>
             </div>
 
-
-
             <!-- 歌词区域 -->
             <div class="flex-1 overflow-auto">
               <div class="text-center">
@@ -253,7 +383,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Music, HardDrive } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
@@ -262,6 +392,9 @@ import type { Track } from '../store/MusicStore'
 
 const musicStore = useMusicStore()
 const driveStore = useDriveStore()
+
+// 响应式状态
+const showRightPanel = ref(true)
 
 // 计算属性
 const filteredTracks = computed(() => {
@@ -323,8 +456,6 @@ const seekToPosition = (event: MouseEvent) => {
   const newTime = percentage * musicStore.duration
   musicStore.seek(newTime)
 }
-
-
 
 const getPlaylistDisplayCount = (playlist: any) => {
   // 如果没有搜索条件，显示总数
