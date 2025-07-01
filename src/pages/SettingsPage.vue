@@ -598,7 +598,7 @@ const handleResetSettings = () => {
   showResetDialog.value = false
   alert('设置已重置为默认值')
 }
-</script>
+</script> 
 
 <style scoped>
 /* 自定义滚动条 */
