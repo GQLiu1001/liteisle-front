@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-liteisle-card rounded-[40px] border border-liteisle-border p-6 transition-all duration-200 hover:shadow-md;
+    min-width: 240px;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-gradient-start to-gradient-end text-white font-medium px-6 py-3 rounded-full transition-all duration-200 hover:shadow-lg hover:scale-105;
+  }
+  
+  .sidebar-item {
+    @apply flex flex-col items-center gap-2 px-4 py-4 rounded-2xl transition-all duration-200 hover:bg-white/20 cursor-pointer text-morandi-800;
+  }
+  
+  .sidebar-item.active {
+    @apply bg-white/30 text-morandi-900;
+  }
+  
+  .topbar-control {
+    @apply w-8 h-8 rounded-md flex items-center justify-center transition-all duration-200 hover:bg-black/10 cursor-pointer;
+  }
+} 

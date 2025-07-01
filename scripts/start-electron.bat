@@ -1,0 +1,9 @@
+@echo off
+echo Starting Liteisle Desktop in development mode...
+echo.
+echo Building Vue app...
+call npm run build
+echo.
+echo Starting Electron app...
+call npx electron .
+pause 
