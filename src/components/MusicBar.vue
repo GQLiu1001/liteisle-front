@@ -27,39 +27,58 @@
             <Music :size="24" class="text-white" />
           </div>
           <div class="min-w-0">
-            <p class="font-semibold text-morandi-900 truncate">{{ currentTrack.name }}</p>
-            <p class="text-sm text-morandi-700">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</p>
+            <p class="font-semibold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</p>
+            <p class="text-sm text-morandi-700">{{ musicStore.formatTime(musicStore.currentTime) }} / {{ musicStore.formatTime(musicStore.duration) }}</p>
           </div>
         </div>
 
         <!-- 中间区域 - 主要播放控制 -->
         <div class="flex items-center gap-3">
-          <button @click="previousTrack" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors">
+          <button 
+            @click="musicStore.previousTrack" 
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+          >
             <SkipBack :size="20" />
           </button>
           
-          <button @click="togglePlay" class="w-12 h-12 rounded-full bg-white text-morandi-800 flex items-center justify-center hover:shadow-lg transition-all duration-200">
-            <Play v-if="!isPlaying" :size="20" />
+          <button 
+            @click="musicStore.togglePlay" 
+            class="w-12 h-12 rounded-full bg-white text-morandi-800 flex items-center justify-center hover:shadow-lg transition-all duration-200"
+          >
+            <Play v-if="!musicStore.isPlaying" :size="20" />
             <Pause v-else :size="20" />
           </button>
           
-          <button @click="nextTrack" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors">
+          <button 
+            @click="musicStore.nextTrack" 
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+          >
             <SkipForward :size="20" />
           </button>
         </div>
 
         <!-- 右侧区域 - 其他控制按钮 -->
         <div class="flex items-center gap-3 flex-1 justify-end">
-          <button @click="toggleMute" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors">
-            <Volume2 v-if="!isMuted" :size="20" />
+          <button 
+            @click="musicStore.toggleMute" 
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+          >
+            <Volume2 v-if="!musicStore.isMuted" :size="20" />
             <VolumeX v-else :size="20" />
           </button>
           
-          <button @click="toggleRepeat" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors" :class="{ 'bg-white/60': isRepeat }">
+          <button 
+            @click="musicStore.toggleRepeat" 
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors" 
+            :class="{ 'bg-white/60': musicStore.isRepeat }"
+          >
             <Repeat :size="20" />
           </button>
           
-          <button @click="togglePlaylist" class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors">
+          <button 
+            @click="togglePlaylist" 
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+          >
             <List :size="20" />
           </button>
         </div>
@@ -69,32 +88,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp } from 'lucide-vue-next'
+import { useMusicStore } from '../store/MusicStore'
 
-// 音乐播放状态
-const isPlaying = ref(false)
-const isMuted = ref(false)
-const isRepeat = ref(false)
-const currentTime = ref(90) // 秒
-const duration = ref(212) // 秒
-const currentTrack = ref({
-  name: '音乐名称',
-  artist: '艺术家'
-})
+const musicStore = useMusicStore()
 
 // 音乐栏显示状态
 const isVisible = ref(false)
-let hideTimeout: NodeJS.Timeout | null = null
-
-let progressInterval: NodeJS.Timeout | null = null
-
-// 格式化时间
-const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
+let hideTimeout: number | null = null
 
 // 音乐栏交互
 const showMusicBar = () => {
@@ -111,65 +113,8 @@ const hideMusicBar = () => {
   }, 500) // 500ms延迟，避免快速移入移出闪烁
 }
 
-// 播放控制
-const togglePlay = () => {
-  isPlaying.value = !isPlaying.value
-  if (isPlaying.value) {
-    startProgress()
-  } else {
-    stopProgress()
-  }
-}
-
-const previousTrack = () => {
-  console.log('上一首')
-  currentTime.value = 0
-}
-
-const nextTrack = () => {
-  console.log('下一首')
-  currentTime.value = 0
-}
-
-const toggleMute = () => {
-  isMuted.value = !isMuted.value
-}
-
-const toggleRepeat = () => {
-  isRepeat.value = !isRepeat.value
-}
-
 const togglePlaylist = () => {
   console.log('显示播放列表')
+  // 这里可以触发路由到音乐页面
 }
-
-// 进度控制
-const startProgress = () => {
-  progressInterval = setInterval(() => {
-    if (currentTime.value < duration.value) {
-      currentTime.value++
-    } else {
-      if (isRepeat.value) {
-        currentTime.value = 0
-      } else {
-        isPlaying.value = false
-        stopProgress()
-      }
-    }
-  }, 1000)
-}
-
-const stopProgress = () => {
-  if (progressInterval) {
-    clearInterval(progressInterval)
-    progressInterval = null
-  }
-}
-
-onUnmounted(() => {
-  stopProgress()
-  if (hideTimeout) {
-    clearTimeout(hideTimeout)
-  }
-})
 </script> 
