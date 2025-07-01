@@ -170,7 +170,7 @@
             <!-- 列表头部 -->
             <div class="flex items-center justify-between mb-6">
               <div>
-                <h2 class="text-xl font-bold text-morandi-900">
+                <h2 class="font-bold text-morandi-900 lg:text-lg xl:text-xl">
                   {{ musicStore.currentPlaylist?.name || '选择播放列表' }}
                 </h2>
                 <p class="text-sm text-morandi-500">
@@ -182,7 +182,7 @@
               <div v-if="musicStore.currentPlaylist" class="flex items-center gap-3">
                 <button
                   @click="playAll"
-                  class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+                  class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors lg:text-sm xl:text-base"
                 >
                   <Music :size="16" />
                   播放全部
@@ -192,7 +192,7 @@
                 <button
                   @click="showRightPanel = !showRightPanel"
                   :class="[
-                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
+                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors lg:text-sm xl:text-base',
                     showRightPanel 
                       ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                       : 'bg-morandi-200 text-morandi-700 hover:bg-morandi-300'
