@@ -120,7 +120,7 @@
             <div class="w-80 flex justify-end">
               <!-- 正常模式：回收站按钮 -->
               <button
-                v-if="!isInRecycleBin"
+                v-if="!driveStore.isInRecycleBin"
                 @click="openRecycleBin"
                 class="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
                 title="回收站"
@@ -130,12 +130,12 @@
               </button>
               
               <!-- 回收站模式：操作按钮 -->
-              <div v-if="isInRecycleBin" class="flex items-center gap-2">
+              <div v-if="driveStore.isInRecycleBin" class="flex items-center gap-2">
                 <button
                   @click="restoreAllItems"
                   class="flex items-center gap-1 px-3 py-2 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors text-sm"
                   title="一键还原"
-                  :disabled="recycleBinItems.length === 0"
+                  :disabled="driveStore.recycleBinItems.length === 0"
                 >
                   <HardDrive :size="16" />
                   <span>一键还原</span>
@@ -144,7 +144,7 @@
                   @click="deleteAllItems"
                   class="flex items-center gap-1 px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors text-sm"
                   title="一键删除"
-                  :disabled="recycleBinItems.length === 0"
+                  :disabled="driveStore.recycleBinItems.length === 0"
                 >
                   <HardDrive :size="16" />
                   <span>一键删除</span>
@@ -193,7 +193,7 @@
 
               <!-- 新建文件夹项（在根目录和第一级都显示，非回收站模式） -->
               <div
-                v-if="!isInRecycleBin && !searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
                 @click="createNewFolder"
                 class="p-4 rounded-lg border-2 border-dashed border-morandi-300 hover:border-teal-400 hover:bg-teal-50 transition-all duration-200 cursor-pointer"
               >
@@ -214,7 +214,7 @@
 
               <!-- 上传文件项（仅在第二级显示，非回收站模式） -->
               <div
-                v-if="!isInRecycleBin && !searchQuery && getCurrentLevel() === 2"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 2"
                 @click="uploadFiles"
                 class="p-4 rounded-lg border-2 border-dashed border-green-300 hover:border-green-400 hover:bg-green-50 transition-all duration-200 cursor-pointer"
               >
@@ -281,7 +281,7 @@
               
               <!-- 新建文件夹项（列表模式） -->
               <div
-                v-if="!isInRecycleBin && !searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
                 @click="createNewFolder"
                 class="flex items-center px-4 py-3 rounded-lg border-2 border-dashed border-morandi-300 hover:border-teal-400 hover:bg-teal-50 transition-all duration-200 cursor-pointer"
               >
@@ -298,7 +298,7 @@
               
               <!-- 上传文件项（列表模式） -->
               <div
-                v-if="!isInRecycleBin && !searchQuery && getCurrentLevel() === 2"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 2"
                 @click="uploadFiles"
                 class="flex items-center px-4 py-3 rounded-lg border-2 border-dashed border-green-300 hover:border-green-400 hover:bg-green-50 transition-all duration-200 cursor-pointer"
               >
@@ -854,62 +854,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ChevronRight, HardDrive, Music, FileText, Settings } from 'lucide-vue-next'
-
-interface DriveItem {
-  id: string
-  name: string
-  type: 'folder' | 'audio' | 'document' | 'other'
-  size: number
-  modifiedAt: Date
-  createdAt: Date
-  path: string
-  parentId: string | null
-  itemCount?: number
-  children?: DriveItem[]
-  level?: number // 0: 根目录, 1: 第一级大类, 2: 第二级用户创建
-  deletedAt?: Date // 回收站项目的删除时间
-}
+import { useDriveStore, type DriveItem } from '../store/DriveStore'
 
 interface BreadcrumbPath {
   name: string
   path: string
 }
 
+// 使用 DriveStore
+const driveStore = useDriveStore()
+
 // 响应式数据
-const searchQuery = ref('')
-const currentPath = ref('/')
 const showCreateFolderDialog = ref(false)
 const showUploadDialog = ref(false)
 const newFolderName = ref('')
 const selectedFiles = ref<File[]>([])
-
-// 回收站相关
-const isInRecycleBin = ref(false)
-const recycleBinItems = ref<DriveItem[]>([
-  {
-    id: 'recycle-1',
-    name: '已删除的照片.jpg',
-    type: 'other',
-    size: 2048576,
-    modifiedAt: new Date('2024-01-10'),
-    createdAt: new Date('2024-01-08'),
-    path: '/图片/已删除的照片.jpg',
-    parentId: '4',
-    deletedAt: new Date('2024-01-12')
-  },
-  {
-    id: 'recycle-2',
-    name: '旧文档',
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date('2024-01-08'),
-    createdAt: new Date('2024-01-06'),
-    path: '/文档/旧文档',
-    parentId: '2',
-    itemCount: 3,
-    deletedAt: new Date('2024-01-11')
-  }
-])
 
 // 排序和视图相关
 const sortBy = ref<'default' | 'name' | 'modified' | 'created' | 'size'>('default')
@@ -966,131 +925,16 @@ const predefinedCategories = [
   { id: 'image', name: '图片', icon: 'Image' }
 ]
 
-// 模拟数据 - 包含预设的大类和用户创建的子文件夹
-const driveItems = ref<DriveItem[]>([
-  {
-    id: '1',
-    name: '音乐',
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date('2024-01-15'),
-    createdAt: new Date('2024-01-01'),
-    path: '/音乐',
-    parentId: null,
-    level: 1,
-    itemCount: 2,
-    children: [
-      {
-        id: '1-1',
-        name: '我喜欢的',
-        type: 'folder',
-        size: 0,
-        modifiedAt: new Date('2024-01-14'),
-        createdAt: new Date('2024-01-02'),
-        path: '/音乐/我喜欢的',
-        parentId: '1',
-        level: 2,
-        itemCount: 3,
-        children: [
-          {
-            id: '1-1-1',
-            name: '夜曲.mp3',
-            type: 'audio',
-            size: 5242880,
-            modifiedAt: new Date('2024-01-12'),
-            createdAt: new Date('2024-01-05'),
-            path: '/音乐/我喜欢的/夜曲.mp3',
-            parentId: '1-1'
-          },
-          {
-            id: '1-1-2',
-            name: '蓝莲花.mp3',
-            type: 'audio',
-            size: 4536320,
-            modifiedAt: new Date('2024-01-11'),
-            createdAt: new Date('2024-01-06'),
-            path: '/音乐/我喜欢的/蓝莲花.mp3',
-            parentId: '1-1'
-          }
-        ]
-      },
-      {
-        id: '1-2',
-        name: '古典音乐',
-        type: 'folder',
-        size: 0,
-        modifiedAt: new Date('2024-01-13'),
-        createdAt: new Date('2024-01-03'),
-        path: '/音乐/古典音乐',
-        parentId: '1',
-        level: 2,
-        itemCount: 1,
-        children: [
-          {
-            id: '1-2-1',
-            name: '贝多芬第九交响曲.mp3',
-            type: 'audio',
-            size: 8912345,
-            modifiedAt: new Date('2024-01-10'),
-            createdAt: new Date('2024-01-07'),
-            path: '/音乐/古典音乐/贝多芬第九交响曲.mp3',
-            parentId: '1-2'
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: '文档',
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date('2024-01-10'),
-    createdAt: new Date('2023-12-15'),
-    path: '/文档',
-    parentId: null,
-    level: 1,
-    itemCount: 0,
-    children: []
-  },
-  {
-    id: '3',
-    name: '视频',
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date('2024-01-08'),
-    createdAt: new Date('2023-12-20'),
-    path: '/视频',
-    parentId: null,
-    level: 1,
-    itemCount: 0,
-    children: []
-  },
-  {
-    id: '4',
-    name: '图片',
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date('2024-01-05'),
-    createdAt: new Date('2023-12-25'),
-    path: '/图片',
-    parentId: null,
-    level: 1,
-    itemCount: 0,
-    children: []
-  }
-])
-
 // 计算属性
 const breadcrumbPaths = computed<BreadcrumbPath[]>(() => {
-  if (isInRecycleBin.value) {
+  if (driveStore.isInRecycleBin) {
     return [
       { name: '云盘', path: '/' },
       { name: '回收站', path: '/recycle' }
     ]
   }
   
-  const paths = currentPath.value.split('/').filter((p: string) => p)
+  const paths = driveStore.currentPath.split('/').filter((p: string) => p)
   const result = [{ name: '云盘', path: '/' }]
   
   let currentFullPath = ''
@@ -1103,15 +947,15 @@ const breadcrumbPaths = computed<BreadcrumbPath[]>(() => {
 })
 
 const currentItems = computed(() => {
-  if (isInRecycleBin.value) {
-    return recycleBinItems.value
+  if (driveStore.isInRecycleBin) {
+    return driveStore.recycleBinItems
   }
   
-  if (currentPath.value === '/') {
-    return driveItems.value.filter((item: DriveItem) => item.parentId === null)
+  if (driveStore.currentPath === '/') {
+    return driveStore.driveItems.filter((item: DriveItem) => item.parentId === null)
   }
   
-  const currentFolder = findItemByPath(currentPath.value)
+  const currentFolder = findItemByPath(driveStore.currentPath)
   return currentFolder?.children || []
 })
 
@@ -1119,9 +963,9 @@ const filteredItems = computed(() => {
   let items = currentItems.value
   
   // 搜索过滤
-  if (searchQuery.value) {
+  if (driveStore.searchQuery) {
     items = items.filter((item: DriveItem) =>
-      item.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      item.name.toLowerCase().includes(driveStore.searchQuery.toLowerCase())
     )
   }
   
@@ -1150,7 +994,7 @@ const filteredItems = computed(() => {
 })
 
 const currentFolder = computed(() => {
-  return findItemByPath(currentPath.value)
+  return findItemByPath(driveStore.currentPath)
 })
 
 const availableFolders = computed(() => {
@@ -1167,18 +1011,18 @@ const availableFolders = computed(() => {
     })
   }
   
-  collectFolders(driveItems.value)
+  collectFolders(driveStore.driveItems)
   return allFolders
 })
 
 // 辅助函数
 const getCurrentLevel = (): number => {
-  const pathParts = currentPath.value.split('/').filter((p: string) => p)
+  const pathParts = driveStore.currentPath.split('/').filter((p: string) => p)
   return pathParts.length
 }
 
 const getCurrentLevelTitle = (): string => {
-  if (isInRecycleBin.value) return '回收站'
+  if (driveStore.isInRecycleBin) return '回收站'
   
   const level = getCurrentLevel()
   if (level === 0) return '云盘'
@@ -1200,7 +1044,7 @@ const findItemByPath = (path: string): DriveItem | undefined => {
   
   if (pathParts.length === 0) return undefined
   
-  let current = driveItems.value.find((item: DriveItem) => item.name === pathParts[0])
+  let current = driveStore.driveItems.find((item: DriveItem) => item.name === pathParts[0])
   
   for (let i = 1; i < pathParts.length && current; i++) {
     current = current.children?.find((item: DriveItem) => item.name === pathParts[i])
@@ -1222,17 +1066,17 @@ const navigateToPath = (index: number) => {
   const targetPath = breadcrumbPaths.value[index].path
   
   // 如果在回收站模式下点击面包屑，退出回收站模式
-  if (isInRecycleBin.value) {
-    exitRecycleBin()
+  if (driveStore.isInRecycleBin) {
+    driveStore.exitRecycleBin()
     return
   }
   
-  currentPath.value = targetPath
+  driveStore.setCurrentPath(targetPath)
 }
 
 const handleItemClick = (item: DriveItem) => {
   // 在回收站模式下，点击项目显示详细信息
-  if (isInRecycleBin.value) {
+  if (driveStore.isInRecycleBin) {
     selectedItem.value = item
     showItemDetails()
     return
@@ -1240,7 +1084,7 @@ const handleItemClick = (item: DriveItem) => {
   
   // 正常模式下的行为
   if (item.type === 'folder') {
-    currentPath.value = item.path
+    driveStore.setCurrentPath(item.path)
   } else {
     console.log('打开文件:', item.name)
     // 这里可以添加文件预览或下载逻辑
@@ -1269,7 +1113,7 @@ const confirmCreateFolder = () => {
 
   // 生成新文件夹ID
   const newId = Date.now().toString()
-  const newPath = currentPath.value === '/' ? `/${folderName}` : `${currentPath.value}/${folderName}`
+  const newPath = driveStore.currentPath === '/' ? `/${folderName}` : `${driveStore.currentPath}/${folderName}`
   
   const newFolder: DriveItem = {
     id: newId,
@@ -1279,16 +1123,16 @@ const confirmCreateFolder = () => {
     modifiedAt: new Date(),
     createdAt: new Date(),
     path: newPath,
-    parentId: currentPath.value === '/' ? null : currentFolder.value?.id || null,
+    parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
     level: level + 1,
     itemCount: 0,
     children: []
   }
 
   // 添加到对应位置
-  if (currentPath.value === '/') {
+  if (driveStore.currentPath === '/') {
     // 在根目录创建第一级大类文件夹
-    driveItems.value.push(newFolder)
+    driveStore.driveItems.push(newFolder)
   } else {
     // 在第一级大类中创建第二级文件夹
     const parent = currentFolder.value
@@ -1344,7 +1188,7 @@ const confirmUpload = () => {
         size: file.size,
         modifiedAt: new Date(),
         createdAt: new Date(),
-        path: `${currentPath.value}/${file.name}`,
+        path: `${driveStore.currentPath}/${file.name}`,
         parentId: parent.id
       }
       parent.children!.push(newFile)
@@ -1365,13 +1209,13 @@ const getFileType = (fileName: string): 'audio' | 'document' | 'other' => {
 }
 
 const openRecycleBin = () => {
-  isInRecycleBin.value = true
-  searchQuery.value = ''
+  driveStore.openRecycleBin()
+  driveStore.setSearchQuery('')
 }
 
 const exitRecycleBin = () => {
-  isInRecycleBin.value = false
-  searchQuery.value = ''
+  driveStore.exitRecycleBin()
+  driveStore.setSearchQuery('')
 }
 
 const getParentPath = (path: string): string => {
@@ -1513,9 +1357,9 @@ const confirmMove = () => {
   // 从原位置移除
   const removeFromParent = (parentPath: string, itemId: string) => {
     if (parentPath === '/') {
-      const index = driveItems.value.findIndex((i: DriveItem) => i.id === itemId)
+      const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === itemId)
       if (index > -1) {
-        driveItems.value.splice(index, 1)
+        driveStore.driveItems.splice(index, 1)
       }
     } else {
       const parent = findItemByPath(parentPath)
@@ -1534,7 +1378,7 @@ const confirmMove = () => {
     if (parentPath === '/') {
       item.parentId = null
       item.path = `/${item.name}`
-      driveItems.value.push(item)
+      driveStore.driveItems.push(item)
     } else {
       const parent = findItemByPath(parentPath)
       if (parent?.children) {
@@ -1592,10 +1436,10 @@ const confirmDelete = () => {
   const parentPath = getParentPath(item.path)
 
   // 如果在回收站模式下，是真正删除
-  if (isInRecycleBin.value) {
-    const index = recycleBinItems.value.findIndex((i: DriveItem) => i.id === item.id)
+  if (driveStore.isInRecycleBin) {
+    const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
     if (index > -1) {
-      recycleBinItems.value.splice(index, 1)
+      driveStore.recycleBinItems.splice(index, 1)
     }
     showDeleteConfirmState.value = false
     selectedItem.value = null
@@ -1606,9 +1450,9 @@ const confirmDelete = () => {
   // 正常模式下移动到回收站
   // 从父级移除
   if (parentPath === '/') {
-    const index = driveItems.value.findIndex((i: DriveItem) => i.id === item.id)
+    const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
     if (index > -1) {
-      driveItems.value.splice(index, 1)
+      driveStore.driveItems.splice(index, 1)
     }
   } else {
     const parent = findItemByPath(parentPath)
@@ -1622,7 +1466,7 @@ const confirmDelete = () => {
   }
 
   // 添加到回收站
-  recycleBinItems.value.push({
+  driveStore.recycleBinItems.push({
     ...item,
     deletedAt: new Date()
   })
@@ -1639,10 +1483,10 @@ const cancelDelete = () => {
 
 // 回收站相关功能
 const restoreAllItems = () => {
-  if (recycleBinItems.value.length === 0) return
+  if (driveStore.recycleBinItems.length === 0) return
 
-  if (confirm(`确定要还原所有 ${recycleBinItems.value.length} 个项目吗？`)) {
-    recycleBinItems.value.forEach((item: DriveItem) => {
+  if (confirm(`确定要还原所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
+    driveStore.recycleBinItems.forEach((item: DriveItem) => {
       // 移除deletedAt属性
       const { deletedAt, ...restoreItem } = item
       
@@ -1653,19 +1497,19 @@ const restoreAllItems = () => {
         parentId: null
       }
       
-      driveItems.value.push(restoredItem)
+      driveStore.driveItems.push(restoredItem)
     })
     
-    recycleBinItems.value = []
+    driveStore.recycleBinItems.length = 0
     alert('所有项目已还原到根目录')
   }
 }
 
 const deleteAllItems = () => {
-  if (recycleBinItems.value.length === 0) return
+  if (driveStore.recycleBinItems.length === 0) return
 
-  if (confirm(`确定要永久删除所有 ${recycleBinItems.value.length} 个项目吗？此操作不可撤销！`)) {
-    recycleBinItems.value = []
+  if (confirm(`确定要永久删除所有 ${driveStore.recycleBinItems.length} 个项目吗？此操作不可撤销！`)) {
+    driveStore.recycleBinItems.length = 0
     alert('所有项目已永久删除')
   }
 }
@@ -1685,13 +1529,13 @@ const restoreItem = () => {
   }
 
   // 从回收站移除
-  const index = recycleBinItems.value.findIndex((i: DriveItem) => i.id === item.id)
+  const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
   if (index > -1) {
-    recycleBinItems.value.splice(index, 1)
+    driveStore.recycleBinItems.splice(index, 1)
   }
 
   // 添加到根目录
-  driveItems.value.push(restoredItem)
+  driveStore.driveItems.push(restoredItem)
 
   hideContextMenu()
   alert(`"${item.name}" 已还原到根目录`)
@@ -1701,7 +1545,7 @@ const restoreItem = () => {
 const openItem = () => {
   if (selectedItem.value) {
     if (selectedItem.value.type === 'folder') {
-      currentPath.value = selectedItem.value.path
+      driveStore.setCurrentPath(selectedItem.value.path)
     } else {
       console.log('打开文件:', selectedItem.value.name)
       alert(`打开文件: ${selectedItem.value.name}`)
@@ -1731,7 +1575,7 @@ const refreshItems = async () => {
   await new Promise(resolve => setTimeout(resolve, 1000))
   
   // 根据当前模式显示不同的刷新消息
-  if (isInRecycleBin.value) {
+  if (driveStore.isInRecycleBin) {
     console.log('回收站刷新完成')
     alert('回收站刷新完成')
   } else {
@@ -1779,7 +1623,7 @@ const pasteItem = () => {
 
   const item = { ...clipboard.value }
   const newId = Date.now().toString() + Math.random().toString()
-  const newPath = currentPath.value === '/' ? `/${item.name}` : `${currentPath.value}/${item.name}`
+  const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
   
   // 检查名称冲突
   const existingItems = currentItems.value
@@ -1801,8 +1645,8 @@ const pasteItem = () => {
     ...item,
     id: newId,
     name: finalName,
-    path: currentPath.value === '/' ? `/${finalName}` : `${currentPath.value}/${finalName}`,
-    parentId: currentPath.value === '/' ? null : currentFolder.value?.id || null,
+    path: driveStore.currentPath === '/' ? `/${finalName}` : `${driveStore.currentPath}/${finalName}`,
+    parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
     modifiedAt: new Date(),
     createdAt: new Date(),
     children: item.type === 'folder' ? [] : undefined,
@@ -1810,8 +1654,8 @@ const pasteItem = () => {
   }
 
   // 添加到当前位置
-  if (currentPath.value === '/') {
-    driveItems.value.push(newItem)
+  if (driveStore.currentPath === '/') {
+    driveStore.driveItems.push(newItem)
   } else {
     const parent = currentFolder.value
     if (parent?.children) {
@@ -1824,9 +1668,9 @@ const pasteItem = () => {
   if (clipboardAction.value === 'cut') {
     const originalParentPath = getParentPath(clipboard.value.path)
     if (originalParentPath === '/') {
-      const index = driveItems.value.findIndex((i: DriveItem) => i.id === clipboard.value!.id)
+      const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === clipboard.value!.id)
       if (index > -1) {
-        driveItems.value.splice(index, 1)
+        driveStore.driveItems.splice(index, 1)
       }
     } else {
       const parent = findItemByPath(originalParentPath)

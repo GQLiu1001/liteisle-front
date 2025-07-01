@@ -31,7 +31,9 @@
                 <HardDrive :size="20" class="text-blue-500" />
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate">{{ playlist.name }}</p>
-                  <p class="text-sm text-morandi-500">{{ playlist.tracks.length }} 首歌曲</p>
+                  <p class="text-sm text-morandi-500">
+                    {{ getPlaylistDisplayCount(playlist) }} 首歌曲
+                  </p>
                 </div>
               </div>
 
@@ -74,64 +76,112 @@
             <!-- 歌曲列表 -->
             <div class="flex-1 overflow-auto">
               <div v-if="filteredTracks.length > 0" class="space-y-1">
-                <div
-                  v-for="(track, index) in filteredTracks"
-                  :key="track.id"
-                  @click="playTrack(index)"
-                  @dblclick="playTrackImmediately(index)"
-                  :class="[
-                    'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group',
-                    musicStore.currentTrack?.id === track.id 
-                      ? 'bg-teal-100 border border-teal-300' 
-                      : 'hover:bg-morandi-50'
-                  ]"
+                <!-- 可拖动的歌曲列表 -->
+                <draggable
+                  v-if="!musicStore.searchQuery"
+                  v-model="currentTracksList"
+                  @end="onDragEnd"
+                  item-key="id"
+                  class="space-y-1"
+                  :animation="150"
+                  ghost-class="ghost"
+                  chosen-class="chosen"
+                  drag-class="drag"
                 >
-                  <!-- 序号 / 播放状态 -->
-                  <div class="w-8 text-center">
-                    <span 
-                      v-if="musicStore.currentTrack?.id !== track.id"
-                      class="text-sm text-morandi-500 group-hover:hidden"
+                  <template #item="{ element: track, index }">
+                    <div
+                      @click="playTrack(index)"
+                      @dblclick="playTrackImmediately(index)"
+                      :class="[
+                        'flex items-center gap-4 p-3 rounded-lg cursor-move transition-all duration-200 group border-2',
+                        musicStore.currentTrack?.id === track.id 
+                          ? 'bg-teal-50 border-solid border-teal-500' 
+                          : 'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
+                      ]"
                     >
-                      {{ index + 1 }}
-                    </span>
-                    <Music 
-                      v-else-if="musicStore.isPlaying"
-                      :size="16" 
-                      class="text-teal-600 animate-pulse" 
-                    />
-                    <Music 
-                      v-else
-                      :size="16" 
-                      class="text-teal-600" 
-                    />
-                    <button 
-                      class="hidden group-hover:block text-teal-600 hover:text-teal-700"
-                      @click.stop="playTrackImmediately(index)"
-                    >
-                      <Music :size="16" />
-                    </button>
-                  </div>
+                                             <!-- 拖动图标 -->
+                       <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
+                         <div class="w-1 h-4 bg-morandi-400 rounded-full flex-shrink-0"></div>
+                       </div>
 
-                  <!-- 歌曲信息 -->
-                  <div class="flex-1 min-w-0">
-                    <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
-                    <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
-                  </div>
+                      <!-- 序号 / 播放状态 -->
+                      <div class="w-8 text-center">
+                        <span 
+                          v-if="musicStore.currentTrack?.id !== track.id"
+                          class="text-sm text-morandi-500"
+                        >
+                          {{ index + 1 }}
+                        </span>
+                        <Music 
+                          v-else-if="musicStore.isPlaying"
+                          :size="16" 
+                          class="text-teal-600 animate-pulse" 
+                        />
+                        <Music 
+                          v-else
+                          :size="16" 
+                          class="text-teal-600" 
+                        />
+                      </div>
 
-                  <!-- 歌曲时长 -->
-                  <div class="text-sm text-morandi-500">
-                    {{ musicStore.formatTime(track.duration) }}
-                  </div>
+                      <!-- 歌曲信息 -->
+                      <div class="flex-1 min-w-0">
+                        <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
+                        <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
+                      </div>
 
-                  <!-- 操作按钮 -->
-                  <div class="hidden group-hover:flex items-center gap-2">
-                    <button
-                      @click.stop="addToFavorites(track)"
-                      class="p-1 text-morandi-400 hover:text-red-500 transition-colors"
-                      title="添加到我喜欢的"
-                    >
-                      <Music :size="16" />
-                    </button>
+                      <!-- 歌曲时长 -->
+                      <div class="text-sm text-morandi-500">
+                        {{ musicStore.formatTime(track.duration) }}
+                      </div>
+                    </div>
+                  </template>
+                </draggable>
+
+                <!-- 搜索模式下的普通列表（不可拖动） -->
+                <div v-else class="space-y-1">
+                  <div
+                    v-for="(track, index) in filteredTracks"
+                    :key="track.id"
+                    @click="playTrack(index)"
+                    @dblclick="playTrackImmediately(index)"
+                    :class="[
+                      'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                      musicStore.currentTrack?.id === track.id 
+                        ? 'bg-teal-50 border-solid border-teal-500' 
+                        : 'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
+                    ]"
+                  >
+                    <!-- 序号 / 播放状态 -->
+                    <div class="w-8 text-center">
+                      <span 
+                        v-if="musicStore.currentTrack?.id !== track.id"
+                        class="text-sm text-morandi-500"
+                      >
+                        {{ index + 1 }}
+                      </span>
+                      <Music 
+                        v-else-if="musicStore.isPlaying"
+                        :size="16" 
+                        class="text-teal-600 animate-pulse" 
+                      />
+                      <Music 
+                        v-else
+                        :size="16" 
+                        class="text-teal-600" 
+                      />
+                    </div>
+
+                    <!-- 歌曲信息 -->
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
+                      <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
+                    </div>
+
+                    <!-- 歌曲时长 -->
+                    <div class="text-sm text-morandi-500">
+                      {{ musicStore.formatTime(track.duration) }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -181,75 +231,7 @@
               </div>
             </div>
 
-            <!-- 播放控制 -->
-            <div class="flex items-center justify-center gap-4 mb-6">
-              <button
-                @click="musicStore.toggleShuffle"
-                :class="[
-                  'p-2 rounded-full transition-colors',
-                  musicStore.isShuffle ? 'bg-teal-500 text-white' : 'text-morandi-600 hover:bg-morandi-100'
-                ]"
-                title="随机播放"
-              >
-                <Music :size="20" />
-              </button>
 
-              <button
-                @click="musicStore.previousTrack"
-                class="p-3 rounded-full text-morandi-600 hover:bg-morandi-100 transition-colors"
-              >
-                <ChevronLeft :size="24" />
-              </button>
-
-              <button
-                @click="musicStore.togglePlay"
-                class="p-4 rounded-full bg-teal-500 text-white hover:bg-teal-600 transition-colors"
-              >
-                <Music v-if="!musicStore.isPlaying" :size="24" />
-                <Music v-else :size="24" />
-              </button>
-
-              <button
-                @click="musicStore.nextTrack"
-                class="p-3 rounded-full text-morandi-600 hover:bg-morandi-100 transition-colors"
-              >
-                <ChevronRight :size="24" />
-              </button>
-
-              <button
-                @click="musicStore.toggleRepeat"
-                :class="[
-                  'p-2 rounded-full transition-colors',
-                  musicStore.isRepeat ? 'bg-teal-500 text-white' : 'text-morandi-600 hover:bg-morandi-100'
-                ]"
-                title="循环播放"
-              >
-                <Music :size="20" />
-              </button>
-            </div>
-
-            <!-- 音量控制 -->
-            <div class="mb-6">
-              <div class="flex items-center gap-3">
-                <button
-                  @click="musicStore.toggleMute"
-                  class="text-morandi-600 hover:text-morandi-800 transition-colors"
-                >
-                  <Music :size="20" />
-                </button>
-                <div class="flex-1">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    :value="musicStore.volume"
-                    @input="setVolume"
-                    class="w-full h-2 bg-morandi-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
 
             <!-- 歌词区域 -->
             <div class="flex-1 overflow-auto">
@@ -271,16 +253,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { Music, HardDrive, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { Music, HardDrive } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
+import { useDriveStore } from '../store/DriveStore'
+import draggable from 'vuedraggable'
+import type { Track } from '../store/MusicStore'
 
 const musicStore = useMusicStore()
+const driveStore = useDriveStore()
 
 // 计算属性
 const filteredTracks = computed(() => {
   return musicStore.filteredTracks
 })
+
+// 可拖动的歌曲列表
+const currentTracksList = computed({
+  get: () => musicStore.currentPlaylist?.tracks || [],
+  set: (value: Track[]) => {
+    if (musicStore.currentPlaylist) {
+      musicStore.currentPlaylist.tracks = value
+    }
+  }
+})
+
+// 拖动结束事件
+const onDragEnd = (event: {oldIndex: number, newIndex: number}) => {
+  if (event.oldIndex !== event.newIndex) {
+    musicStore.reorderTracks(event.oldIndex, event.newIndex)
+  }
+}
 
 const progressPercentage = computed(() => {
   if (musicStore.duration === 0) return 0
@@ -321,41 +324,60 @@ const seekToPosition = (event: MouseEvent) => {
   musicStore.seek(newTime)
 }
 
-const setVolume = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  musicStore.setVolume(parseFloat(target.value))
+
+
+const getPlaylistDisplayCount = (playlist: any) => {
+  // 如果没有搜索条件，显示总数
+  if (!musicStore.searchQuery) {
+    return playlist.tracks.length
+  }
+  
+  // 如果有搜索条件，显示该播放列表中匹配的数量
+  return playlist.tracks.filter((track: any) => 
+    track.name.toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
+    track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
+  ).length
 }
 
-// 模拟加载云盘音乐数据
+// 加载云盘音乐数据
 const loadMusicFromDrive = () => {
-  // 模拟从云盘加载的音乐文件夹数据
-  const mockMusicFolders = [
-    {
-      id: 'folder1',
-      name: '我喜欢的',
-      path: '/音乐/我喜欢的',
-      files: [
-        { name: 'A.mp3', path: '/音乐/我喜欢的/A.mp3' },
-        { name: 'B.mp3', path: '/音乐/我喜欢的/B.mp3' },
-        { name: 'C.mp3', path: '/音乐/我喜欢的/C.mp3' }
-      ]
-    },
-    {
-      id: 'folder2',
-      name: '古典',
-      path: '/音乐/古典',
-      files: [
-        { name: 'Bach - Prelude.mp3', path: '/音乐/古典/Bach - Prelude.mp3' },
-        { name: 'Mozart - Sonata.mp3', path: '/音乐/古典/Mozart - Sonata.mp3' },
-        { name: 'Chopin - Nocturne.mp3', path: '/音乐/古典/Chopin - Nocturne.mp3' }
-      ]
-    }
-  ]
-  
-  musicStore.loadPlaylistsFromDrive(mockMusicFolders)
+  // 从 DriveStore 中获取数据，这样音乐页面和网盘页面就使用同一套数据了
+  musicStore.loadPlaylistsFromDrive()
 }
 
 onMounted(() => {
   loadMusicFromDrive()
 })
-</script> 
+
+// 组件卸载时清理定时器
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    musicStore.cleanup()
+  })
+}
+</script>
+
+<style scoped>
+/* 拖动状态的样式 */
+.ghost {
+  opacity: 0.5;
+  background: #c8f5e9;
+  border: 2px dashed #14b8a6;
+}
+
+.chosen {
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.drag {
+  opacity: 0.8;
+  transform: rotate(2deg);
+}
+
+/* 拖动过渡动画 */
+.flip-list-move {
+  transition: transform 0.3s;
+}
+</style> 

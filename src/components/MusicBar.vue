@@ -37,6 +37,7 @@
           <button 
             @click="musicStore.previousTrack" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+            title="上一首"
           >
             <SkipBack :size="20" />
           </button>
@@ -44,6 +45,7 @@
           <button 
             @click="musicStore.togglePlay" 
             class="w-12 h-12 rounded-full bg-white text-morandi-800 flex items-center justify-center hover:shadow-lg transition-all duration-200"
+            :title="musicStore.isPlaying ? '暂停' : '播放'"
           >
             <Play v-if="!musicStore.isPlaying" :size="20" />
             <Pause v-else :size="20" />
@@ -52,6 +54,7 @@
           <button 
             @click="musicStore.nextTrack" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+            title="下一首"
           >
             <SkipForward :size="20" />
           </button>
@@ -59,28 +62,134 @@
 
         <!-- 右侧区域 - 其他控制按钮 -->
         <div class="flex items-center gap-3 flex-1 justify-end">
+          <!-- 音量控制 -->
+          <div class="relative" ref="volumeRef">
+            <button 
+              @click="musicStore.toggleMute"
+              @mouseenter="clearVolumeTimer(); showVolumeSlider = true"
+              @mouseleave="startHideVolumeTimer"
+              class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              :title="musicStore.isMuted ? '取消静音' : '静音'"
+            >
+              <Volume2 v-if="!musicStore.isMuted" :size="20" />
+              <VolumeX v-else :size="20" />
+            </button>
+            
+            <!-- 音量滑块弹出 - 固定宽度 -->
+            <div 
+              v-if="showVolumeSlider"
+              @mouseenter="clearVolumeTimer()"
+              @mouseleave="startHideVolumeTimer"
+              class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white rounded-lg shadow-lg p-3 border border-morandi-200 w-16"
+            >
+              <div class="flex flex-col items-center gap-2 h-24">
+                <span class="text-xs text-morandi-600">{{ Math.round(musicStore.volume * 100) }}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  :value="musicStore.volume"
+                  @input="setVolume"
+                  class="w-2 h-16 bg-morandi-200 rounded-lg appearance-none cursor-pointer volume-slider"
+                  style="writing-mode: bt-lr; -webkit-appearance: slider-vertical;"
+                  title="音量"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <!-- 播放模式循环按钮 -->
           <button 
-            @click="musicStore.toggleMute" 
+            @click="musicStore.togglePlayMode" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+            :class="{ 'bg-white/60': musicStore.playMode !== 'order' }"
+            :title="getPlayModeText()"
           >
-            <Volume2 v-if="!musicStore.isMuted" :size="20" />
-            <VolumeX v-else :size="20" />
+            <Play v-if="musicStore.playMode === 'order'" :size="20" />
+            <Music v-else-if="musicStore.playMode === 'shuffle'" :size="20" />
+            <Repeat v-else :size="20" />
           </button>
           
+          <!-- 播放列表按钮 -->
           <button 
-            @click="musicStore.toggleRepeat" 
-            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors" 
-            :class="{ 'bg-white/60': musicStore.isRepeat }"
-          >
-            <Repeat :size="20" />
-          </button>
-          
-          <button 
-            @click="togglePlaylist" 
+            @click="togglePlaylistPanel" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+            :class="{ 'bg-white/60': showPlaylistPanel }"
+            data-playlist-button
+            title="播放列表"
           >
             <List :size="20" />
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 播放列表展开面板 -->
+    <div 
+      v-if="showPlaylistPanel"
+      ref="playlistRef"
+      class="fixed bottom-20 right-6 w-80 bg-white rounded-lg shadow-xl border border-morandi-200 z-30 max-h-96 flex flex-col"
+    >
+      <!-- 面板头部 - 快速切换歌单 -->
+      <div class="p-4 border-b border-morandi-200">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-morandi-900">播放列表</h3>
+          <button 
+            @click="showPlaylistSelector = !showPlaylistSelector"
+            class="px-3 py-1 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors"
+          >
+            切换歌单
+          </button>
+        </div>
+        
+        <!-- 歌单选择器 -->
+        <div 
+          v-if="showPlaylistSelector"
+          ref="selectorRef"
+          class="absolute top-16 left-0 right-0 bg-white border border-morandi-200 rounded-lg shadow-lg mx-4 z-40"
+        >
+          <div 
+            v-for="playlist in musicStore.playlists"
+            :key="playlist.id"
+            @click="selectPlaylist(playlist, $event)"
+            class="p-3 hover:bg-morandi-50 cursor-pointer border-b border-morandi-100 last:border-b-0 flex items-center justify-between"
+            :class="{ 'bg-teal-50 text-teal-700': musicStore.currentPlaylist?.id === playlist.id }"
+          >
+            <span class="font-medium">{{ playlist.name }}</span>
+            <span class="text-sm text-morandi-500">{{ playlist.tracks.length }} 首</span>
+          </div>
+        </div>
+        
+        <p class="text-sm text-morandi-600">
+          {{ musicStore.currentPlaylist?.name || '未选择播放列表' }} · {{ musicStore.currentPlaylist?.tracks.length || 0 }} 首歌曲
+        </p>
+      </div>
+      
+      <!-- 歌曲列表 -->
+      <div class="flex-1 overflow-auto p-2">
+        <div
+          v-for="(track, index) in musicStore.currentPlaylist?.tracks || []"
+          :key="track.id"
+          @click="playTrackFromPanel(index)"
+          class="flex items-center gap-3 p-2 rounded-md hover:bg-morandi-50 cursor-pointer transition-colors"
+          :class="{ 'bg-teal-50 border border-teal-200': musicStore.currentTrack?.id === track.id }"
+        >
+          <div class="w-6 text-center">
+            <span v-if="musicStore.currentTrack?.id !== track.id" class="text-xs text-morandi-500">{{ index + 1 }}</span>
+            <Music v-else :size="12" class="text-teal-600" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-morandi-900 truncate">{{ track.name }}</p>
+            <p class="text-xs text-morandi-500 truncate">{{ track.artist }}</p>
+          </div>
+          <span class="text-xs text-morandi-500">{{ musicStore.formatTime(track.duration) }}</span>
+        </div>
+        
+        <!-- 空状态 -->
+        <div v-if="!musicStore.currentPlaylist?.tracks.length" class="text-center py-8">
+          <Music :size="32" class="mx-auto mb-2 text-morandi-400" />
+          <p class="text-sm text-morandi-500">播放列表为空</p>
         </div>
       </div>
     </div>
@@ -88,15 +197,124 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
+import { useRoute } from 'vue-router'
 
 const musicStore = useMusicStore()
+const route = useRoute()
 
 // 音乐栏显示状态
 const isVisible = ref(false)
 let hideTimeout: number | null = null
+
+// 新增的响应式状态
+const showVolumeSlider = ref(false)
+const showPlaylistPanel = ref(false)
+const showPlaylistSelector = ref(false)
+
+// 菜单引用
+const volumeRef = ref<HTMLElement>()
+const playlistRef = ref<HTMLElement>()
+const selectorRef = ref<HTMLElement>()
+
+// 全局点击事件处理
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as Node
+
+  // 音量菜单通过鼠标悬停控制，不需要点击检测
+
+  // 检查播放列表面板 - 点击面板内部不关闭，只有点击外部才关闭
+  if (showPlaylistPanel.value) {
+    const playlistButton = document.querySelector('[data-playlist-button]') as HTMLElement
+    
+    // 如果点击的是播放列表按钮，不处理（让按钮自己的点击事件处理）
+    if (playlistButton?.contains(target)) {
+      return
+    }
+    
+    // 如果点击的是面板内部，不关闭
+    if (playlistRef.value && playlistRef.value.contains(target)) {
+      return
+    }
+    
+    // 点击外部才关闭
+    showPlaylistPanel.value = false
+    showPlaylistSelector.value = false
+  }
+
+  // 检查歌单选择器 - 点击内部不关闭
+  if (showPlaylistSelector.value && selectorRef.value) {
+    const toggleButton = selectorRef.value.parentElement?.querySelector('button')
+    
+    // 如果点击的是切换按钮，不处理
+    if (toggleButton?.contains(target)) {
+      return
+    }
+    
+    // 如果点击的是选择器内部，不关闭
+    if (selectorRef.value.contains(target)) {
+      return
+    }
+    
+    // 点击外部才关闭
+    showPlaylistSelector.value = false
+  }
+}
+
+// 初始化全局点击监听
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', handleClickOutside)
+}
+
+// 判断是否在音乐页面
+const isOnMusicPage = computed(() => route.path === '/music')
+
+// 监听路由变化，自动控制音乐栏显示/隐藏
+const updateMusicBarVisibility = () => {
+  if (isOnMusicPage.value) {
+    // 在音乐页面自动展开
+    if (hideTimeout) {
+      clearTimeout(hideTimeout)
+      hideTimeout = null
+    }
+    isVisible.value = true
+  } else {
+    // 在其他页面自动收起
+    hideTimeout = setTimeout(() => {
+      isVisible.value = false
+    }, 300)
+  }
+}
+
+// 监听路由变化
+const currentPath = ref(route.path)
+const checkRouteChange = () => {
+  if (currentPath.value !== route.path) {
+    currentPath.value = route.path
+    updateMusicBarVisibility()
+  }
+  requestAnimationFrame(checkRouteChange)
+}
+checkRouteChange()
+
+// 监听音乐栏显示状态，当隐藏时关闭所有面板
+const previousVisible = ref(isVisible.value)
+const checkVisibilityChange = () => {
+  if (previousVisible.value !== isVisible.value) {
+    previousVisible.value = isVisible.value
+    
+    // 当音乐栏隐藏时，关闭所有弹出面板
+    if (!isVisible.value) {
+      showPlaylistPanel.value = false
+      showPlaylistSelector.value = false
+      showVolumeSlider.value = false
+    }
+  }
+  requestAnimationFrame(checkVisibilityChange)
+}
+checkVisibilityChange()
 
 // 音乐栏交互
 const showMusicBar = () => {
@@ -108,13 +326,110 @@ const showMusicBar = () => {
 }
 
 const hideMusicBar = () => {
+  // 如果在音乐页面，不隐藏音乐栏
+  if (isOnMusicPage.value) {
+    return
+  }
+  
   hideTimeout = setTimeout(() => {
     isVisible.value = false
   }, 500) // 500ms延迟，避免快速移入移出闪烁
 }
 
-const togglePlaylist = () => {
-  console.log('显示播放列表')
-  // 这里可以触发路由到音乐页面
+// 音量控制方法
+let volumeHideTimer: number | null = null
+
+const startHideVolumeTimer = () => {
+  volumeHideTimer = setTimeout(() => {
+    showVolumeSlider.value = false
+  }, 300) // 300ms延迟隐藏
 }
-</script> 
+
+const clearVolumeTimer = () => {
+  if (volumeHideTimer) {
+    clearTimeout(volumeHideTimer)
+    volumeHideTimer = null
+  }
+}
+
+const setVolume = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  musicStore.setVolume(parseFloat(target.value))
+}
+
+// 播放模式相关方法
+const getPlayModeText = () => {
+  switch (musicStore.playMode) {
+    case 'order':
+      return '顺序播放'
+    case 'shuffle':
+      return '随机播放'
+    case 'repeat':
+      return '单曲循环'
+    default:
+      return '顺序播放'
+  }
+}
+
+// 播放列表面板方法
+const togglePlaylistPanel = () => {
+  showPlaylistPanel.value = !showPlaylistPanel.value
+  showPlaylistSelector.value = false
+}
+
+const selectPlaylist = (playlist: any, event?: MouseEvent) => {
+  // 阻止事件冒泡，防止触发全局点击监听器
+  if (event) {
+    event.stopPropagation()
+  }
+  
+  musicStore.setCurrentPlaylist(playlist)
+  showPlaylistSelector.value = false
+}
+
+const playTrackFromPanel = (index: number) => {
+  musicStore.setCurrentTrack(index)
+  musicStore.play()
+  // 选择歌曲后自动关闭播放列表
+  showPlaylistPanel.value = false
+  showPlaylistSelector.value = false
+  
+  // 如果不在音乐页面，触发隐藏逻辑检查
+  if (!isOnMusicPage.value) {
+    // 短暂延迟后触发一次隐藏检查
+    setTimeout(() => {
+      hideMusicBar()
+    }, 200)
+  }
+}
+
+// 初始化音乐栏状态
+updateMusicBarVisibility()
+</script>
+
+<style scoped>
+.volume-slider {
+  background: linear-gradient(to top, #14B8A6 0%, #14B8A6 var(--value, 0%), #E2E8F0 var(--value, 0%), #E2E8F0 100%);
+}
+
+.volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #14B8A6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #14B8A6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+</style> 
