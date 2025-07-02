@@ -1,8 +1,8 @@
 <template>
   <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
-    <div class="mx-auto">
+    <div class="mx-auto h-full">
       <!-- 详情视图 -->
-      <div v-if="docsStore.currentDocument" class="h-[calc(100vh-12rem)] rounded-2xl overflow-hidden">
+      <div v-if="docsStore.currentDocument" class="h-full rounded-2xl overflow-hidden">
         <!-- PDF 展示 -->
         <div v-if="docsStore.currentDocument.type === 'pdf'" class="h-full">
           <PDFViewer 
