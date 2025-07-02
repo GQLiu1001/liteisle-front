@@ -39,7 +39,7 @@ export const useDocsStore = defineStore('docs', () => {
       id: 'books',
       name: '图书',
       icon: 'Book',
-      documentCount: 15,
+      documentCount: 16,
       documents: [
         {
           id: 'book1',
@@ -182,6 +182,21 @@ class Singleton {
           path: '/文档/图书/财务报表模板.xls',
           categoryId: 'books',
           summary: '企业财务报表标准模板'
+        },
+        {
+          id: 'book11',
+          name: '前端性能优化.md',
+          type: 'markdown',
+          size: 204800,
+          modifiedAt: new Date('2024-01-28'),
+          path: '/文档/图书/前端性能优化.md',
+          categoryId: 'books',
+          summary: '前端性能优化实践指南',
+          content: `# 前端性能优化实战\n\n> 这是一份 content: 
+\`\`\`javascript
+console.log('hello')
+\`\`\`
+包含**完整 Markdown 语法**的示例文档，可用于测试渲染效果。\n\n---\n\n## 1. 关键性能指标\n\n| 指标 | 缩写 | 建议阈值 | 说明 |\n|------|------|-----------|-------|\n| 首屏加载时间 | FP | < 1s | 首个像素出现 |\n| 最大内容绘制 | LCP | < 2.5s | 最大元素渲染 |\n| 交互就绪 | TTI | < 3s | 页面可交互 |\n| 布局偏移 | CLS | < 0.1 | 页面稳定性 |\n\n---\n\n## 2. 加载性能优化\n\n1. **资源压缩**：HTML/CSS/JS/Gzip/Brotli\n2. **图片优化**：WebP、懒加载、响应式图片\n3. **代码分割**：按路由或组件拆分\n4. **HTTP 缓存**：\`Cache-Control\`、Service Worker\n\n\`\`\`bash\n# 使用 vite-plugin-compress 开启 Gzip\nnpm i vite-plugin-compression -D\n\`\`\`\n\n---\n\n## 3. 渲染性能优化\n\n- 减少重排 / 重绘\n- 使用 \`will-change\` 触发 GPU 合成\n- 避免大型同步 JS 任务（使用 Web Worker）\n\n\`\`\`javascript\n// 节流 + requestIdleCallback 示例\nfunction updateDomHeavy () { /* ... */ }\nwindow.addEventListener('scroll', throttle(() => {\n  requestIdleCallback(updateDomHeavy)\n}, 16))\n\`\`\`\n\n---\n\n## 4. 工具链\n\n- [Lighthouse](https://developers.google.com/web/tools/lighthouse)\n- WebPageTest\n- Chrome DevTools Performance\n\n> **提示：** 选中任何文字**右键**可进行复制或翻译；使用 \`Ctrl + 滚轮\` 缩放。`
         }
       ]
     },

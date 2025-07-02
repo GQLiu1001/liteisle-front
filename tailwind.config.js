@@ -68,10 +68,57 @@ export default {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         }
-      }
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            color: '#374151',
+            p: {
+              marginTop: '1.5em',
+              marginBottom: '1.5em',
+            },
+            'h1, h2, h3': {
+              color: '#111827',
+              fontWeight: '600',
+            },
+            pre: {
+              backgroundColor: '#f3f4f6',
+              color: '#374151',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              marginTop: '1.5em',
+              marginBottom: '1.5em',
+            },
+            code: {
+              color: '#374151',
+              backgroundColor: '#f3f4f6',
+              paddingLeft: '0.25rem',
+              paddingRight: '0.25rem',
+              paddingTop: '0.125rem',
+              paddingBottom: '0.125rem',
+              borderRadius: '0.25rem',
+              '&::before': {
+                content: 'none',
+              },
+              '&::after': {
+                content: 'none',
+              },
+            },
+            'pre code': {
+              backgroundColor: 'transparent',
+              borderWidth: '0',
+              borderRadius: '0',
+              padding: '0',
+              color: 'inherit',
+            },
+          },
+        },
+      },
     },
   },
   plugins: [
     require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
   ],
 } 

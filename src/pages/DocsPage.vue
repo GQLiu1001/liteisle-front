@@ -42,6 +42,17 @@
         />
       </div>
 
+      <!-- Markdown 展示 -->
+      <div v-else-if="docsStore.currentDocument.type === 'markdown'" class="h-full">
+        <MarkdownViewer
+          :file-path="docsStore.currentDocument.path || ''"
+          :file-name="docsStore.currentDocument.name"
+          :file-description="docsStore.currentDocument.summary"
+          :content="docsStore.currentDocument.content"
+          @close="docsStore.setCurrentDocument(null)"
+        />
+      </div>
+
       <!-- Markdown 和其他格式保持原有样式 -->
       <div v-else class="card flex-1 flex flex-col min-h-0">
         <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
@@ -298,6 +309,7 @@ import PDFViewer from '@/components/PDFViewer.vue';
 import WordViewer from '@/components/WordViewer.vue';
 import PowerPointViewer from '@/components/PowerPointViewer.vue';
 import ExcelViewer from '@/components/ExcelViewer.vue';
+import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
 const docsStore = useDocsStore();
 const uiStore = useUIStore();
