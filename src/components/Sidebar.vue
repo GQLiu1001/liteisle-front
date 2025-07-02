@@ -7,16 +7,16 @@
     
     <!-- Navigation Items - Centered vertically -->
     <div class="flex flex-col gap-3 px-4 flex-1 justify-center">
-      <router-link
-        v-for="item in navItems"
-        :key="item.name"
-        :to="item.path"
-        class="sidebar-item"
-        :class="{ active: route.name === item.name }"
-      >
-        <component :is="item.icon" :size="28" />
-        <span class="text-sm font-medium">{{ item.label }}</span>
-      </router-link>
+      <div v-for="item in navItems" :key="item.name" class="relative">
+        <router-link
+          :to="item.path"
+          class="sidebar-item"
+          :class="{ active: route.name === item.name }"
+        >
+          <component :is="item.icon" :size="28" />
+          <span class="text-sm font-medium">{{ item.label }}</span>
+        </router-link>
+      </div>
     </div>
   </aside>
 </template>

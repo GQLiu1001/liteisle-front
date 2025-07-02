@@ -1,167 +1,54 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6">
-    <div class="max-w-full mx-auto">
-      <!-- 三栏布局容器 -->
-      <div class="flex gap-6 h-[calc(100vh-8rem)]">
-        
-        <!-- 第一栏：分类导航 -->
-        <div class="w-48 flex-shrink-0">
-          <div class="card h-full">
-            <h2 class="text-lg font-bold text-morandi-900 mb-4">文档分类</h2>
-            
-            <!-- 分类列表 -->
-            <nav class="space-y-2">
-              <button
-                v-for="category in docsStore.categories"
-                :key="category.id"
-                @click="docsStore.setCurrentCategory(category.id)"
-                :class="[
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-300',
-                  docsStore.currentCategory === category.id
-                    ? 'bg-teal-100 text-teal-700 border-l-4 border-teal-500'
-                    : 'hover:bg-morandi-100 text-morandi-700'
-                ]"
-              >
-                <HardDrive :size="20" />
-                <div class="flex-1">
-                  <div class="font-medium">{{ category.name }}</div>
-                  <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
-                </div>
-              </button>
-            </nav>
-          </div>
-        </div>
-
-        <!-- 第二栏：文档列表 -->
-        <div class="w-80 flex-shrink-0">
-          <div class="card h-full flex flex-col">
-            <!-- 头部工具栏 -->
-            <div class="mb-4">
-              <h2 class="text-lg font-bold text-morandi-900 mb-3">
-                {{ docsStore.currentCategoryData?.name || '文档' }}
-              </h2>
-              
-              <!-- 搜索框 -->
-              <div class="relative mb-3">
-                <input
-                  v-model="docsStore.searchQuery"
-                  placeholder="搜索文档..."
-                  class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              </div>
-
-              <!-- 添加文档按钮 -->
-              <button
-                @click="showAddDocumentDialog = true"
-                class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-              >
-                添加文档
-              </button>
-            </div>
-
-            <!-- 文档列表 -->
-            <div class="flex-1 overflow-y-auto">
-              <div class="space-y-2">
-                <div
-                  v-for="document in docsStore.filteredDocuments"
-                  :key="document.id"
-                  @click="docsStore.setCurrentDocument(document)"
-                  :class="[
-                    'p-4 rounded-lg border-2 cursor-pointer transition-all duration-200',
-                    docsStore.currentDocument?.id === document.id
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-transparent hover:border-morandi-300 hover:bg-morandi-50'
-                  ]"
-                >
-                  <div class="flex items-start gap-3">
-                    <!-- 文件图标 -->
-                    <div class="flex-shrink-0 mt-1">
-                      <FileText :size="20" :class="getFileIconColor(document.type)" />
-                    </div>
-
-                    <!-- 文档信息 -->
-                    <div class="flex-1 min-w-0">
-                      <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
-                      <p class="text-sm text-morandi-600 mt-1 line-clamp-2">{{ document.summary }}</p>
-                      <div class="flex items-center gap-4 mt-2 text-xs text-morandi-500">
-                        <span>{{ formatFileSize(document.size) }}</span>
-                        <span>{{ formatDate(document.modifiedAt) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 空状态 -->
-              <div v-if="docsStore.filteredDocuments.length === 0" class="text-center py-8">
-                <FileText :size="32" class="mx-auto text-morandi-400 mb-2" />
-                <p class="text-morandi-600">{{ docsStore.searchQuery ? '未找到匹配的文档' : '暂无文档' }}</p>
-              </div>
+  <div class="flex flex-col h-full p-6 pb-24">
+    <!-- 详情视图 -->
+    <div v-if="docsStore.currentDocument" class="card flex-1 flex flex-col min-h-0">
+      <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
+        <button 
+          @click="docsStore.setCurrentDocument(null)" 
+          class="flex items-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
+        >
+          <ChevronLeft :size="20" />
+          <span class="font-medium">返回列表</span>
+        </button>
+      </div>
+      <div class="p-4 flex-1 overflow-y-auto">
+        <!-- 文档内容展示 -->
+        <div class="h-full flex flex-col">
+          <!-- 文档头部 -->
+          <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
+            <div>
+              <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
+              <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
             </div>
           </div>
-        </div>
 
-        <!-- 第三栏：内容展示区 -->
-        <div class="flex-1">
-          <div class="card h-full">
-            <!-- 未选择文档时的欢迎页面 -->
-            <div v-if="!docsStore.currentDocument" class="flex items-center justify-center h-full">
+          <!-- 文档内容区域 -->
+          <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
+            <!-- Markdown 渲染 -->
+            <div
+              v-if="docsStore.currentDocument.type === 'markdown'"
+              class="prose prose-lg max-w-none"
+              @mouseup="handleTextSelection"
+              v-html="renderedMarkdown"
+            />
+
+            <!-- PDF 展示 -->
+            <div v-else-if="docsStore.currentDocument.type === 'pdf'" class="h-full flex items-center justify-center bg-morandi-50 rounded-lg">
               <div class="text-center">
-                <div class="w-20 h-20 bg-morandi-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <HardDrive :size="40" class="text-morandi-400" />
-                </div>
-                <h3 class="text-xl font-bold text-morandi-700 mb-2">欢迎使用文档中心</h3>
-                <p class="text-morandi-500 max-w-md">
-                  选择左侧的文档分类，然后点击文档列表中的任意文档开始阅读。支持 Markdown 和 PDF 格式文档的阅读和划词翻译。
-                </p>
-              </div>
-            </div>
-
-            <!-- 文档内容展示 -->
-            <div v-else class="h-full flex flex-col">
-              <!-- 文档头部 -->
-              <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4">
-                <div>
-                  <h1 class="text-xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
-                  <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
-                </div>
-                <button
-                  @click="docsStore.setCurrentDocument(null)"
-                  class="p-2 hover:bg-morandi-100 rounded-lg transition-colors"
-                >
-                  <X :size="20" class="text-morandi-500" />
+                <FileText :size="64" class="mx-auto text-red-500 mb-4" />
+                <h3 class="text-lg font-medium text-morandi-700 mb-2">PDF 文档</h3>
+                <p class="text-morandi-500 mb-4">{{ docsStore.currentDocument.name }}</p>
+                <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                  在新窗口中打开
                 </button>
               </div>
+            </div>
 
-              <!-- 文档内容区域 -->
-              <div class="flex-1 overflow-hidden">
-                <!-- Markdown 渲染 -->
-                <div
-                  v-if="docsStore.currentDocument.type === 'markdown'"
-                  class="h-full overflow-y-auto prose prose-lg max-w-none p-4"
-                  @mouseup="handleTextSelection"
-                  v-html="renderedMarkdown"
-                />
-
-                <!-- PDF 展示 -->
-                <div v-else-if="docsStore.currentDocument.type === 'pdf'" class="h-full flex items-center justify-center bg-morandi-50 rounded-lg">
-                  <div class="text-center">
-                    <FileText :size="64" class="mx-auto text-red-500 mb-4" />
-                    <h3 class="text-lg font-medium text-morandi-700 mb-2">PDF 文档</h3>
-                    <p class="text-morandi-500 mb-4">{{ docsStore.currentDocument.name }}</p>
-                    <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                      在新窗口中打开
-                    </button>
-                  </div>
-                </div>
-
-                <!-- 其他格式 -->
-                <div v-else class="h-full flex items-center justify-center">
-                  <div class="text-center">
-                    <FileText :size="64" class="mx-auto text-morandi-400 mb-4" />
-                    <p class="text-morandi-600">暂不支持此文件格式的在线预览</p>
-                  </div>
-                </div>
+            <!-- 其他格式 -->
+            <div v-else class="h-full flex items-center justify-center">
+              <div class="text-center">
+                <FileText :size="64" class="mx-auto text-morandi-400 mb-4" />
+                <p class="text-morandi-600">暂不支持此文件格式的在线预览</p>
               </div>
             </div>
           </div>
@@ -169,6 +56,116 @@
       </div>
     </div>
 
+    <!-- 列表视图 -->
+    <div v-else class="flex flex-1 gap-6 min-h-0">
+      <!-- 第一栏：分类导航 -->
+      <div class="card w-64 flex-shrink-0">
+        <div class="h-full flex flex-col p-4">
+          <div class="relative mb-4">
+            <input
+              v-model="docsStore.searchQuery"
+              placeholder="搜索所有文档..."
+              class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            />
+          </div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-morandi-900">文档分类</h2>
+          </div>
+          <nav class="space-y-2 flex-1 overflow-y-auto">
+            <button
+              v-for="category in docsStore.categoriesWithFilteredCounts"
+              :key="category.id"
+              @click="docsStore.setCurrentCategory(category.id)"
+              :class="[
+                'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200',
+                docsStore.currentCategory === category.id
+                  ? 'bg-teal-100 text-teal-800 border border-teal-300'
+                  : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
+              ]"
+            >
+              <HardDrive :size="20" />
+              <div class="flex-1">
+                <div class="font-medium">{{ category.name }}</div>
+                <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      <!-- 第二栏：文档列表 -->
+      <div 
+        v-if="docsStore.currentCategory" 
+        class="card flex-1 min-w-0"
+      >
+        <div class="h-full flex flex-col p-4">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentCategoryData?.name || '文档'">
+              {{ docsStore.currentCategoryData?.name || '文档' }}
+            </h2>
+          </div>
+
+          <div class="flex-1 overflow-y-auto -mr-2 pr-2">
+            <draggable
+              v-if="!docsStore.searchQuery"
+              v-model="currentDocsList"
+              item-key="id"
+              class="space-y-1"
+              ghost-class="ghost"
+              @start="onDragStart"
+            >
+              <template #item="{ element: document }">
+                <div
+                  @dblclick="docsStore.setCurrentDocument(document)"
+                  :data-id="document.id"
+                  :class="[
+                    'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                    'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
+                  ]"
+                >
+                  <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
+                    <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
+                  </div>
+                  
+                  <div class="flex-shrink-0">
+                    <FileText :size="24" :class="getFileIconColor(document.type)" />
+                  </div>
+                  
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                    <p class="text-sm text-morandi-600 mt-1 line-clamp-2">{{ document.summary }}</p>
+                  </div>
+                </div>
+              </template>
+            </draggable>
+
+            <div v-else class="space-y-1">
+              <div
+                v-for="document in docsStore.filteredDocuments"
+                :key="document.id"
+                @dblclick="docsStore.setCurrentDocument(document)"
+                 :class="[
+                    'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                    'border-transparent hover:bg-morandi-50'
+                  ]"
+              >
+                <div class="w-4 text-center opacity-0">
+                  <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
+                </div>
+                <div class="flex-shrink-0">
+                  <FileText :size="24" :class="getFileIconColor(document.type)" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                  <p class="text-sm text-morandi-600 mt-1 line-clamp-2">{{ document.summary }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- 添加文档对话框 -->
     <div v-if="showAddDocumentDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-96">
@@ -249,19 +246,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { FileText, X, HardDrive } from 'lucide-vue-next'
-import { useDocsStore } from '@/store/DocsStore'
+import { ref, computed, watch, onUnmounted } from 'vue';
+import { useDocsStore, type Document } from '../store/DocsStore';
+import { useUIStore } from '@/store/UIStore';
+import { 
+  HardDrive, 
+  FileText, 
+  X,
+  ChevronLeft
+} from 'lucide-vue-next';
+import markdownit from 'markdown-it';
+import draggable from 'vuedraggable';
 
-const docsStore = useDocsStore()
+const docsStore = useDocsStore();
+const uiStore = useUIStore();
+const showAddDocumentDialog = ref(false);
+const newDocumentName = ref('');
+const newDocumentType = ref('markdown');
+const newDocumentSummary = ref('');
+const draggedItemId = ref<string | null>(null);
 
-// 响应式数据
-const showAddDocumentDialog = ref(false)
-const newDocumentName = ref('')
-const newDocumentType = ref<'pdf' | 'markdown' | 'txt'>('markdown')
-const newDocumentSummary = ref('')
+watch(() => docsStore.currentDocument, (newDoc) => {
+  if (newDoc) {
+    uiStore.setSidebarVisible(false);
+  } else {
+    uiStore.setSidebarVisible(true);
+  }
+}, { immediate: true }); // Use immediate to run on component mount
 
-// 计算属性
+onUnmounted(() => {
+  // Ensure sidebar is visible when leaving the page
+  uiStore.setSidebarVisible(true);
+  // Also reset the document state to avoid side-effects
+  docsStore.setCurrentDocument(null);
+});
+
+const md = markdownit();
+
+const onDragStart = (event: any) => {
+  if (event.item) {
+    draggedItemId.value = event.item.dataset.id;
+  }
+};
+
+const currentDocsList = computed({
+  get() {
+    return docsStore.filteredDocuments;
+  },
+  set(newDocs: Document[]) {
+    if (!draggedItemId.value) return;
+
+    const oldIndex = docsStore.currentCategoryData?.documents.findIndex((d: Document) => d.id === draggedItemId.value);
+    const newIndex = newDocs.findIndex((d: Document) => d.id === draggedItemId.value);
+
+    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
+      docsStore.reorderDocumentsInCurrentCategory(oldIndex, newIndex);
+    }
+    
+    draggedItemId.value = null;
+  }
+});
+
 const renderedMarkdown = computed(() => {
   if (!docsStore.currentDocument || docsStore.currentDocument.type !== 'markdown') {
     return ''
@@ -477,5 +522,10 @@ const addDocument = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.ghost {
+  opacity: 0.5;
+  background: #c8ebf9;
 }
 </style> 

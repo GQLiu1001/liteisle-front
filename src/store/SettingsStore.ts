@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
+import { Settings, User, FileText } from 'lucide-vue-next'
 
 // 设置接口定义
 interface AppSettings {
@@ -27,72 +28,84 @@ interface AppSettings {
   storageTotal: number
 }
 
+export interface SettingCategory {
+  id: string
+  name: string
+  description: string
+  icon: any
+}
+
 export const useSettingsStore = defineStore('settings', () => {
-  // 默认设置
-  const defaultSettings: AppSettings = {
-    // 通用设置
+  // 状态
+  const currentCategoryId = ref('general')
+  
+  const settings = ref<AppSettings>({
     launchAtStartup: false,
     language: 'zh-CN',
     defaultPage: 'home',
-    
-    // 专注设置
     focusTime: 25,
     breakTime: 5,
     soundEnabled: true,
     soundType: 'bell',
     autoNextRound: false,
-    
-    // 外观设置
     themeMode: 'light',
     accentColor: '#14B8A6',
     windowOpacity: 100,
-    
-    // 账户设置
     username: 'admin',
     avatar: '',
-    storageUsed: 2.5 * 1024 * 1024 * 1024, // 2.5GB
-    storageTotal: 10 * 1024 * 1024 * 1024  // 10GB
-  }
+    storageUsed: 2.1 * 1024 * 1024 * 1024, // 2.1GB
+    storageTotal: 5 * 1024 * 1024 * 1024   // 5GB
+  })
 
-  // 从localStorage加载设置
-  const loadSettings = (): AppSettings => {
-    try {
-      const saved = localStorage.getItem('liteisle-settings')
-      if (saved) {
-        return { ...defaultSettings, ...JSON.parse(saved) }
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error)
+  // 云盘信息
+  const cloudStorage = ref({
+    used: 2.1,  // 已使用 2.1GB
+    total: 5    // 总容量 5GB
+  })
+
+  // 设置分类
+  const categories = ref<SettingCategory[]>([
+    {
+      id: 'general',
+      name: '通用设置',
+      description: '基本功能设置',
+      icon: shallowRef(Settings)
+    },
+    {
+      id: 'account',
+      name: '账户与云盘',
+      description: '账户信息和云盘管理',
+      icon: shallowRef(User)
+    },
+    {
+      id: 'about',
+      name: '关于',
+      description: '应用信息和版本',
+      icon: shallowRef(FileText)
     }
-    return defaultSettings
-  }
-
-  // 响应式状态
-  const settings = ref<AppSettings>(loadSettings())
-  const currentCategory = ref('general')
+  ])
 
   // 计算属性
-  const storageUsagePercentage = computed(() => {
-    return Math.round((settings.value.storageUsed / settings.value.storageTotal) * 100)
+  const currentCategory = computed(() => {
+    return categories.value.find(cat => cat.id === currentCategoryId.value) || categories.value[0]
   })
 
-  const formattedStorageUsed = computed(() => {
-    const gb = settings.value.storageUsed / (1024 * 1024 * 1024)
-    return `${gb.toFixed(1)} GB`
+  const storageInfo = computed(() => {
+    if (cloudStorage.value.total === 0) {
+      return { percentage: 0, text: 'N/A' }
+    }
+    const percentage = (cloudStorage.value.used / cloudStorage.value.total) * 100
+    const text = `已使用 ${cloudStorage.value.used.toFixed(1)} GB / ${cloudStorage.value.total} GB`
+    return { percentage, text }
   })
 
-  const formattedStorageTotal = computed(() => {
-    const gb = settings.value.storageTotal / (1024 * 1024 * 1024)
-    return `${gb.toFixed(0)} GB`
-  })
+  // 方法
+  const setCurrentCategoryId = (categoryId: string) => {
+    currentCategoryId.value = categoryId
+  }
 
-  const appVersion = computed(() => '1.0.0')
-
-  // Actions
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     settings.value[key] = value
-    // 手动保存到localStorage
-    saveSettings()
   }
 
   const saveSettings = () => {
@@ -101,15 +114,6 @@ export const useSettingsStore = defineStore('settings', () => {
     } catch (error) {
       console.error('Failed to save settings:', error)
     }
-  }
-
-  const setCurrentCategory = (category: string) => {
-    currentCategory.value = category
-  }
-
-  const resetSettings = () => {
-    settings.value = { ...defaultSettings }
-    saveSettings()
   }
 
   const logout = () => {
@@ -121,7 +125,7 @@ export const useSettingsStore = defineStore('settings', () => {
     window.location.href = '#/login'
   }
 
-  const checkForUpdates = async () => {
+  const checkForUpdates = () => {
     // 模拟检查更新
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -130,7 +134,7 @@ export const useSettingsStore = defineStore('settings', () => {
     })
   }
 
-  const changePassword = async (oldPassword: string, newPassword: string) => {
+  const changePassword = (oldPassword: string, newPassword: string) => {
     // 模拟密码修改
     return new Promise((resolve, reject) => {
       setTimeout(() => {
@@ -143,86 +147,21 @@ export const useSettingsStore = defineStore('settings', () => {
     })
   }
 
-  // 语言选项
-  const languageOptions = [
-    { value: 'zh-CN', label: '简体中文' },
-    { value: 'zh-TW', label: '繁体中文' },
-    { value: 'en-US', label: 'English' }
-  ]
-
-  // 默认页面选项
-  const defaultPageOptions = [
-    { value: 'home', label: '首页' },
-    { value: 'drive', label: '云盘' },
-    { value: 'music', label: '音乐' },
-    { value: 'docs', label: '文档' }
-  ]
-
-  // 专注时长选项
-  const focusTimeOptions = [
-    { value: 15, label: '15 分钟' },
-    { value: 25, label: '25 分钟' },
-    { value: 45, label: '45 分钟' },
-    { value: 60, label: '60 分钟' }
-  ]
-
-  // 休息时长选项
-  const breakTimeOptions = [
-    { value: 5, label: '5 分钟' },
-    { value: 10, label: '10 分钟' },
-    { value: 15, label: '15 分钟' }
-  ]
-
-  // 提示音选项
-  const soundTypeOptions = [
-    { value: 'bell', label: '铃声' },
-    { value: 'chime', label: '钟声' },
-    { value: 'notification', label: '通知音' },
-    { value: 'none', label: '无声' }
-  ]
-
-  // 主题选项
-  const themeOptions = [
-    { value: 'light', label: '浅色模式' },
-    { value: 'dark', label: '深色模式' },
-    { value: 'system', label: '跟随系统' }
-  ]
-
-  // 主色调选项
-  const accentColorOptions = [
-    { value: '#14B8A6', label: 'Teal', color: '#14B8A6' },
-    { value: '#3B82F6', label: 'Blue', color: '#3B82F6' },
-    { value: '#10B981', label: 'Green', color: '#10B981' },
-    { value: '#F59E0B', label: 'Amber', color: '#F59E0B' },
-    { value: '#EF4444', label: 'Red', color: '#EF4444' },
-    { value: '#8B5CF6', label: 'Purple', color: '#8B5CF6' }
-  ]
-
   return {
-    // State
+    // 状态
+    currentCategoryId,
     settings,
+    cloudStorage,
+    categories,
+    
+    // 计算属性
     currentCategory,
+    storageInfo,
     
-    // Computed
-    storageUsagePercentage,
-    formattedStorageUsed,
-    formattedStorageTotal,
-    appVersion,
-    
-    // Options
-    languageOptions,
-    defaultPageOptions,
-    focusTimeOptions,
-    breakTimeOptions,
-    soundTypeOptions,
-    themeOptions,
-    accentColorOptions,
-    
-    // Actions
+    // 方法
+    setCurrentCategoryId,
     updateSetting,
     saveSettings,
-    setCurrentCategory,
-    resetSettings,
     logout,
     checkForUpdates,
     changePassword

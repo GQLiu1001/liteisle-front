@@ -1,7 +1,10 @@
 <template>
   <!-- 浮动音乐栏 - 与内容区域对齐，响应式适配 -->
   <div 
-    class="fixed bottom-0 left-[150px] right-0 z-20 px-4 lg:px-6"
+    :class="[
+      'fixed bottom-0 right-0 z-20 px-4 lg:px-6 transition-all duration-300',
+      uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
+    ]"
     @mouseenter="showMusicBar"
     @mouseleave="hideMusicBar"
   >
@@ -267,8 +270,12 @@ import { ref, computed } from 'vue'
 import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
 import { useRoute } from 'vue-router'
+import { useUIStore } from '@/store/UIStore'
+import { storeToRefs } from 'pinia'
 
 const musicStore = useMusicStore()
+const uiStore = useUIStore()
+const { progressPercentage } = storeToRefs(musicStore)
 const route = useRoute()
 
 // 音乐栏显示状态
@@ -278,7 +285,7 @@ let hideTimeout: number | null = null
 // 新增的响应式状态
 const showVolumeSlider = ref(false)
 const showPlaylistPanel = ref(false)
-const showPlaylistSelector = ref(false)
+const showPlaylistSelector = ref(ref(false))
 
 // 菜单引用
 const volumeRef = ref<HTMLElement>()

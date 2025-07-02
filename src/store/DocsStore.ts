@@ -231,16 +231,35 @@ React 通过虚拟DOM提高渲染性能。`,
     return categories.value.find((cat: DocumentCategory) => cat.id === currentCategory.value)
   })
 
+  const categoriesWithFilteredCounts = computed(() => {
+    if (!searchQuery.value) {
+      return categories.value;
+    }
+    const query = searchQuery.value.toLowerCase();
+    return categories.value.map(category => {
+      const filteredCount = category.documents.filter(doc =>
+        doc.name.toLowerCase().includes(query) ||
+        (doc.summary && doc.summary.toLowerCase().includes(query))
+      ).length;
+      return {
+        ...category,
+        documentCount: filteredCount
+      };
+    });
+  });
+
   const filteredDocuments = computed(() => {
-    const categoryData = currentCategoryData.value
-    if (!categoryData) return []
-    
-    if (!searchQuery.value) return categoryData.documents
-    
-    return categoryData.documents.filter((doc: Document) =>
-      doc.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (doc.summary && doc.summary.toLowerCase().includes(searchQuery.value.toLowerCase()))
-    )
+    if (currentCategoryData.value) {
+      const { documents } = currentCategoryData.value
+      const query = searchQuery.value.toLowerCase()
+      if (!query) return documents
+
+      return documents.filter(doc =>
+        doc.name.toLowerCase().includes(query) ||
+        (doc.summary && doc.summary.toLowerCase().includes(query))
+      )
+    }
+    return []
   })
 
   // Actions
@@ -249,9 +268,17 @@ React 通过虚拟DOM提高渲染性能。`,
     currentDocument.value = null
   }
 
-  const setCurrentDocument = (document: Document) => {
+  const setCurrentDocument = (document: Document | null) => {
     currentDocument.value = document
   }
+
+  const reorderDocumentsInCurrentCategory = (oldIndex: number, newIndex: number) => {
+    if (!currentCategoryData.value) return;
+
+    const documents = currentCategoryData.value.documents;
+    const [movedItem] = documents.splice(oldIndex, 1);
+    documents.splice(newIndex, 0, movedItem);
+  };
 
   const addDocument = (categoryId: string, document: Omit<Document, 'id'>) => {
     const newDocument: Document = {
@@ -314,15 +341,17 @@ React 通过虚拟DOM提高渲染性能。`,
     
     // Computed
     currentCategoryData,
+    categoriesWithFilteredCounts,
     filteredDocuments,
     
     // Actions
     setCurrentCategory,
     setCurrentDocument,
+    reorderDocumentsInCurrentCategory,
     addDocument,
     setSelectedText,
     showTranslationPopup,
     hideTranslationPopup,
-    translateText
+    translateText,
   }
 }) 

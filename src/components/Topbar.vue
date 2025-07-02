@@ -1,5 +1,10 @@
 <template>
-  <header class="fixed top-0 left-[150px] right-0 h-[80px] bg-transparent flex items-center px-8 py-6 draggable-area z-10">
+  <header 
+    :class="[
+      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center px-8 py-6 draggable-area z-10 transition-all duration-300',
+      uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
+    ]"
+  >
     <!-- 绝对居中的开始专注按钮 -->
     <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
       <button 
@@ -58,10 +63,12 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PenTool, User, Minus, Square, X, LogOut } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
+import { useUIStore } from '@/store/UIStore'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const focusStore = useFocusStore()
+const uiStore = useUIStore()
 const { isFocusing } = storeToRefs(focusStore)
 
 // 用户菜单状态
@@ -111,13 +118,13 @@ onUnmounted(() => {
 
 // 检查是否在 Electron 环境中
 const isElectron = () => {
-  return typeof window !== 'undefined' && window.process && (window.process as any).type
+  return typeof window !== 'undefined' && (window as any).process && (window as any).process.type
 }
 
 // 窗口控制函数 (Electron IPC 调用)
 const minimizeWindow = () => {
   if (isElectron()) {
-    const { ipcRenderer } = require('electron')
+    const { ipcRenderer } = (window as any).require('electron')
     ipcRenderer.send('window-minimize')
   } else {
     console.log('最小化窗口')
@@ -126,7 +133,7 @@ const minimizeWindow = () => {
 
 const maximizeWindow = () => {
   if (isElectron()) {
-    const { ipcRenderer } = require('electron')
+    const { ipcRenderer } = (window as any).require('electron')
     ipcRenderer.send('window-maximize')
   } else {
     console.log('最大化窗口')
@@ -135,13 +142,13 @@ const maximizeWindow = () => {
 
 const closeWindow = () => {
   if (isElectron()) {
-    const { ipcRenderer } = require('electron')
+    const { ipcRenderer } = (window as any).require('electron')
     ipcRenderer.send('window-close')
   } else {
     console.log('关闭窗口')
   }
-  }
-  </script>
+}
+</script>
 
 <style scoped>
 .draggable-area {

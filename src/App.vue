@@ -7,13 +7,18 @@
   <!-- 主应用界面 - 带侧边栏和顶栏 -->
   <div v-else class="h-screen bg-liteisle-bg flex overflow-hidden">
     <!-- 左侧导航栏 -->
-    <Sidebar />
+    <Sidebar v-if="uiStore.isSidebarVisible" />
     
     <!-- 固定顶栏 -->
     <Topbar />
     
     <!-- 主内容区域 -->
-    <main class="flex-1 ml-[150px] pt-[80px] bg-liteisle-bg rounded-tr-[40px] overflow-hidden">
+    <main 
+      :class="[
+        'flex-1 pt-[80px] bg-liteisle-bg rounded-tr-[40px] overflow-hidden transition-all duration-300',
+        uiStore.isSidebarVisible ? 'ml-[150px]' : 'ml-0'
+      ]"
+    >
       <router-view />
     </main>
     
@@ -27,6 +32,8 @@ import { useRoute } from 'vue-router'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import MusicBar from '@/components/MusicBar.vue'
+import { useUIStore } from '@/store/UIStore'
 
 const route = useRoute()
+const uiStore = useUIStore()
 </script> 
