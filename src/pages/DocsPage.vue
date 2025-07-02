@@ -1,54 +1,85 @@
 <template>
   <div class="flex flex-col h-full p-6 pb-24">
     <!-- 详情视图 -->
-    <div v-if="docsStore.currentDocument" class="card flex-1 flex flex-col min-h-0">
-      <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
-        <button 
-          @click="docsStore.setCurrentDocument(null)" 
-          class="flex items-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
-        >
-          <ChevronLeft :size="20" />
-          <span class="font-medium">返回列表</span>
-        </button>
+    <div v-if="docsStore.currentDocument" class="flex-1 flex flex-col min-h-0">
+      <!-- PDF 展示 -->
+      <div v-if="docsStore.currentDocument.type === 'pdf'" class="h-full">
+        <PDFViewer 
+          :file-path="docsStore.currentDocument.path || ''"
+          :file-name="docsStore.currentDocument.name"
+          :file-description="docsStore.currentDocument.summary"
+          @close="docsStore.setCurrentDocument(null)"
+        />
       </div>
-      <div class="p-4 flex-1 overflow-y-auto">
-        <!-- 文档内容展示 -->
-        <div class="h-full flex flex-col">
-          <!-- 文档头部 -->
-          <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
-            <div>
-              <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
-              <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
-            </div>
-          </div>
 
-          <!-- 文档内容区域 -->
-          <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
-            <!-- Markdown 渲染 -->
-            <div
-              v-if="docsStore.currentDocument.type === 'markdown'"
-              class="prose prose-lg max-w-none"
-              @mouseup="handleTextSelection"
-              v-html="renderedMarkdown"
-            />
+      <!-- Word文档展示 -->
+      <div v-else-if="docsStore.currentDocument.type === 'doc' || docsStore.currentDocument.type === 'docx'" class="h-full">
+        <WordViewer 
+          :file-path="docsStore.currentDocument.path || ''"
+          :file-name="docsStore.currentDocument.name"
+          :file-description="docsStore.currentDocument.summary"
+          @close="docsStore.setCurrentDocument(null)"
+        />
+      </div>
 
-            <!-- PDF 展示 -->
-            <div v-else-if="docsStore.currentDocument.type === 'pdf'" class="h-full flex items-center justify-center bg-morandi-50 rounded-lg">
-              <div class="text-center">
-                <FileText :size="64" class="mx-auto text-red-500 mb-4" />
-                <h3 class="text-lg font-medium text-morandi-700 mb-2">PDF 文档</h3>
-                <p class="text-morandi-500 mb-4">{{ docsStore.currentDocument.name }}</p>
-                <button class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                  在新窗口中打开
-                </button>
+      <!-- PowerPoint展示 -->
+      <div v-else-if="docsStore.currentDocument.type === 'ppt' || docsStore.currentDocument.type === 'pptx'" class="h-full">
+        <PowerPointViewer 
+          :file-path="docsStore.currentDocument.path || ''"
+          :file-name="docsStore.currentDocument.name"
+          :file-description="docsStore.currentDocument.summary"
+          @close="docsStore.setCurrentDocument(null)"
+        />
+      </div>
+
+      <!-- Excel展示 -->
+      <div v-else-if="docsStore.currentDocument.type === 'xls' || docsStore.currentDocument.type === 'xlsx'" class="h-full">
+        <ExcelViewer 
+          :file-path="docsStore.currentDocument.path || ''"
+          :file-name="docsStore.currentDocument.name"
+          :file-description="docsStore.currentDocument.summary"
+          @close="docsStore.setCurrentDocument(null)"
+        />
+      </div>
+
+      <!-- Markdown 和其他格式保持原有样式 -->
+      <div v-else class="card flex-1 flex flex-col min-h-0">
+        <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
+          <button 
+            @click="docsStore.setCurrentDocument(null)" 
+            class="flex items-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
+          >
+            <ChevronLeft :size="20" />
+            <span class="font-medium">返回列表</span>
+          </button>
+        </div>
+        <div class="p-4 flex-1 overflow-y-auto">
+          <!-- 文档内容展示 -->
+          <div class="h-full flex flex-col">
+            <!-- 文档头部 -->
+            <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
+              <div>
+                <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
+                <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
               </div>
             </div>
 
-            <!-- 其他格式 -->
-            <div v-else class="h-full flex items-center justify-center">
-              <div class="text-center">
-                <FileText :size="64" class="mx-auto text-morandi-400 mb-4" />
-                <p class="text-morandi-600">暂不支持此文件格式的在线预览</p>
+            <!-- 文档内容区域 -->
+            <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
+              <!-- Markdown 渲染 -->
+              <div
+                v-if="docsStore.currentDocument.type === 'markdown'"
+                class="prose prose-lg max-w-none"
+                @mouseup="handleTextSelection"
+                v-html="renderedMarkdown"
+              />
+
+              <!-- 其他格式 -->
+              <div v-else class="h-full flex items-center justify-center">
+                <div class="text-center">
+                  <FileText :size="64" class="mx-auto text-morandi-400 mb-4" />
+                  <p class="text-morandi-600">暂不支持此文件格式的在线预览</p>
+                </div>
               </div>
             </div>
           </div>
@@ -187,6 +218,12 @@
             >
               <option value="markdown">Markdown</option>
               <option value="pdf">PDF</option>
+              <option value="doc">Word文档(.doc)</option>
+              <option value="docx">Word文档(.docx)</option>
+              <option value="ppt">PowerPoint(.ppt)</option>
+              <option value="pptx">PowerPoint(.pptx)</option>
+              <option value="xls">Excel(.xls)</option>
+              <option value="xlsx">Excel(.xlsx)</option>
               <option value="txt">文本</option>
             </select>
           </div>
@@ -257,6 +294,10 @@ import {
 } from 'lucide-vue-next';
 import markdownit from 'markdown-it';
 import draggable from 'vuedraggable';
+import PDFViewer from '@/components/PDFViewer.vue';
+import WordViewer from '@/components/WordViewer.vue';
+import PowerPointViewer from '@/components/PowerPointViewer.vue';
+import ExcelViewer from '@/components/ExcelViewer.vue';
 
 const docsStore = useDocsStore();
 const uiStore = useUIStore();
@@ -353,6 +394,13 @@ const getFileIconColor = (type: string): string => {
   switch (type) {
     case 'markdown': return 'text-blue-500'
     case 'pdf': return 'text-red-500'
+    case 'doc':
+    case 'docx': return 'text-indigo-500'
+    case 'ppt':
+    case 'pptx': return 'text-orange-500'
+    case 'xls':
+    case 'xlsx': return 'text-green-500'
+    case 'txt': return 'text-gray-500'
     default: return 'text-morandi-500'
   }
 }
@@ -395,8 +443,23 @@ const handleTextSelection = () => {
 const addDocument = () => {
   if (!newDocumentName.value.trim()) return
   
+  const getFileExtension = (type: string) => {
+    switch (type) {
+      case 'markdown': return '.md'
+      case 'pdf': return '.pdf'
+      case 'doc': return '.doc'
+      case 'docx': return '.docx'
+      case 'ppt': return '.ppt'
+      case 'pptx': return '.pptx'
+      case 'xls': return '.xls'
+      case 'xlsx': return '.xlsx'
+      case 'txt': return '.txt'
+      default: return '.txt'
+    }
+  }
+  
   const newDoc = {
-    name: newDocumentName.value + (newDocumentType.value === 'markdown' ? '.md' : newDocumentType.value === 'pdf' ? '.pdf' : '.txt'),
+    name: newDocumentName.value + getFileExtension(newDocumentType.value),
     type: newDocumentType.value,
     size: Math.floor(Math.random() * 10485760),
     modifiedAt: new Date(),

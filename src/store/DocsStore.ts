@@ -5,7 +5,7 @@ import { ref, computed } from 'vue'
 export interface Document {
   id: string
   name: string
-  type: 'pdf' | 'markdown' | 'txt'
+  type: 'pdf' | 'markdown' | 'txt' | 'doc' | 'docx' | 'ppt' | 'pptx' | 'xls' | 'xlsx'
   size: number
   modifiedAt: Date
   path: string
@@ -39,7 +39,7 @@ export const useDocsStore = defineStore('docs', () => {
       id: 'books',
       name: '图书',
       icon: 'Book',
-      documentCount: 8,
+      documentCount: 15,
       documents: [
         {
           id: 'book1',
@@ -112,6 +112,76 @@ class Singleton {
 ## 总结
 设计模式是解决软件设计问题的利器，合理使用可以提高代码质量和可维护性。`,
           summary: '软件设计模式详解'
+        },
+        {
+          id: 'book4',
+          name: 'Python编程入门.doc',
+          type: 'doc',
+          size: 8388608,
+          modifiedAt: new Date('2024-01-25'),
+          path: '/文档/图书/Python编程入门.doc',
+          categoryId: 'books',
+          summary: 'Python基础语法与实践教程'
+        },
+        {
+          id: 'book5',
+          name: 'Node.js开发实战.docx',
+          type: 'docx',
+          size: 12582912,
+          modifiedAt: new Date('2024-01-23'),
+          path: '/文档/图书/Node.js开发实战.docx',
+          categoryId: 'books',
+          summary: 'Node.js后端开发完整指南'
+        },
+        {
+          id: 'book6',
+          name: '数据库设计原理.doc',
+          type: 'doc',
+          size: 6291456,
+          modifiedAt: new Date('2024-01-21'),
+          path: '/文档/图书/数据库设计原理.doc',
+          categoryId: 'books',
+          summary: '关系型数据库设计与优化'
+        },
+        {
+          id: 'book7',
+          name: '前端架构设计.pptx',
+          type: 'pptx',
+          size: 18874368,
+          modifiedAt: new Date('2024-01-27'),
+          path: '/文档/图书/前端架构设计.pptx',
+          categoryId: 'books',
+          summary: '现代前端架构设计理念与实践'
+        },
+        {
+          id: 'book8',
+          name: '数据分析入门.xlsx',
+          type: 'xlsx',
+          size: 4194304,
+          modifiedAt: new Date('2024-01-26'),
+          path: '/文档/图书/数据分析入门.xlsx',
+          categoryId: 'books',
+          summary: 'Excel数据分析技巧与方法'
+        },
+        {
+          id: 'book9',
+          name: '项目管理培训.ppt',
+          type: 'ppt',
+          size: 15728640,
+          modifiedAt: new Date('2024-01-24'),
+          path: '/文档/图书/项目管理培训.ppt',
+          categoryId: 'books',
+          summary: '敏捷项目管理方法论'
+        },
+        {
+          id: 'book10',
+          name: '财务报表模板.xls',
+          type: 'xls',
+          size: 2097152,
+          modifiedAt: new Date('2024-01-23'),
+          path: '/文档/图书/财务报表模板.xls',
+          categoryId: 'books',
+          summary: '企业财务报表标准模板'
         }
       ]
     },
@@ -119,7 +189,7 @@ class Singleton {
       id: 'notes',
       name: '笔记',
       icon: 'FileText',
-      documentCount: 12,
+      documentCount: 18,
       documents: [
         {
           id: 'note1',
@@ -203,6 +273,66 @@ useState、useEffect、useContext 等。
 ### 2. 虚拟DOM
 React 通过虚拟DOM提高渲染性能。`,
           summary: '前端技术面试要点'
+        },
+        {
+          id: 'note3',
+          name: '项目总结报告.docx',
+          type: 'docx',
+          size: 5242880,
+          modifiedAt: new Date('2024-01-26'),
+          path: '/文档/笔记/项目总结报告.docx',
+          categoryId: 'notes',
+          summary: '2023年度项目开发总结与反思'
+        },
+        {
+          id: 'note4',
+          name: '会议记录.doc',
+          type: 'doc',
+          size: 1572864,
+          modifiedAt: new Date('2024-01-24'),
+          path: '/文档/笔记/会议记录.doc',
+          categoryId: 'notes',
+          summary: '技术方案讨论会议纪要'
+        },
+        {
+          id: 'note5',
+          name: '需求分析文档.docx',
+          type: 'docx',
+          size: 7340032,
+          modifiedAt: new Date('2024-01-22'),
+          path: '/文档/笔记/需求分析文档.docx',
+          categoryId: 'notes',
+          summary: '新功能模块需求详细分析'
+        },
+        {
+          id: 'note6',
+          name: '产品演示.pptx',
+          type: 'pptx',
+          size: 12582912,
+          modifiedAt: new Date('2024-01-28'),
+          path: '/文档/笔记/产品演示.pptx',
+          categoryId: 'notes',
+          summary: '新产品功能演示文稿'
+        },
+        {
+          id: 'note7',
+          name: '团队任务分配.xlsx',
+          type: 'xlsx',
+          size: 3145728,
+          modifiedAt: new Date('2024-01-27'),
+          path: '/文档/笔记/团队任务分配.xlsx',
+          categoryId: 'notes',
+          summary: '项目团队工作任务分配表'
+        },
+        {
+          id: 'note8',
+          name: '培训计划.ppt',
+          type: 'ppt',
+          size: 8388608,
+          modifiedAt: new Date('2024-01-25'),
+          path: '/文档/笔记/培训计划.ppt',
+          categoryId: 'notes',
+          summary: '新员工技术培训方案'
         }
       ]
     },
