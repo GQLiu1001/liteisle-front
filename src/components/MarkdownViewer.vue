@@ -85,18 +85,39 @@
     <!-- 右键菜单 -->
     <div 
       v-if="showContextMenu" 
-      class="fixed bg-white shadow-lg rounded-lg overflow-hidden border"
+      class="fixed bg-white shadow-lg rounded-lg overflow-hidden border z-50"
       :style="{ top: contextMenuY + 'px', left: contextMenuX + 'px' }"
     >
       <div class="py-1">
         <button 
-          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          :disabled="!selectedText"
+          @click="copyText"
+        >
+          <span>📋 复制{{ translatedText ? '译文' : '' }}</span>
+        </button>
+        <button 
+          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           :disabled="!selectedText || isTranslating"
           @click="translateText"
         >
-          <span>翻译选中文本</span>
+          <span>🌐 翻译</span>
           <span v-if="isTranslating" class="text-blue-600">翻译中...</span>
         </button>
+      </div>
+
+      <!-- 翻译结果区域 -->
+      <div v-if="isTranslating || translatedText" class="border-t border-gray-200 mt-2">
+        <div v-if="isTranslating" class="px-4 py-3 text-xs text-gray-500">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+            翻译中...
+          </div>
+        </div>
+        <div v-else-if="translatedText" class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-1">译文:</div>
+          <div class="text-sm text-gray-800 leading-relaxed">{{ translatedText }}</div>
+        </div>
       </div>
     </div>
   </div>
