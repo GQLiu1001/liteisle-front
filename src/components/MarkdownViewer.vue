@@ -202,7 +202,6 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const translatedText = ref('')
 const isTranslating = ref(false)
-
 const outline = ref<OutlineItem[]>([])
 const activeHeading = ref<string>('')
 const expandedSections = ref<string[]>([])
@@ -215,7 +214,6 @@ interface OutlineItem {
   parentId?: string
 }
 
-// 解析 Markdown 内容生成大纲
 const parseOutline = (content: string) => {
   const headingRegex = /^(#{1,6})\s+(.+)$/gm
   const items: OutlineItem[] = []
@@ -225,15 +223,7 @@ const parseOutline = (content: string) => {
     const level = match[1].length
     const text = match[2].trim()
     const id = text.toLowerCase().replace(/\s+/g, '-')
-    
-    const item: OutlineItem = {
-      id,
-      text,
-      level,
-      hasChildren: false
-    }
-
-    // 找到父节点
+    const item: OutlineItem = { id, text, level, hasChildren: false }
     for (let i = items.length - 1; i >= 0; i--) {
       if (items[i].level < level) {
         item.parentId = items[i].id
@@ -241,19 +231,14 @@ const parseOutline = (content: string) => {
         break
       }
     }
-    
     items.push(item)
   }
-
   return items
 }
 
-// 计算可见的大纲项
 const visibleOutline = computed(() => {
   return outline.value.filter(item => {
     if (!item.parentId) return true
-    
-    // 检查所有父节点是否展开
     let currentItem = item
     while (currentItem.parentId) {
       const parent = outline.value.find(p => p.id === currentItem.parentId)
@@ -266,7 +251,6 @@ const visibleOutline = computed(() => {
   })
 })
 
-// 切换章节展开/折叠
 const toggleSection = (id: string) => {
   const index = expandedSections.value.indexOf(id)
   if (index === -1) {
@@ -276,18 +260,16 @@ const toggleSection = (id: string) => {
   }
 }
 
-// 监听内容变化，更新大纲
 watch(() => props.content, (newContent) => {
   if (newContent) {
     outline.value = parseOutline(newContent)
-    // 默认展开所有节点
-    expandedSections.value = outline.value
-      .filter(item => item.hasChildren)
-      .map(item => item.id)
+    if (!isEditing.value) { // 只有在非编辑模式下才自动更新大纲展开状态
+      expandedSections.value = outline.value.filter(item => item.hasChildren).map(item => item.id)
+    }
   }
 }, { immediate: true })
 
-// 滚动到指定标题
+
 const scrollToHeading = (id: string) => {
   const element = document.getElementById(id)
   if (element) {
@@ -296,11 +278,9 @@ const scrollToHeading = (id: string) => {
   }
 }
 
-// 监听滚动，高亮当前标题
 const handleScroll = () => {
   const headings = document.querySelectorAll('.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6')
   const scrollPosition = mdContainer.value?.scrollTop || 0
-
   for (const heading of headings) {
     const id = heading.getAttribute('id')
     if (id && heading.getBoundingClientRect().top <= 100) {
@@ -309,7 +289,6 @@ const handleScroll = () => {
   }
 }
 
-// 修改 markdown-it 配置，为标题添加 id
 const md = new MarkdownIt({
   html: true,
   linkify: true,
@@ -318,7 +297,6 @@ const md = new MarkdownIt({
   highlight: (code: string, lang: string): string => {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        // 保持原始换行，不进行任何处理
         const highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
         return `<pre class="relative"><code class="hljs language-${lang}">${highlighted}</code><span class="code-lang">${lang}</span></pre>`
       } catch (__) {}
@@ -328,31 +306,13 @@ const md = new MarkdownIt({
 }).use(anchor, {
   permalink: false,
   slugify: (s: string) => s.toLowerCase().replace(/\s+/g, '-')
-})
+}).use(taskLists).use(emoji).use(sub).use(sup).use(footnote)
 
-// 添加 markdown-it 插件
-md.use(taskLists)  // 支持任务列表
-  .use(emoji)      // 支持 emoji
-  .use(sub)        // 支持下标
-  .use(sup)        // 支持上标
-  .use(footnote)   // 支持脚注
+const renderedMarkdown = computed(() => md.render(props.content || ''))
 
-const renderedMarkdown = computed(() => {
-  return md.render(props.content || '')
-})
+const zoomIn = () => scale.value = Math.min(2, scale.value + 0.25)
+const zoomOut = () => scale.value = Math.max(0.5, scale.value - 0.25)
 
-// --- 下面的代码都是你原来写的，它们是正确的，无需改动 ---
-
-const zoomIn = () => {
-  if (scale.value < 2) {
-    scale.value = Math.min(2, scale.value + 0.25)
-  }
-}
-const zoomOut = () => {
-  if (scale.value > 0.5) {
-    scale.value = Math.max(0.5, scale.value - 0.25)
-  }
-}
 const handleTextSelection = () => {
   const selection = window.getSelection()
   if (selection && selection.toString().trim()) {
@@ -364,6 +324,7 @@ const handleTextSelection = () => {
     isTranslating.value = false
   }
 }
+
 const handleContextMenu = (e: MouseEvent) => {
   e.preventDefault()
   const selection = window.getSelection()
@@ -374,6 +335,7 @@ const handleContextMenu = (e: MouseEvent) => {
     showContextMenu.value = true
   }
 }
+
 const copyText = async () => {
   const textToCopy = translatedText.value || selectedText.value
   if (textToCopy) {
@@ -387,14 +349,14 @@ const copyText = async () => {
     }
   }
 }
+
 const translateText = async () => {
   if (selectedText.value) {
     isTranslating.value = true
     translatedText.value = ''
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      const mockTranslation = `翻译结果: ${selectedText.value}`
-      translatedText.value = mockTranslation
+      translatedText.value = `翻译结果: ${selectedText.value}`
     } catch (error) {
       translatedText.value = '翻译失败，请重试'
     } finally {
@@ -402,31 +364,15 @@ const translateText = async () => {
     }
   }
 }
-const handleKeydown = (e: KeyboardEvent) => {
-  // 处理 Tab 键
-  if (e.key === 'Tab') {
-    e.preventDefault()
-    document.execCommand('insertText', false, '  ') // 插入两个空格
-  }
-  
-  // 处理 Ctrl+S 保存
-  if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault()
-    if (isEditing.value) {
-      toggleEdit() // 这会触发保存
-    }
-  }
-}
+
 const handleWheel = (event: WheelEvent) => {
   if (event.ctrlKey) {
     event.preventDefault()
-    if (event.deltaY < 0) {
-      zoomIn()
-    } else {
-      zoomOut()
-    }
+    if (event.deltaY < 0) zoomIn()
+    else zoomOut()
   }
 }
+
 const handleClickOutside = (event: MouseEvent) => {
   if (showContextMenu.value) {
     const target = event.target as Element
@@ -438,42 +384,52 @@ const handleClickOutside = (event: MouseEvent) => {
     }
   }
 }
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-  mdContainer.value?.addEventListener('wheel', handleWheel, { passive: false })
-  document.addEventListener('click', handleClickOutside)
-  mdContainer.value?.addEventListener('scroll', handleScroll)
-})
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  mdContainer.value?.removeEventListener('wheel', handleWheel)
-  document.removeEventListener('click', handleClickOutside)
-  mdContainer.value?.removeEventListener('scroll', handleScroll)
-})
 
-// 编辑相关的状态
+onMounted(() => {
+  // ⭐ 将 keydown 监听器附加到 document，使其成为全局快捷键
+  document.addEventListener('keydown', handleKeydown);
+
+  mdContainer.value?.addEventListener('wheel', handleWheel, { passive: false });
+  document.addEventListener('click', handleClickOutside);
+  mdContainer.value?.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  // ⭐ 同样，从 document 移除监听器
+  document.removeEventListener('keydown', handleKeydown);
+  
+  mdContainer.value?.removeEventListener('wheel', handleWheel);
+  document.removeEventListener('click', handleClickOutside);
+  mdContainer.value?.removeEventListener('scroll', handleScroll);
+});
+// ========================================================================
+// 以下是编辑功能的核心实现
+// ========================================================================
+
 const isEditing = ref(false)
 const editor = ref<HTMLElement | null>(null)
 const history = ref<string[]>([])
 const historyIndex = ref(-1)
 
-// 编辑历史记录相关的计算属性
 const canUndo = computed(() => historyIndex.value > 0)
 const canRedo = computed(() => historyIndex.value < history.value.length - 1)
 
 // 切换编辑模式
 const toggleEdit = () => {
   if (isEditing.value) {
-    // 保存编辑，使用 innerText 保持换行
-    const content = editor.value?.innerText || ''
+    // 保存：从 contenteditable div 获取纯文本内容
+    const content = editor.value?.innerText ?? ''
     emit('save', content)
     isEditing.value = false
+    // 保存后，手动触发一次大纲更新
+    outline.value = parseOutline(content)
+    expandedSections.value = outline.value.filter(item => item.hasChildren).map(item => item.id)
   } else {
     // 进入编辑模式
     isEditing.value = true
-    // 下一个 tick 后聚焦编辑器并设置内容
     nextTick(() => {
       if (editor.value) {
+        // 使用 innerText 来正确处理换行符
         editor.value.innerText = props.content || ''
         editor.value.focus()
         // 初始化历史记录
@@ -484,28 +440,27 @@ const toggleEdit = () => {
   }
 }
 
-// 处理编辑
+// 监听编辑器输入
 const handleEdit = () => {
   if (!editor.value) return
-  
-  // 获取原始内容，保持换行
   const content = editor.value.innerText
+
+  // 避免不必要的历史记录条目
+  if (content === history.value[historyIndex.value]) return
   
-  // 将当前内容添加到历史记录
-  if (content !== history.value[historyIndex.value]) {
-    // 删除当前位置之后的历史记录
+  // 如果在历史记录中间点编辑，则清除“未来”的记录
+  if (historyIndex.value < history.value.length - 1) {
     history.value = history.value.slice(0, historyIndex.value + 1)
-    // 添加新的历史记录
-    history.value.push(content)
-    historyIndex.value++
   }
+  
+  history.value.push(content)
+  historyIndex.value++
 }
 
-// 处理粘贴事件，保持纯文本和换行
+// 处理粘贴，确保粘贴为纯文本
 const handlePaste = (e: ClipboardEvent) => {
   e.preventDefault()
   const text = e.clipboardData?.getData('text/plain') || ''
-  // 使用 insertText 命令插入文本，这样会保持换行
   document.execCommand('insertText', false, text)
 }
 
@@ -513,7 +468,9 @@ const handlePaste = (e: ClipboardEvent) => {
 const undo = () => {
   if (canUndo.value && editor.value) {
     historyIndex.value--
-    editor.value.textContent = history.value[historyIndex.value]
+    editor.value.innerText = history.value[historyIndex.value]
+    // 撤销后，将光标移动到末尾
+    moveCursorToEnd(editor.value)
   }
 }
 
@@ -521,9 +478,155 @@ const undo = () => {
 const redo = () => {
   if (canRedo.value && editor.value) {
     historyIndex.value++
-    editor.value.textContent = history.value[historyIndex.value]
+    editor.value.innerText = history.value[historyIndex.value]
+    // 重做后，将光标移动到末尾
+    moveCursorToEnd(editor.value)
   }
 }
+
+// ⭐ [新增] 辅助函数：将光标移动到元素末尾
+const moveCursorToEnd = (element: HTMLElement) => {
+  const range = document.createRange()
+  const selection = window.getSelection()
+  range.selectNodeContents(element)
+  range.collapse(false) // false 表示折叠到范围的末尾
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+}
+
+// ⭐ [新增] 辅助函数：应用 Markdown 样式
+const applyMarkdownStyle = (prefix: string, suffix: string = prefix) => {
+  if (!editor.value) return;
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+
+  const range = selection.getRangeAt(0);
+  const selectedText = range.toString();
+
+  // 如果没有选择文本，只插入标记并将光标置于中间
+  if (!selectedText) {
+    const textNode = document.createTextNode(prefix + suffix);
+    range.insertNode(textNode);
+    // 将光标移动到 prefix 和 suffix 中间
+    range.setStart(textNode, prefix.length);
+    range.setEnd(textNode, prefix.length);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  } else {
+    // 如果选择了文本，则用标记包裹它
+    const newText = prefix + selectedText + suffix;
+    // 使用 execCommand 替换文本，这有助于历史记录
+    document.execCommand('insertText', false, newText);
+  }
+}
+
+
+// ⭐ [重点增强] 监听键盘事件，实现快捷键
+const handleKeydown = (e: KeyboardEvent) => {
+  const isCtrlOrMeta = e.ctrlKey || e.metaKey; // 兼容 Win/Mac
+
+  // --- 全局快捷键 (无论是否在编辑模式都生效) ---
+  
+  // Ctrl+E 切换编辑/预览模式
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'e') {
+    e.preventDefault();
+    toggleEdit();
+    return;
+  }
+  
+  // Ctrl+S 保存 (实际上也是调用 toggleEdit 来保存并退出)
+  if (isCtrlOrMeta && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    if (isEditing.value) {
+      toggleEdit(); 
+    }
+    return;
+  }
+
+  // --- 仅在编辑模式下生效的快捷键 ---
+  if (!isEditing.value || !editor.value) return;
+
+  // Tab 键缩进
+  if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    document.execCommand('insertText', false, '  ');
+    return;
+  }
+
+  // 撤销/重做
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+    return;
+  }
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redo();
+    return;
+  }
+
+  // 格式化和操作快捷键
+  if (isCtrlOrMeta) {
+    switch (e.key.toLowerCase()) {
+      case 'b': // 加粗
+        e.preventDefault();
+        applyMarkdownStyle('**');
+        break;
+      case 'i': // 斜体
+        e.preventDefault();
+        applyMarkdownStyle('*');
+        break;
+      case 'k': // 插入链接
+        e.preventDefault();
+        applyMarkdownStyle('[', '](url)');
+        break;
+      case '`': // 插入代码
+        e.preventDefault();
+        applyMarkdownStyle('`');
+        break;
+        
+      case 'd': // 删除行
+        e.preventDefault();
+        {
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) break;
+          selection.modify('move', 'backward', 'lineboundary');
+          selection.modify('extend', 'forward', 'lineboundary');
+          const range = selection.getRangeAt(0);
+          if (!range.collapsed && range.endOffset < (range.endContainer.textContent?.length || 0)) {
+            selection.modify('extend', 'forward', 'character');
+          } else if (range.endContainer.nextSibling) {
+             selection.modify('extend', 'forward', 'character');
+          }
+          document.execCommand('insertText', false, '');
+        }
+        break;
+
+      case '1': case '2': case '3': case '4': case '5': case '6': // 标题
+        e.preventDefault();
+        {
+          const level = parseInt(e.key);
+          const prefix = '#'.repeat(level) + ' ';
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) break;
+          selection.modify('move', 'backward', 'lineboundary');
+          selection.modify('extend', 'forward', 'lineboundary');
+          const lineText = selection.toString();
+          let modifiedText = lineText.startsWith(prefix) 
+            ? lineText.substring(prefix.length) 
+            : prefix + lineText.replace(/^(#+ )/, '');
+          document.execCommand('insertText', false, modifiedText);
+        }
+        break;
+    }
+  }
+};
+
 </script>
 
 <style>

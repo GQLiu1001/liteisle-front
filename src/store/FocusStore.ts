@@ -12,7 +12,7 @@ export const useFocusStore = defineStore('focus', () => {
   const currentStudyTime = ref(180) // 今日专注时长 (分钟)
   const isFocusing = ref(false)
   const focusStartTime = ref(0)
-  const focusTimer = ref<NodeJS.Timeout | null>(null)
+  const focusTimer = ref<number | null>(null)
   
   // 岛屿相关状态
   const isleCount = ref(8) // 净化岛屿总数，现在扩充到8个
@@ -59,6 +59,16 @@ export const useFocusStore = defineStore('focus', () => {
     const hours = Math.floor(currentStudyTime.value / 60)
     const minutes = currentStudyTime.value % 60
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  })
+
+  const totalStudyDays = computed(() => {
+    let count = 0
+    for (const minutes of dailyFocusData.value.values()) {
+      if (minutes > 0) {
+        count++
+      }
+    }
+    return count
   })
 
   // 方法
@@ -165,6 +175,7 @@ export const useFocusStore = defineStore('focus', () => {
     formattedCurrentTime,
     getFocusActivityData,
     getCheckInStats,
+    totalStudyDays,
     
     // 方法
     startFocus,

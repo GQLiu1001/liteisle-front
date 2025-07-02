@@ -6,8 +6,11 @@
         <Clock :size="36" class="text-white hidden lg:block" />
       </div>
       <div>
-        <h3 class="text-lg lg:text-xl font-semibold text-morandi-900 mb-2 lg:mb-3">累计学习</h3>
-        <p class="text-3xl lg:text-4xl font-bold text-morandi-800">{{ formattedTotalTime }}</p>
+        <h3 class="text-lg lg:text-xl font-semibold text-morandi-900 mb-2 lg:mb-3">累计签到</h3>
+        <div class="flex items-baseline justify-center mb-1">
+          <span class="text-3xl lg:text-4xl font-bold text-morandi-800">{{ totalStudyDays }}</span>
+          <span class="text-base lg:text-lg text-morandi-700 ml-1.5">天</span>
+        </div>
       </div>
     </div>
   </div>
@@ -20,7 +23,7 @@ import { useFocusStore } from '@/store/FocusStore'
 import { storeToRefs } from 'pinia'
 
 const focusStore = useFocusStore()
-const { formattedTotalTime, formattedCurrentTime, currentStudyTime } = storeToRefs(focusStore)
+const { formattedTotalTime, formattedCurrentTime, currentStudyTime, totalStudyDays } = storeToRefs(focusStore)
 
 // 今日学习进度（假设目标是2小时=120分钟）
 const todayProgress = computed(() => {
