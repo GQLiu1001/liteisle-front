@@ -61,7 +61,7 @@ export const useFocusStore = defineStore('focus', () => {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
   })
 
-  const totalStudyDays = computed(() => {
+  const totalFocusCount = computed(() => {
     let count = 0
     for (const minutes of dailyFocusData.value.values()) {
       if (minutes > 0) {
@@ -175,7 +175,7 @@ export const useFocusStore = defineStore('focus', () => {
     formattedCurrentTime,
     getFocusActivityData,
     getCheckInStats,
-    totalStudyDays,
+    totalFocusCount,
     
     // 方法
     startFocus,
