@@ -59,6 +59,22 @@
 
     <!-- 主要内容区域 -->
     <div class="flex-1 flex overflow-hidden relative">
+      <!-- 左侧大纲 -->
+      <div 
+        v-if="isOutlineVisible"
+        class="w-64 flex-shrink-0 overflow-y-auto border-r"
+      >
+        <div class="p-4">
+          <OutlineNode 
+            v-for="item in nestedOutline" 
+            :key="item.id"
+            :item="item"
+            :collapsed-sections="collapsedSections"
+            @toggle="toggleSection"
+            @navigate="scrollToHeading"
+          />
+        </div>
+      </div>
       <!-- 内容区域 -->
       <div class="flex-1 overflow-auto p-6" ref="mdContainer">
         <div 
@@ -120,12 +136,16 @@ import UndoIcon from 'lucide-vue-next/dist/esm/icons/undo'
 import RedoIcon from 'lucide-vue-next/dist/esm/icons/redo'
 
 // 导入 Tiptap 相关
-import { useEditor, EditorContent, VueNodeViewRenderer } from '@tiptap/vue-3'
+import { useEditor, EditorContent, VueNodeViewRenderer, mergeAttributes } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { createLowlight } from 'lowlight'
 import CodeBlockComponent from './CodeBlockComponent.vue'
+import UniqueID from '@tiptap/extension-unique-id'
+import Heading from '@tiptap/extension-heading'
+import { TableOfContents } from '@tiptap/extension-table-of-contents'
+import OutlineNode from './OutlineNode.vue'
 
 // 导入 highlight.js 语言和样式
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -182,20 +202,71 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const translatedText = ref('')
 const isTranslating = ref(false)
+const isOutlineVisible = ref(true)
+const collapsedSections = ref<string[]>([])
 
-const handleScroll = () => {
-    // Scroll handling for active heading can be improved or simplified
+const flatOutlineItems = ref<any[]>([])
+
+const nestedOutline = computed(() => {
+  const toc = flatOutlineItems.value;
+  if (!toc.length) return [];
+  
+  const tree: any[] = [];
+  const stack: any[] = [];
+
+  toc.forEach(item => {
+    const node = { ...item, children: [] };
+
+    while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
+      stack.pop();
+    }
+
+    if (stack.length > 0) {
+      stack[stack.length - 1].children.push(node);
+    } else {
+      tree.push(node);
+    }
+    stack.push(node);
+  });
+  
+  return tree;
+});
+
+const scrollToHeading = (id: string) => {
+  const headingEl = document.getElementById(id);
+  if (headingEl) {
+    headingEl.scrollIntoView({ behavior: 'smooth' });
+  }
 }
+
+const toggleSection = (id: string) => {
+  const index = collapsedSections.value.indexOf(id);
+  if (index > -1) {
+    collapsedSections.value.splice(index, 1);
+  } else {
+    collapsedSections.value.push(id);
+  }
+};
+
+const toggleOutline = () => {
+  isOutlineVisible.value = !isOutlineVisible.value;
+};
 
 // --- Tiptap 编辑器核心 ---
 const editor = useEditor({
   content: props.content || '',
   extensions: [
     StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3, 4, 5, 6],
+      heading: false,
+      codeBlock: false,
+    }),
+    Heading.configure({
+      levels: [1, 2, 3, 4, 5, 6],
+    }),
+    TableOfContents.configure({
+      onUpdate(content) {
+        flatOutlineItems.value = content;
       },
-      codeBlock: false, // 禁用默认的 codeBlock
     }),
     Markdown.configure({
       html: true,
@@ -326,6 +397,12 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     saveContent();
     return;
   }
+  
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'o') {
+    e.preventDefault();
+    toggleOutline();
+    return;
+  }
 
   if (isCtrlOrMeta && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
     e.preventDefault();
@@ -339,14 +416,12 @@ onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
   mdContainer.value?.addEventListener('wheel', handleWheel, { passive: false });
   document.addEventListener('click', handleClickOutside);
-  mdContainer.value?.addEventListener('scroll', handleScroll);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown);
   mdContainer.value?.removeEventListener('wheel', handleWheel);
   document.removeEventListener('click', handleClickOutside);
-  mdContainer.value?.removeEventListener('scroll', handleScroll);
 });
 </script>
 
@@ -579,16 +654,6 @@ onUnmounted(() => {
 
 .outline-item .cursor-pointer {
   transition: all 0.2s;
-}
-
-/* 展开/折叠图标样式 */
-.outline-item .mr-2 {
-  font-size: 10px;
-  transition: transform 0.2s;
-}
-
-.outline-item .mr-2:hover {
-  transform: scale(1.2);
 }
 
 /* 标题锚点样式 */
