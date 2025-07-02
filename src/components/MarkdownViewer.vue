@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
+  <div class="markdown-viewer w-full h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 顶部工具栏 -->
     <div class="flex-shrink-0 border-b p-4 flex items-center justify-between">
       <div class="flex items-center space-x-4">
@@ -59,52 +59,10 @@
 
     <!-- 主要内容区域 -->
     <div class="flex-1 flex overflow-hidden relative">
-      <!-- 切换按钮 -->
-      <button 
-        @click="toggleOutline"
-        class="absolute top-1/2 -translate-y-1/2 z-20 bg-white p-1 rounded-full border shadow-md hover:bg-gray-100 transition-all duration-300"
-        :style="{ left: isOutlineVisible ? '15.5rem' : '0.5rem' }"
-      >
-        <ChevronLeftIcon v-if="isOutlineVisible" class="w-5 h-5 text-gray-600" />
-        <ChevronRightIcon v-else class="w-5 h-5 text-gray-600" />
-      </button>
-
-      <!-- 左侧大纲 -->
-      <div 
-        v-if="isOutlineVisible"
-        class="w-64 flex-shrink-0 overflow-y-auto border-r"
-        :style="{ transform: `scale(${scale})`, transformOrigin: 'top left' }"
-      >
-        <div class="p-4">
-          <div v-for="(item, index) in visibleOutline" :key="index" class="outline-item">
-            <div 
-              :class="[
-                'flex items-center cursor-pointer rounded-lg py-1.5 px-2 transition-colors',
-                { 
-                  'text-blue-600 bg-blue-50': activeHeading === item.id,
-                  'hover:bg-gray-50': activeHeading !== item.id
-                }
-              ]"
-              :style="{ paddingLeft: `${(item.level * 12) + 8}px` }"
-              @click="scrollToHeading(item.id)"
-            >
-              <span 
-                v-if="item.hasChildren" 
-                class="mr-2 w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-600"
-                @click.stop="toggleSection(item.id)"
-              >
-                {{ expandedSections.includes(item.id) ? '▼' : '▶' }}
-              </span>
-              <span class="truncate text-sm">{{ item.text }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 内容区域 -->
       <div class="flex-1 overflow-auto p-6" ref="mdContainer">
         <div 
-          class="w-full max-w-[900px] mx-auto min-h-full pb-24"
+          class="w-full max-w-7xl mx-auto min-h-full pb-24"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
           <EditorContent :editor="editor" class="prose prose-lg max-w-none"/>
@@ -155,17 +113,52 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, onBeforeUnmount } from 'vue'
 import ChevronLeftIcon from 'lucide-vue-next/dist/esm/icons/chevron-left'
-import ChevronRightIcon from 'lucide-vue-next/dist/esm/icons/chevron-right'
 import PlusIcon from 'lucide-vue-next/dist/esm/icons/plus'
 import MinusIcon from 'lucide-vue-next/dist/esm/icons/minus'
 import PencilIcon from 'lucide-vue-next/dist/esm/icons/pencil'
 import UndoIcon from 'lucide-vue-next/dist/esm/icons/undo'
 import RedoIcon from 'lucide-vue-next/dist/esm/icons/redo'
 
-// 导入 Tiptap
-import { useEditor, EditorContent } from '@tiptap/vue-3'
+// 导入 Tiptap 相关
+import { useEditor, EditorContent, VueNodeViewRenderer } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { createLowlight } from 'lowlight'
+import CodeBlockComponent from './CodeBlockComponent.vue'
+
+// 导入 highlight.js 语言和样式
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import java from 'highlight.js/lib/languages/java';
+import csharp from 'highlight.js/lib/languages/csharp';
+import php from 'highlight.js/lib/languages/php';
+import sql from 'highlight.js/lib/languages/sql';
+import html from 'highlight.js/lib/languages/xml'; // 'html' is an alias for 'xml'
+import css from 'highlight.js/lib/languages/css';
+import json from 'highlight.js/lib/languages/json';
+import yaml from 'highlight.js/lib/languages/yaml';
+import markdown from 'highlight.js/lib/languages/markdown';
+import bash from 'highlight.js/lib/languages/bash';
+import 'highlight.js/styles/atom-one-light.css';
+
+const lowlight = createLowlight()
+
+// 注册语言
+lowlight.register('javascript', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('python', python);
+lowlight.register('java', java);
+lowlight.register('csharp', csharp);
+lowlight.register('php', php);
+lowlight.register('html', html);
+lowlight.register('css', css);
+lowlight.register('sql', sql);
+lowlight.register('json', json);
+lowlight.register('yaml', yaml);
+lowlight.register('markdown', markdown);
+lowlight.register('bash', bash);
 
 interface Props {
   filePath: string
@@ -189,75 +182,6 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const translatedText = ref('')
 const isTranslating = ref(false)
-const outline = ref<OutlineItem[]>([])
-const activeHeading = ref<string>('')
-const expandedSections = ref<string[]>([])
-const isOutlineVisible = ref(true)
-
-interface OutlineItem {
-  id: string
-  text: string
-  level: number
-  hasChildren: boolean
-  parentId?: string
-}
-
-const parseOutline = (content: string) => {
-  const headingRegex = /^(#{1,6})\s+(.+)$/gm
-  const items: OutlineItem[] = []
-  let match
-
-  while ((match = headingRegex.exec(content)) !== null) {
-    const level = match[1].length
-    const text = match[2].trim()
-    const id = `heading-${items.length}` // Simple ID
-    const item: OutlineItem = { id, text, level, hasChildren: false }
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (items[i].level < level) {
-        item.parentId = items[i].id
-        items[i].hasChildren = true
-        break
-      }
-    }
-    items.push(item)
-  }
-  
-  outline.value = items
-  // Default expand all parent sections
-  expandedSections.value = items.filter(item => item.hasChildren).map(item => item.id)
-}
-
-const visibleOutline = computed(() => {
-  return outline.value.filter(item => {
-    if (!item.parentId) return true
-    let currentItem = item
-    while (currentItem.parentId) {
-      const parent = outline.value.find(p => p.id === currentItem.parentId)
-      if (!parent || !expandedSections.value.includes(parent.id)) {
-        return false
-      }
-      currentItem = parent
-    }
-    return true
-  })
-})
-
-const toggleSection = (id: string) => {
-  const index = expandedSections.value.indexOf(id)
-  if (index === -1) {
-    expandedSections.value.push(id)
-  } else {
-    expandedSections.value.splice(index, 1)
-  }
-}
-
-const scrollToHeading = (id: string) => {
-  const headingEl = mdContainer.value?.querySelector(`#${id}`);
-  if (headingEl) {
-    headingEl.scrollIntoView({ behavior: 'smooth' });
-    activeHeading.value = id;
-  }
-}
 
 const handleScroll = () => {
     // Scroll handling for active heading can be improved or simplified
@@ -271,6 +195,7 @@ const editor = useEditor({
       heading: {
         levels: [1, 2, 3, 4, 5, 6],
       },
+      codeBlock: false, // 禁用默认的 codeBlock
     }),
     Markdown.configure({
       html: true,
@@ -278,12 +203,17 @@ const editor = useEditor({
       linkify: true,
       breaks: true,
     }),
+    CodeBlockLowlight
+      .extend({
+        addNodeView() {
+          return VueNodeViewRenderer(CodeBlockComponent)
+        },
+      })
+      .configure({ lowlight }),
   ],
-  onCreate: ({ editor }) => {
-    parseOutline(editor.storage.markdown.getMarkdown());
+  onCreate: () => {
   },
-  onUpdate: ({ editor }) => {
-    parseOutline(editor.storage.markdown.getMarkdown());
+  onUpdate: () => {
   },
 });
 
@@ -305,7 +235,6 @@ watch(() => props.content, (newContent) => {
   const contentToSet = newContent || '';
   if (editor.value && contentToSet !== editor.value.storage.markdown.getMarkdown()) {
     editor.value.commands.setContent(contentToSet, false);
-    parseOutline(contentToSet);
   }
 }, { immediate: true });
 
@@ -405,10 +334,6 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     return;
   }
 };
-
-const toggleOutline = () => {
-  isOutlineVisible.value = !isOutlineVisible.value
-}
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
@@ -510,25 +435,72 @@ onUnmounted(() => {
 
 .prose pre {
   position: relative;
-  background-color: #f6f8fa;
-  border-radius: 0.5rem;
-  padding: 16px;
-  margin: 1.5rem 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  padding: 1rem;
+  border-radius: 6px;
+  margin: 1.5em 0;
   overflow-x: auto;
-  font-size: 85%;
-  line-height: 1.45;
-  white-space: pre !important;
 }
 
 .prose pre code {
+  background: none;
+  color: inherit;
+  font-size: 1em;
   padding: 0;
-  margin: 0;
-  background-color: transparent;
-  border: 0;
-  white-space: pre !important;
-  font-size: inherit;
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-  tab-size: 2;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #8b949e;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-meta {
+  color: #ff7b72;
+}
+
+.hljs-number,
+.hljs-built_in,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-link {
+  color: #79c0ff;
+}
+
+.hljs-attribute {
+  color: #a5d6ff;
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+  color: #a5d6ff;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-section {
+  color: #ff7b72;
+}
+
+.hljs-title,
+.hljs-emphasis {
+  color: #d2a8ff;
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
 }
 
 .prose .code-lang {

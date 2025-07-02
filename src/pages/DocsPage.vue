@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
-    <div class="max-w-7xl mx-auto">
+    <div class="mx-auto">
       <!-- 详情视图 -->
       <div v-if="docsStore.currentDocument" class="h-[calc(100vh-12rem)] rounded-2xl overflow-hidden">
         <!-- PDF 展示 -->
