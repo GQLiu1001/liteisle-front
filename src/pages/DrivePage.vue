@@ -842,6 +842,7 @@
 import { ref, computed } from 'vue'
 import { ChevronRight, HardDrive, Music, FileText, Settings } from 'lucide-vue-next'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
+import { useRouter } from 'vue-router'
 
 interface BreadcrumbPath {
   name: string
@@ -850,6 +851,7 @@ interface BreadcrumbPath {
 
 // 使用 DriveStore
 const driveStore = useDriveStore()
+const router = useRouter()
 
 // 响应式数据
 const showCreateFolderDialog = ref(false)
@@ -858,7 +860,7 @@ const newFolderName = ref('')
 const selectedFiles = ref<File[]>([])
 
 // 排序和视图相关
-const sortBy = ref<'default' | 'name' | 'modified' | 'created' | 'size'>('default')
+const sortBy = ref<'name' | 'size' | 'modifiedAt' | 'createdAt' | 'default'>('default')
 const viewMode = ref<'grid' | 'list'>('grid')
 const showSortMenu = ref(false)
 
@@ -897,12 +899,11 @@ const enableSharePassword = ref(false)
 
 // 排序选项
 const sortOptions = [
-  { value: 'default', label: '默认排序' },
-  { value: 'name', label: '按文件名' },
-  { value: 'modified', label: '按修改时间' },
-  { value: 'created', label: '按创建时间' },
-  { value: 'size', label: '按文件大小' }
-]
+  { value: 'name', label: '按名称' },
+  { value: 'modifiedAt', label: '按修改时间' },
+  { value: 'createdAt', label: '按创建时间' },
+  { value: 'size', label: '按大小' }
+] as const
 
 // 预设的第一级大类目录
 const predefinedCategories = [
@@ -947,37 +948,50 @@ const currentItems = computed(() => {
 })
 
 const filteredItems = computed(() => {
-  let items = currentItems.value
-  
+  let itemsToDisplay: DriveItem[] = driveStore.isInRecycleBin
+    ? [...driveStore.recycleBinItems]
+    : [...driveStore.currentLevelItems]
+
   // 搜索过滤
-  if (driveStore.searchQuery) {
-    items = items.filter((item: DriveItem) =>
+  if (driveStore.searchQuery && !driveStore.isInRecycleBin) {
+    const query = driveStore.searchQuery.toLowerCase()
+    const searchInItems = (items: DriveItem[]): DriveItem[] => {
+      const results: DriveItem[] = []
+      for (const item of items) {
+        if (item.name.toLowerCase().includes(query)) {
+          results.push(item)
+        }
+        if (item.type === 'folder' && item.children) {
+          results.push(...searchInItems(item.children))
+        }
+      }
+      return results
+    }
+    itemsToDisplay = searchInItems(driveStore.driveItems)
+  } else if (driveStore.searchQuery && driveStore.isInRecycleBin) {
+    itemsToDisplay = driveStore.recycleBinItems.filter((item: DriveItem) =>
       item.name.toLowerCase().includes(driveStore.searchQuery.toLowerCase())
     )
   }
-  
+
   // 排序
-  if (sortBy.value !== 'default') {
-    items = [...items].sort((a: DriveItem, b: DriveItem) => {
-      switch (sortBy.value) {
-        case 'name':
-          return a.name.localeCompare(b.name)
-        case 'modified':
-          return b.modifiedAt.getTime() - a.modifiedAt.getTime()
-        case 'created':
-          return b.createdAt?.getTime() - a.createdAt?.getTime() || 0
-        case 'size':
-          if (a.type === 'folder' && b.type === 'folder') return 0
-          if (a.type === 'folder') return -1
-          if (b.type === 'folder') return 1
-          return b.size - a.size
-        default:
-          return 0
-      }
-    })
-  }
-  
-  return items
+  return [...itemsToDisplay].sort((a: DriveItem, b: DriveItem) => {
+    if (a.type === 'folder' && b.type !== 'folder') return -1
+    if (a.type !== 'folder' && b.type === 'folder') return 1
+
+    switch (sortBy.value) {
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'size':
+        return (b.size || 0) - (a.size || 0) // 通常大文件在前
+      case 'modifiedAt':
+        return b.modifiedAt.getTime() - a.modifiedAt.getTime()
+      case 'createdAt':
+        return b.createdAt.getTime() - a.createdAt.getTime()
+      default:
+        return 0
+    }
+  })
 })
 
 const currentFolder = computed(() => {
@@ -1062,19 +1076,36 @@ const navigateToPath = (index: number) => {
 }
 
 const handleItemClick = (item: DriveItem) => {
-  // 在回收站模式下，点击项目显示详细信息
   if (driveStore.isInRecycleBin) {
-    selectedItem.value = item
-    showItemDetails()
     return
   }
-  
-  // 正常模式下的行为
+
   if (item.type === 'folder') {
-    driveStore.setCurrentPath(item.path)
+    const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
+    driveStore.setCurrentPath(newPath)
+  } else if (item.type === 'audio') {
+    const pathParts = item.path.split('/').filter(p => p)
+    // 路径结构: /音乐/歌单名/歌曲名.mp3
+    if (pathParts.length >= 3) {
+      const playlistName = pathParts[1]
+      const songName = item.name
+      router.push({
+        path: '/music',
+        query: { playlist: playlistName, song: songName }
+      })
+    } else {
+      console.warn('该音频文件不在一个有效的歌单目录结构中:', item.path)
+      // 如果没有歌单信息，只带歌曲名跳转
+      router.push({ path: '/music', query: { song: item.name } })
+    }
+  } else if (item.type === 'document') {
+    router.push({
+      path: '/docs',
+      query: { path: item.path } // 传递唯一的文档路径
+    })
   } else {
-    console.log('打开文件:', item.name)
-    // 这里可以添加文件预览或下载逻辑
+    // 文档或其他文件类型的点击逻辑 - 之后实现
+    console.log('Clicked on file:', item)
   }
 }
 
@@ -1574,8 +1605,8 @@ const refreshItems = async () => {
 }
 
 // 排序功能
-const selectSort = (sortType: typeof sortBy.value) => {
-  sortBy.value = sortType
+const selectSort = (criteria: 'name' | 'size' | 'modifiedAt' | 'createdAt') => {
+  sortBy.value = criteria
   showSortMenu.value = false
 }
 

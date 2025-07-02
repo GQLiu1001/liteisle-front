@@ -208,6 +208,26 @@ export const useMusicStore = defineStore('music', () => {
     playlists.value = playlists.value.filter((p: Playlist) => p.id !== playlistId)
   }
 
+  const playSongFromDrive = async (playlistName: string, songName: string) => {
+    await loadPlaylistsFromDrive()
+
+    const targetPlaylist = playlists.value.find(p => p.name === playlistName)
+    if (!targetPlaylist) {
+      console.error(`在 MusicStore 中未找到歌单: ${playlistName}`)
+      return
+    }
+
+    const targetTrackIndex = targetPlaylist.tracks.findIndex(t => t.name === songName.replace(/\.[^/.]+$/, ''))
+    if (targetTrackIndex === -1) {
+      console.error(`在歌单 "${playlistName}" 中未找到歌曲: ${songName}`)
+      return
+    }
+
+    setCurrentPlaylist(targetPlaylist)
+    setCurrentTrack(targetTrackIndex)
+    play()
+  }
+
   // 从网盘数据加载播放列表
   const loadPlaylistsFromDrive = async () => {
     const driveStore = useDriveStore()
@@ -661,6 +681,7 @@ export const useMusicStore = defineStore('music', () => {
     addPlaylist,
     removePlaylist,
     loadPlaylistsFromDrive,
+    playSongFromDrive,
     setSearchQuery,
     formatTime,
     reorderTracks,

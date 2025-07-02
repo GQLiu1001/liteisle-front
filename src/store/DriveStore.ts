@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export interface DriveItem {
   id: string
@@ -167,8 +167,77 @@ export const useDriveStore = defineStore('drive', () => {
       path: '/文档',
       parentId: null,
       level: 1,
-      itemCount: 0,
-      children: []
+      itemCount: 2,
+      children: [
+        {
+          id: '2-1',
+          name: '图书',
+          type: 'folder',
+          size: 0,
+          modifiedAt: new Date('2024-01-20'),
+          createdAt: new Date('2024-01-18'),
+          path: '/文档/图书',
+          parentId: '2',
+          level: 2,
+          itemCount: 3,
+          children: [
+            {
+              id: 'doc-pdf-1',
+              name: 'Vue 3 开发指南.pdf',
+              type: 'document',
+              size: 15728640,
+              modifiedAt: new Date('2024-01-20'),
+              createdAt: new Date('2024-01-19'),
+              path: '/文档/图书/Vue 3 开发指南.pdf',
+              parentId: '2-1'
+            },
+            {
+              id: 'doc-md-1',
+              name: '设计模式.md',
+              type: 'document',
+              size: 1048576,
+              modifiedAt: new Date('2024-01-15'),
+              createdAt: new Date('2024-01-14'),
+              path: '/文档/图书/设计模式.md',
+              parentId: '2-1'
+            },
+            {
+              id: 'doc-docx-1',
+              name: 'Node.js开发实战.docx',
+              type: 'document',
+              size: 12582912,
+              modifiedAt: new Date('2024-01-23'),
+              createdAt: new Date('2024-01-22'),
+              path: '/文档/图书/Node.js开发实战.docx',
+              parentId: '2-1'
+            }
+          ]
+        },
+        {
+          id: '2-2',
+          name: '笔记',
+          type: 'folder',
+          size: 0,
+          modifiedAt: new Date('2024-01-22'),
+          createdAt: new Date('2024-01-21'),
+          path: '/文档/笔记',
+          parentId: '2',
+          level: 2,
+          itemCount: 1,
+          children: [
+            {
+              id: 'doc-md-2',
+              name: '学习计划.md',
+              type: 'document',
+              size: 2048,
+              modifiedAt: new Date('2024-01-22'),
+              createdAt: new Date('2024-01-21'),
+              path: '/文档/笔记/学习计划.md',
+              parentId: '2-2'
+            }
+          ]
+        }
+      ]
     },
     {
       id: '3',
@@ -198,6 +267,26 @@ export const useDriveStore = defineStore('drive', () => {
     }
   ])
 
+  // Computed property to get items based on the current path
+  const currentLevelItems = computed(() => {
+    if (currentPath.value === '/') {
+      return driveItems.value
+    }
+
+    const pathParts = currentPath.value.split('/').filter(p => p)
+    let currentItems = driveItems.value
+
+    for (const part of pathParts) {
+      const folder = currentItems.find(item => item.type === 'folder' && item.name === part)
+      if (folder && folder.children) {
+        currentItems = folder.children
+      } else {
+        return [] // Path not found
+      }
+    }
+    return currentItems
+  })
+
   // 基本操作方法
   const setCurrentPath = (path: string) => {
     currentPath.value = path
@@ -224,6 +313,9 @@ export const useDriveStore = defineStore('drive', () => {
     currentPath,
     isInRecycleBin,
     
+    // Computed
+    currentLevelItems,
+
     // 方法  
     setCurrentPath,
     setSearchQuery,

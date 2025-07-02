@@ -284,9 +284,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
-import { useDocsStore, type Document } from '../store/DocsStore';
+import { ref, computed, watch, onUnmounted, onMounted } from 'vue';
+import { useDocsStore, type Document, type DocumentCategory } from '../store/DocsStore';
 import { useUIStore } from '@/store/UIStore';
+import { useRoute } from 'vue-router';
 import { 
   FileText, 
   X,
@@ -303,6 +304,7 @@ import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
 const docsStore = useDocsStore();
 const uiStore = useUIStore();
+const route = useRoute();
 const showAddDocumentDialog = ref(false);
 const newDocumentName = ref('');
 const newDocumentType = ref('markdown');
@@ -323,6 +325,14 @@ onUnmounted(() => {
   // Also reset the document state to avoid side-effects
   docsStore.setCurrentDocument(null);
 });
+
+onMounted(() => {
+  docsStore.loadCategoriesFromDrive()
+  const { path } = route.query
+  if (path && typeof path === 'string') {
+    docsStore.loadDocumentByPath(path)
+  }
+})
 
 const md = markdownit();
 

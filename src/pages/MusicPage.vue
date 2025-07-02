@@ -385,13 +385,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Music, HardDrive } from 'lucide-vue-next'
-import { useMusicStore } from '../store/MusicStore'
+import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
 import draggable from 'vuedraggable'
-import type { Track } from '../store/MusicStore'
+import type { Track as TrackType } from '../store/MusicStore'
+import { useRoute } from 'vue-router'
 
 const musicStore = useMusicStore()
 const driveStore = useDriveStore()
+const route = useRoute()
 
 // 响应式状态
 const showRightPanel = ref(true)
@@ -404,7 +406,7 @@ const filteredTracks = computed(() => {
 // 可拖动的歌曲列表
 const currentTracksList = computed({
   get: () => musicStore.currentPlaylist?.tracks || [],
-  set: (value: Track[]) => {
+  set: (value: TrackType[]) => {
     if (musicStore.currentPlaylist) {
       musicStore.currentPlaylist.tracks = value
     }
@@ -478,6 +480,10 @@ const loadMusicFromDrive = () => {
 
 onMounted(() => {
   loadMusicFromDrive()
+  const { playlist, song } = route.query
+  if (playlist && song && typeof playlist === 'string' && typeof song === 'string') {
+    musicStore.playSongFromDrive(playlist, song)
+  }
 })
 
 // 组件卸载时清理定时器
