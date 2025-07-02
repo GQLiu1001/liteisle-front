@@ -1,5 +1,5 @@
 <template>
-  <div class="ppt-viewer h-full flex flex-col bg-white">
+  <div class="ppt-viewer h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 工具栏 -->
     <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between">
       <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -62,7 +62,7 @@
     <!-- PPT内容区域 -->
     <div class="flex-1 overflow-auto bg-gray-800 p-4 flex items-center justify-center" ref="pptContainer">
       <div 
-        class="bg-white shadow-lg border border-gray-300 w-full max-w-[800px]"
+        class="bg-white shadow-lg rounded-xl w-full max-w-[800px]"
         :style="{ 
           transform: `scale(${scale})`, 
           transformOrigin: 'top center',

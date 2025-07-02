@@ -15,7 +15,7 @@
     <!-- 主内容区域 -->
     <main 
       :class="[
-        'flex-1 pt-[80px] bg-liteisle-bg rounded-tr-[40px] overflow-hidden transition-all duration-300',
+        'flex-1 pt-[80px] bg-liteisle-bg rounded-tr-[40px] rounded-br-[40px] overflow-hidden transition-all duration-300',
         uiStore.isSidebarVisible ? 'ml-[150px]' : 'ml-0'
       ]"
     >

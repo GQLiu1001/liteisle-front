@@ -1,5 +1,5 @@
 <template>
-  <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col">
+  <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col z-50">
     <!-- Logo -->
     <div class="pt-8 pb-4 px-6">
       <img src="/titlepic.png" alt="Liteisle" class="w-full h-auto max-w-[150px] object-contain" />

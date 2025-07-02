@@ -1,5 +1,5 @@
 <template>
-  <div class="pdf-viewer h-full flex flex-col bg-white">
+  <div class="pdf-viewer h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 工具栏 -->
     <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between">
       <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -58,7 +58,7 @@
     <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="pdfContainer">
       <div class="flex justify-center">
         <div 
-          class="bg-white shadow-lg border border-gray-300 max-w-[210mm] w-full"
+          class="bg-white shadow-lg rounded-xl max-w-[210mm] w-full"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
           <!-- 模拟PDF页面内容 -->

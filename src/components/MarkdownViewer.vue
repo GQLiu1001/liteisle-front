@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer h-full flex flex-col bg-white rounded-2xl overflow-hidden">
+  <div class="markdown-viewer h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 顶部工具栏 -->
     <div class="flex-shrink-0 border-b p-4 flex items-center justify-between">
       <div class="flex items-center space-x-4">
