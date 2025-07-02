@@ -449,7 +449,6 @@ React 通过虚拟DOM提高渲染性能。`,
 
   const hideTranslationPopup = () => {
     showTranslation.value = false
-    selectedText.value = ''
     translationResult.value = ''
   }
 
@@ -471,6 +470,15 @@ React 通过虚拟DOM提高渲染性能。`,
       const lowerText = text.toLowerCase()
       translationResult.value = translations[lowerText] || `"${text}" 的翻译结果`
     }, 1000)
+  }
+
+  // 保存文档内容
+  const saveDocumentContent = (content: string) => {
+    if (currentDocument.value && currentDocument.value.type === 'markdown') {
+      currentDocument.value.content = content
+      // TODO: 调用后端 API 保存内容
+      console.log('保存文档内容:', content)
+    }
   }
 
   return {
@@ -498,5 +506,6 @@ React 通过虚拟DOM提高渲染性能。`,
     showTranslationPopup,
     hideTranslationPopup,
     translateText,
+    saveDocumentContent,
   }
 }) 

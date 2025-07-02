@@ -17,6 +17,24 @@
         </div>
       </div>
       <div class="flex items-center space-x-3">
+        <!-- 撤销/重做按钮 -->
+        <template v-if="isEditing">
+          <button 
+            class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            @click="undo"
+            :disabled="!canUndo"
+          >
+            <UndoIcon class="w-5 h-5" />
+          </button>
+          <button 
+            class="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            @click="redo"
+            :disabled="!canRedo"
+          >
+            <RedoIcon class="w-5 h-5" />
+          </button>
+          <div class="h-6 w-px bg-gray-200"></div>
+        </template>
         <button 
           class="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           @click="zoomOut"
@@ -29,6 +47,15 @@
           @click="zoomIn"
         >
           <PlusIcon class="w-5 h-5" />
+        </button>
+        <div class="h-6 w-px bg-gray-200"></div>
+        <button 
+          class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          :class="isEditing ? 'text-blue-600 hover:text-blue-700' : 'text-gray-600 hover:text-gray-800'"
+          @click="toggleEdit"
+        >
+          <PencilIcon class="w-5 h-5" />
+          <span>{{ isEditing ? '保存' : '编辑' }}</span>
         </button>
       </div>
     </div>
@@ -72,12 +99,20 @@
           class="w-full max-w-[900px] mx-auto min-h-full pb-24"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
-          <div 
+          <div v-if="!isEditing"
             class="px-8 py-6 text-gray-800 leading-relaxed select-text prose prose-lg max-w-none"
             v-html="renderedMarkdown"
             @mouseup="handleTextSelection"
             @contextmenu="handleContextMenu"
           />
+          <div v-else
+            ref="editor"
+            class="px-8 py-6 text-gray-800 font-mono whitespace-pre-wrap"
+            contenteditable="true"
+            @input="handleEdit"
+            @paste="handlePaste"
+            @keydown="handleKeydown"
+          >{{ props.content }}</div>
         </div>
       </div>
     </div>
@@ -124,10 +159,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import ChevronLeftIcon from 'lucide-vue-next/dist/esm/icons/chevron-left'
 import PlusIcon from 'lucide-vue-next/dist/esm/icons/plus'
 import MinusIcon from 'lucide-vue-next/dist/esm/icons/minus'
+import PencilIcon from 'lucide-vue-next/dist/esm/icons/pencil'
+import UndoIcon from 'lucide-vue-next/dist/esm/icons/undo'
+import RedoIcon from 'lucide-vue-next/dist/esm/icons/redo'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import anchor from 'markdown-it-anchor'
@@ -153,6 +191,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   close: []
+  save: [content: string]
 }>()
 
 const scale = ref(1)
@@ -279,6 +318,7 @@ const md = new MarkdownIt({
   highlight: (code: string, lang: string): string => {
     if (lang && hljs.getLanguage(lang)) {
       try {
+        // 保持原始换行，不进行任何处理
         const highlighted = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
         return `<pre class="relative"><code class="hljs language-${lang}">${highlighted}</code><span class="code-lang">${lang}</span></pre>`
       } catch (__) {}
@@ -362,18 +402,18 @@ const translateText = async () => {
     }
   }
 }
-const handleKeydown = (event: KeyboardEvent) => {
-  if (event.ctrlKey) {
-    switch (event.key) {
-      case '=':
-      case '+':
-        event.preventDefault()
-        zoomIn()
-        break
-      case '-':
-        event.preventDefault()
-        zoomOut()
-        break
+const handleKeydown = (e: KeyboardEvent) => {
+  // 处理 Tab 键
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    document.execCommand('insertText', false, '  ') // 插入两个空格
+  }
+  
+  // 处理 Ctrl+S 保存
+  if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault()
+    if (isEditing.value) {
+      toggleEdit() // 这会触发保存
     }
   }
 }
@@ -410,6 +450,80 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   mdContainer.value?.removeEventListener('scroll', handleScroll)
 })
+
+// 编辑相关的状态
+const isEditing = ref(false)
+const editor = ref<HTMLElement | null>(null)
+const history = ref<string[]>([])
+const historyIndex = ref(-1)
+
+// 编辑历史记录相关的计算属性
+const canUndo = computed(() => historyIndex.value > 0)
+const canRedo = computed(() => historyIndex.value < history.value.length - 1)
+
+// 切换编辑模式
+const toggleEdit = () => {
+  if (isEditing.value) {
+    // 保存编辑，使用 innerText 保持换行
+    const content = editor.value?.innerText || ''
+    emit('save', content)
+    isEditing.value = false
+  } else {
+    // 进入编辑模式
+    isEditing.value = true
+    // 下一个 tick 后聚焦编辑器并设置内容
+    nextTick(() => {
+      if (editor.value) {
+        editor.value.innerText = props.content || ''
+        editor.value.focus()
+        // 初始化历史记录
+        history.value = [props.content || '']
+        historyIndex.value = 0
+      }
+    })
+  }
+}
+
+// 处理编辑
+const handleEdit = () => {
+  if (!editor.value) return
+  
+  // 获取原始内容，保持换行
+  const content = editor.value.innerText
+  
+  // 将当前内容添加到历史记录
+  if (content !== history.value[historyIndex.value]) {
+    // 删除当前位置之后的历史记录
+    history.value = history.value.slice(0, historyIndex.value + 1)
+    // 添加新的历史记录
+    history.value.push(content)
+    historyIndex.value++
+  }
+}
+
+// 处理粘贴事件，保持纯文本和换行
+const handlePaste = (e: ClipboardEvent) => {
+  e.preventDefault()
+  const text = e.clipboardData?.getData('text/plain') || ''
+  // 使用 insertText 命令插入文本，这样会保持换行
+  document.execCommand('insertText', false, text)
+}
+
+// 撤销
+const undo = () => {
+  if (canUndo.value && editor.value) {
+    historyIndex.value--
+    editor.value.textContent = history.value[historyIndex.value]
+  }
+}
+
+// 重做
+const redo = () => {
+  if (canRedo.value && editor.value) {
+    historyIndex.value++
+    editor.value.textContent = history.value[historyIndex.value]
+  }
+}
 </script>
 
 <style>
@@ -504,6 +618,7 @@ onUnmounted(() => {
   overflow-x: auto;
   font-size: 85%;
   line-height: 1.45;
+  white-space: pre !important;
 }
 
 .prose pre code {
@@ -511,9 +626,10 @@ onUnmounted(() => {
   margin: 0;
   background-color: transparent;
   border: 0;
-  white-space: pre;
+  white-space: pre !important;
   font-size: inherit;
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  tab-size: 2;
 }
 
 .prose .code-lang {
@@ -636,5 +752,21 @@ onUnmounted(() => {
 
 .prose blockquote {
   border-radius: 0.25rem;
+}
+
+/* 编辑器样式 */
+.markdown-viewer [contenteditable="true"] {
+  outline: none;
+  cursor: text;
+  tab-size: 2;
+  line-height: 1.75;
+  white-space: pre-wrap !important;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+}
+
+.markdown-viewer [contenteditable="true"]:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+  border-radius: 0.375rem;
 }
 </style>

@@ -51,6 +51,7 @@
             :file-description="docsStore.currentDocument.summary"
             :content="docsStore.currentDocument.content"
             @close="docsStore.setCurrentDocument(null)"
+            @save="docsStore.saveDocumentContent"
           />
         </div>
 
