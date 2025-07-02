@@ -1,39 +1,56 @@
 <template>
-  <div class="markdown-viewer h-full flex flex-col bg-gray-50">
-    <div class="flex-shrink-0 bg-white border-b p-4 flex items-center justify-between">
-      <div class="flex items-center gap-4 flex-1 min-w-0">
-        <button @click="$emit('close')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 flex-shrink-0">
-          <ChevronLeftIcon />
+  <div class="markdown-viewer h-full flex flex-col bg-white rounded-2xl overflow-hidden">
+    <!-- 顶部工具栏 -->
+    <div class="flex-shrink-0 border-b p-4 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <button 
+          class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-800"
+          @click="$emit('close')"
+        >
+          <ChevronLeftIcon class="w-5 h-5" />
           <span>返回列表</span>
         </button>
-        <div class="flex-1 min-w-0 ml-4 border-l border-gray-200 pl-4">
-          <h3 class="font-medium text-gray-900 truncate">{{ fileName }}</h3>
-          <p class="text-sm text-gray-500 truncate">{{ fileDescription || 'Markdown文档' }}</p>
+        <div class="h-6 w-px bg-gray-200"></div>
+        <div class="text-sm text-gray-600">
+          <div class="font-medium text-gray-900">{{ fileName }}</div>
+          <div class="text-gray-500">{{ fileDescription || 'Markdown文档' }}</div>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <button @click="zoomOut" class="p-2 rounded hover:bg-gray-100">
-          <MinusIcon />
+      <div class="flex items-center space-x-3">
+        <button 
+          class="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          @click="zoomOut"
+        >
+          <MinusIcon class="w-5 h-5" />
         </button>
-        <span class="text-sm text-gray-600 min-w-[4rem] text-center">
-          {{ Math.round(scale * 100) }}%
-        </span>
-        <button @click="zoomIn" class="p-2 rounded hover:bg-gray-100">
-          <PlusIcon />
+        <span class="text-sm text-gray-600">{{ Math.round(scale * 100) }}%</span>
+        <button 
+          class="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          @click="zoomIn"
+        >
+          <PlusIcon class="w-5 h-5" />
         </button>
       </div>
     </div>
+
+    <!-- 主要内容区域 -->
     <div class="flex-1 flex overflow-hidden">
       <!-- 左侧大纲 -->
-      <div class="w-64 flex-shrink-0 bg-white border-r overflow-y-auto">
+      <div 
+        class="w-64 flex-shrink-0 overflow-y-auto border-r"
+        :style="{ transform: `scale(${scale})`, transformOrigin: 'top left' }"
+      >
         <div class="p-4">
           <div v-for="(item, index) in visibleOutline" :key="index" class="outline-item">
             <div 
               :class="[
-                'flex items-center cursor-pointer hover:text-blue-600 py-1',
-                { 'text-blue-600': activeHeading === item.id }
+                'flex items-center cursor-pointer rounded-lg py-1.5 px-2 transition-colors',
+                { 
+                  'text-blue-600 bg-blue-50': activeHeading === item.id,
+                  'hover:bg-gray-50': activeHeading !== item.id
+                }
               ]"
-              :style="{ paddingLeft: `${item.level * 12}px` }"
+              :style="{ paddingLeft: `${(item.level * 12) + 8}px` }"
               @click="scrollToHeading(item.id)"
             >
               <span 
@@ -43,15 +60,16 @@
               >
                 {{ expandedSections.includes(item.id) ? '▼' : '▶' }}
               </span>
-              <span class="truncate">{{ item.text }}</span>
+              <span class="truncate text-sm">{{ item.text }}</span>
             </div>
           </div>
         </div>
       </div>
+
       <!-- 内容区域 -->
       <div class="flex-1 overflow-auto p-6" ref="mdContainer">
         <div 
-          class="bg-white w-full max-w-[900px] mx-auto min-h-full pb-24"
+          class="w-full max-w-[900px] mx-auto min-h-full pb-24"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
           <div 
@@ -59,39 +77,26 @@
             v-html="renderedMarkdown"
             @mouseup="handleTextSelection"
             @contextmenu="handleContextMenu"
-          />  
+          />
         </div>
       </div>
     </div>
-    <div
-      v-if="showContextMenu"
-      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
-      class="context-menu fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[150px] max-w-[300px]"
+
+    <!-- 右键菜单 -->
+    <div 
+      v-if="showContextMenu" 
+      class="fixed bg-white shadow-lg rounded-lg overflow-hidden border"
+      :style="{ top: contextMenuY + 'px', left: contextMenuX + 'px' }"
     >
-      <button
-        @click.stop="copyText"
-        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-      >
-        📋 复制{{ translatedText ? '译文' : '' }}
-      </button>
-      <button
-        @click.stop="translateText"
-        :disabled="isTranslating"
-        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
-      >
-        🌐 翻译
-      </button>
-      <div v-if="isTranslating || translatedText" class="border-t border-gray-200 mt-2">
-        <div v-if="isTranslating" class="px-4 py-3 text-xs text-gray-500">
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-            翻译中...
-          </div>
-        </div>
-        <div v-else-if="translatedText" class="px-4 py-3">
-          <div class="text-xs text-gray-500 mb-1">译文:</div>
-          <div class="text-sm text-gray-800 leading-relaxed">{{ translatedText }}</div>
-        </div>
+      <div class="py-1">
+        <button 
+          class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          :disabled="!selectedText || isTranslating"
+          @click="translateText"
+        >
+          <span>翻译选中文本</span>
+          <span v-if="isTranslating" class="text-blue-600">翻译中...</span>
+        </button>
       </div>
     </div>
   </div>
@@ -125,7 +130,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   close: []
 }>()
 
@@ -133,7 +138,8 @@ const scale = ref(1)
 const mdContainer = ref<HTMLElement | null>(null)
 const selectedText = ref('')
 const showContextMenu = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
 const translatedText = ref('')
 const isTranslating = ref(false)
 
@@ -297,12 +303,13 @@ const handleTextSelection = () => {
     isTranslating.value = false
   }
 }
-const handleContextMenu = (event: MouseEvent) => {
+const handleContextMenu = (e: MouseEvent) => {
+  e.preventDefault()
   const selection = window.getSelection()
   if (selection && selection.toString().trim()) {
-    event.preventDefault()
     selectedText.value = selection.toString().trim()
-    contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+    contextMenuX.value = e.clientX
+    contextMenuY.value = e.clientY
     showContextMenu.value = true
   }
 }
@@ -404,21 +411,25 @@ onUnmounted(() => {
 }
 
 /* 滚动条样式 */
-.overflow-auto::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.overflow-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.overflow-auto::-webkit-scrollbar-track {
+.overflow-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.overflow-auto::-webkit-scrollbar-thumb {
+.overflow-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
   background: #d1d5db;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
-.overflow-auto::-webkit-scrollbar-thumb:hover {
+.overflow-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
 
@@ -427,6 +438,7 @@ onUnmounted(() => {
   font-size: 15px;
   line-height: 1.6;
   color: #24292f;
+  background-color: white;
 }
 
 .prose h1 {
@@ -465,9 +477,9 @@ onUnmounted(() => {
 .prose pre {
   position: relative;
   background-color: #f6f8fa;
-  border-radius: 6px;
+  border-radius: 0.5rem;
   padding: 16px;
-  margin: 1em 0;
+  margin: 1.5rem 0;
   overflow-x: auto;
   font-size: 85%;
   line-height: 1.45;
@@ -498,7 +510,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 85%;
   background-color: rgba(175, 184, 193, 0.2);
-  border-radius: 6px;
+  border-radius: 0.25rem;
 }
 
 .prose ul, .prose ol {
@@ -515,6 +527,7 @@ onUnmounted(() => {
   padding: 0 1em;
   color: #57606a;
   border-left: 0.25em solid #d0d7de;
+  border-radius: 0.25rem;
 }
 
 .prose hr {
@@ -553,17 +566,11 @@ onUnmounted(() => {
 
 /* 大纲样式 */
 .outline-item {
-  font-size: 14px;
-  line-height: 1.5;
   color: #24292f;
 }
 
 .outline-item .cursor-pointer {
   transition: all 0.2s;
-}
-
-.outline-item .cursor-pointer:hover {
-  background-color: #f8fafc;
 }
 
 /* 展开/折叠图标样式 */
@@ -584,5 +591,29 @@ onUnmounted(() => {
 .prose h5[id],
 .prose h6[id] {
   scroll-margin-top: 5rem;
+}
+
+/* 内容区域样式 */
+.prose {
+  background-color: white;
+}
+
+.prose pre {
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.prose code {
+  border-radius: 0.25rem;
+}
+
+.prose img {
+  border-radius: 0.5rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.prose blockquote {
+  border-radius: 0.25rem;
 }
 </style>

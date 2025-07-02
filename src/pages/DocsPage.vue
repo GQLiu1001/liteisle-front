@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full p-6 pb-24">
+  <div class="flex flex-col h-full p-6 pb-24 relative overflow-hidden">
     <!-- 详情视图 -->
-    <div v-if="docsStore.currentDocument" class="flex-1 flex flex-col min-h-0">
+    <div v-if="docsStore.currentDocument" class="absolute inset-6 flex flex-col min-h-0">
       <!-- PDF 展示 -->
       <div v-if="docsStore.currentDocument.type === 'pdf'" class="h-full">
         <PDFViewer 
@@ -53,7 +53,7 @@
         />
       </div>
 
-      <!-- Markdown 和其他格式保持原有样式 -->
+      <!-- 其他格式 -->
       <div v-else class="card flex-1 flex flex-col min-h-0">
         <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
           <button 
@@ -65,28 +65,15 @@
           </button>
         </div>
         <div class="p-4 flex-1 overflow-y-auto">
-          <!-- 文档内容展示 -->
           <div class="h-full flex flex-col">
-            <!-- 文档头部 -->
             <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
               <div>
                 <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
                 <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
               </div>
             </div>
-
-            <!-- 文档内容区域 -->
             <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
-              <!-- Markdown 渲染 -->
-              <div
-                v-if="docsStore.currentDocument.type === 'markdown'"
-                class="prose prose-lg max-w-none"
-                @mouseup="handleTextSelection"
-                v-html="renderedMarkdown"
-              />
-
-              <!-- 其他格式 -->
-              <div v-else class="h-full flex items-center justify-center">
+              <div class="h-full flex items-center justify-center">
                 <div class="text-center">
                   <FileText :size="64" class="mx-auto text-morandi-400 mb-4" />
                   <p class="text-morandi-600">暂不支持此文件格式的在线预览</p>
@@ -99,7 +86,7 @@
     </div>
 
     <!-- 列表视图 -->
-    <div v-else class="flex flex-1 gap-6 min-h-0">
+    <div v-else class="absolute inset-6 flex gap-6 min-h-0">
       <!-- 第一栏：分类导航 -->
       <div class="card w-64 flex-shrink-0">
         <div class="h-full flex flex-col p-4">
@@ -186,10 +173,10 @@
                 v-for="document in docsStore.filteredDocuments"
                 :key="document.id"
                 @dblclick="docsStore.setCurrentDocument(document)"
-                 :class="[
-                    'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
-                    'border-transparent hover:bg-morandi-50'
-                  ]"
+                :class="[
+                  'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                  'border-transparent hover:bg-morandi-50'
+                ]"
               >
                 <div class="w-4 text-center opacity-0">
                   <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>

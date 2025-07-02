@@ -25,6 +25,7 @@
     "markdown-it-sub": "^2.0.0",
     "markdown-it-sup": "^2.0.0",
     "markdown-it-task-lists": "^2.1.1",
+    "pdfjs-dist": "^5.3.31",
     "pinia": "^2.1.7",
     "vue": "^3.4.15",
     "vue-activity-calendar": "^1.2.2",
