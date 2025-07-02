@@ -1,3 +1,5 @@
+const defaultTheme = require('tailwindcss/defaultTheme')
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -53,7 +55,7 @@ export default {
         }
       },
       fontFamily: {
-        'sans': ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"LXGW WenKai Lite"', 'sans-serif', ...defaultTheme.fontFamily.sans],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',
