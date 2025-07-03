@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { Home, HardDrive, Music, FileText, Settings } from 'lucide-vue-next'
+import { Home, Cloud, Music, FileText, Settings } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -38,7 +38,7 @@ const navItems = [
     name: 'drive',
     path: '/drive',
     label: '云盘',
-    icon: HardDrive
+    icon: Cloud
   },
   {
     name: 'music',
