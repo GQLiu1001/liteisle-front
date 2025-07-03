@@ -6,7 +6,7 @@
         v-model="selectedLanguage"
         contenteditable="true"
         :placeholder="placeholder"
-        :style="{ width: `${inputSize}ch`, textAlign: 'right' }"
+        :style="{ width: `${inputSize}ch`, textAlign: 'center' }"
         class="bg-transparent text-gray-500 text-xs rounded-md py-1 border border-transparent focus:outline-none transition-colors"
       />
     </div>
