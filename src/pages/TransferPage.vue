@@ -196,6 +196,8 @@
 import { ref, computed } from 'vue';
 import { Upload, Download, Link, Trash2, FolderOpen, File as FileIcon, Film, X } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification'
+import { useDriveStore } from '@/store/DriveStore';
+import type { DriveItem } from '@/store/DriveStore';
 
 const toast = useToast()
 
@@ -223,6 +225,7 @@ const taskToDelete = ref<Task | null>(null);
 const linkUrl = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
+const driveStore = useDriveStore();
 
 const categories: { type: CategoryType; label: string; icon: any; }[] = [
   { type: 'upload', label: '上传', icon: Upload },
@@ -257,6 +260,33 @@ const formatBytes = (bytes: number, decimals = 2) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
+const getFileType = (name: string): 'audio' | 'document' | 'other' => {
+  const ext = name.split('.').pop()?.toLowerCase();
+  if (['mp3', 'wav', 'flac', 'aac'].includes(ext || '')) return 'audio';
+  if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')) return 'document';
+  return 'other';
+};
+
+const addToSpecialFolder = (folderName: '上传' | '分享', fileName: string, size: number = 0) => {
+  const folder = driveStore.driveItems.find((d: DriveItem) => d.name === folderName && d.type === 'folder');
+  if (!folder) return;
+
+  const newFile: DriveItem = {
+    id: Date.now().toString() + Math.random().toString(),
+    name: fileName,
+    type: getFileType(fileName),
+    size,
+    modifiedAt: new Date(),
+    createdAt: new Date(),
+    path: `/${folderName}/${fileName}`,
+    parentId: folder.id,
+  } as DriveItem;
+
+  if (!folder.children) folder.children = [];
+  folder.children.push(newFile);
+  folder.itemCount = (folder.itemCount || 0) + 1;
+};
+
 const addTask = (file: File) => {
   taskIdCounter++;
   const newTask: Task = {
@@ -285,6 +315,8 @@ const addTask = (file: File) => {
         task.speed = '0 KB/s';
         clearInterval(interval);
         task.intervalId = undefined;
+        // 上传完成后，将文件加入"上传"文件夹
+        addToSpecialFolder('上传', file.name, file.size);
       }
     } else {
       clearInterval(interval);
@@ -383,6 +415,8 @@ const startLinkDownload = () => {
         task.speed = '0 KB/s';
         clearInterval(interval);
         task.intervalId = undefined;
+        // 下载完成后，将文件加入"分享"文件夹（假定下载的是分享文件）
+        addToSpecialFolder('分享', newTask.name, 0);
       }
     } else {
       clearInterval(interval);

@@ -41,7 +41,7 @@
             <!-- 中间区域：刷新按钮 + 搜索框和控制按钮 -->
             <div class="flex-1 flex justify-center items-center gap-6">
               <button
-                @click="refreshItems"
+                @click="refreshAndHide"
                 :disabled="isRefreshing"
                 class="p-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
                 title="刷新"
@@ -165,7 +165,7 @@
                 @click="handleItemClick(item)"
                 @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
-                :draggable="!driveStore.isInRecycleBin"
+                :draggable="!driveStore.isInRecycleBin && !item.isLocked"
                 @dragstart="handleDragStart($event, item)"
                 @dragover.prevent="handleDragOver($event, item)"
                 @dragleave="handleDragLeave"
@@ -193,7 +193,7 @@
 
               <!-- 新建文件夹项（在根目录和第一级都显示，非回收站模式） -->
               <div
-                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 1"
                 @click="createNewFolder"
                 class="p-4 rounded-lg border-2 border-dashed border-morandi-300 hover:border-teal-400 hover:bg-teal-50 transition-all duration-200 cursor-pointer"
               >
@@ -251,7 +251,7 @@
                 @click="handleItemClick(item)"
                 @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
-                :draggable="!driveStore.isInRecycleBin"
+                :draggable="!driveStore.isInRecycleBin && !item.isLocked"
                 @dragstart="handleDragStart($event, item)"
                 @dragover.prevent="handleDragOver($event, item)"
                 @dragleave="handleDragLeave"
@@ -288,7 +288,7 @@
               
               <!-- 新建文件夹项（列表模式） -->
               <div
-                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && (getCurrentLevel() === 0 || getCurrentLevel() === 1)"
+                v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 1"
                 @click="createNewFolder"
                 class="flex items-center px-4 py-3 rounded-lg border-2 border-dashed border-morandi-300 hover:border-teal-400 hover:bg-teal-50 transition-all duration-200 cursor-pointer"
               >
@@ -465,7 +465,7 @@
           粘贴
         </button>
         <button 
-          v-if="getCurrentLevel() <= 1"
+          v-if="getCurrentLevel() === 1"
           @click="createNewFolder"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
@@ -478,6 +478,13 @@
         >
           <FileText :size="16" />
           上传文件
+        </button>
+        <button
+          v-if="driveStore.isInRecycleBin || getCurrentLevel() <= 2"
+          @click="refreshAndHide"
+          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+        >
+          刷新
         </button>
       </template>
       
@@ -502,6 +509,13 @@
         
         <!-- 正常模式下的右键菜单 -->
         <template v-else>
+          <button 
+            v-if="driveStore.isInRecycleBin || getCurrentLevel() <= 2"
+            @click="refreshAndHide"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            刷新
+          </button>
           <button 
             @click="openItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
@@ -530,13 +544,15 @@
             复制
           </button>
           <button 
+            v-if="!selectedItem?.isLocked"
             @click="cutItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             剪切
           </button>
-          <hr class="my-1 border-morandi-200">
+          <hr class="my-1 border-morandi-200" v-if="!selectedItem?.isLocked">
           <button 
+            v-if="!selectedItem?.isLocked"
             @click="showDeleteConfirm"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
@@ -549,6 +565,7 @@
             重命名
           </button>
           <button 
+            v-if="!selectedItem?.isLocked"
             @click="showMoveDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
@@ -1082,6 +1099,11 @@ const navigateToPath = (index: number) => {
 }
 
 const handleItemClick = (item: DriveItem) => {
+  const now = Date.now()
+  if (now - lastFolderOpenTime.value < 300) {
+    return
+  }
+  lastFolderOpenTime.value = now
   if (driveStore.isInRecycleBin) {
     // 在回收站中单击不执行任何操作
     return
@@ -1118,7 +1140,7 @@ const handleItemClick = (item: DriveItem) => {
 
 const handleItemDoubleClick = (item: DriveItem) => {
   if (driveStore.isInRecycleBin) {
-    restoreItem(item)
+    restoreItem()
   } else {
     handleItemClick(item) // 在正常视图中，双击行为与单击相同（打开）
   }
@@ -1126,8 +1148,8 @@ const handleItemDoubleClick = (item: DriveItem) => {
 
 const createNewFolder = () => {
   const level = getCurrentLevel()
-  if (level > 1) {
-    alert('只能在根目录或第一级大类中创建文件夹')
+  if (level !== 1) {
+    alert('只能在第一级分类中创建文件夹')
     return
   }
   showCreateFolderDialog.value = true
@@ -1139,8 +1161,8 @@ const confirmCreateFolder = () => {
   if (!folderName) return
 
   const level = getCurrentLevel()
-  if (level > 1) {
-    alert('只能在根目录或第一级大类中创建文件夹')
+  if (level !== 1) {
+    alert('只能在第一级分类中创建文件夹')
     return
   }
 
@@ -1597,6 +1619,7 @@ const refreshItems = async () => {
   }
   
   isRefreshing.value = false
+  hideContextMenu()
 }
 
 // 排序功能
@@ -1787,6 +1810,10 @@ const copyShareLink = async () => {
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const handleDragStart = (event: DragEvent, item: DriveItem) => {
+  if (item.isLocked) {
+    event.preventDefault()
+    return
+  }
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', item.id)
     event.dataTransfer.effectAllowed = 'move'
@@ -1887,5 +1914,13 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
 }
 
 const dragOverBreadcrumbPath = ref<string | null>(null)
+
+// 防止快速连击导致重复打开
+const lastFolderOpenTime = ref(0)
+
+const refreshAndHide = async () => {
+  hideContextMenu()
+  await refreshItems()
+}
 
 </script> 

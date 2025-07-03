@@ -14,6 +14,7 @@ export interface DriveItem {
   children?: DriveItem[]
   level?: number
   deletedAt?: Date
+  isLocked?: boolean
 }
 
 export const useDriveStore = defineStore('drive', () => {
@@ -61,6 +62,7 @@ export const useDriveStore = defineStore('drive', () => {
       path: '/音乐',
       parentId: null,
       level: 1,
+      isLocked: true,
       itemCount: 3,
       children: [
         {
@@ -167,6 +169,7 @@ export const useDriveStore = defineStore('drive', () => {
       path: '/文档',
       parentId: null,
       level: 1,
+      isLocked: true,
       itemCount: 2,
       children: [
         {
@@ -240,28 +243,30 @@ export const useDriveStore = defineStore('drive', () => {
       ]
     },
     {
-      id: '3',
-      name: '视频',
+      id: '5',
+      name: '上传',
       type: 'folder',
       size: 0,
-      modifiedAt: new Date('2024-01-08'),
-      createdAt: new Date('2023-12-20'),
-      path: '/视频',
+      modifiedAt: new Date(),
+      createdAt: new Date(),
+      path: '/上传',
       parentId: null,
       level: 1,
+      isLocked: true,
       itemCount: 0,
       children: []
     },
     {
-      id: '4',
-      name: '图片',
+      id: '6',
+      name: '分享',
       type: 'folder',
       size: 0,
-      modifiedAt: new Date('2024-01-05'),
-      createdAt: new Date('2023-12-25'),
-      path: '/图片',
+      modifiedAt: new Date(),
+      createdAt: new Date(),
+      path: '/分享',
       parentId: null,
       level: 1,
+      isLocked: true,
       itemCount: 0,
       children: []
     }
