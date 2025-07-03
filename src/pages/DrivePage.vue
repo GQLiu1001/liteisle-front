@@ -7,23 +7,49 @@
           <!-- 面包屑导航 -->
           <nav class="flex items-center gap-2 text-sm mb-6 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-3 rounded-lg border border-teal-100 shadow-sm">
             <div class="font-semibold text-morandi-800 mr-2 flex-shrink-0">导航栏:</div>
-            <button
+            <div
               v-for="(path, index) in breadcrumbPaths"
               :key="index"
-              @click="navigateToPath(index)"
-              @dragover.prevent="handleBreadcrumbDragOver($event, path, index)"
-              @dragleave="handleBreadcrumbDragLeave"
-              @drop="handleBreadcrumbDrop($event, path, index)"
-              class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
-              :class="{ 
-                'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
-                'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1,
-                'bg-teal-100 ring-2 ring-teal-400': dragOverBreadcrumbPath === path.path
-              }"
+              class="relative inline-flex"
             >
-              <span>{{ path.name }}</span>
-              <ChevronRight v-if="index < breadcrumbPaths.length - 1" :size="16" class="text-morandi-400" />
-            </button>
+              <button
+                @click="navigateToPath(index)"
+                @dragover.prevent="handleBreadcrumbDragOver($event, path, index)"
+                @dragleave="handleBreadcrumbDragLeave"
+                @drop="handleBreadcrumbDrop($event, path, index)"
+                class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
+                :class="{ 
+                  'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
+                  'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1,
+                  'bg-teal-100 ring-2 ring-teal-400': dragOverBreadcrumbPath === path.path
+                }"
+              >
+                <span>{{ path.name }}</span>
+                <ChevronRight v-if="index < breadcrumbPaths.length - 1" :size="16" class="text-morandi-400" />
+              </button>
+
+              <!-- 下拉菜单 -->
+              <div
+                v-if="breadcrumbDropdownPath === path.path && breadcrumbDropdownItems.length"
+                class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-morandi-200 z-50"
+                @dragover.prevent="keepBreadcrumbDropdown"
+                @dragleave="handleBreadcrumbDragLeave"
+              >
+                <div
+                  v-for="child in breadcrumbDropdownItems"
+                  :key="child.id"
+                  @dragover.prevent="(e) => { dragOverDropdownTargetId = child.id; keepBreadcrumbDropdown() }"
+                  @dragleave="(e) => { dragOverDropdownTargetId = null; scheduleHideDropdown() }"
+                  @drop="handleBreadcrumbChildDrop($event, child)"
+                  :class="[
+                    'px-4 py-1 text-sm whitespace-nowrap',
+                    dragOverDropdownTargetId === child.id ? 'bg-teal-100' : 'hover:bg-morandi-50'
+                  ]"
+                >
+                  {{ child.name }}
+                </div>
+              </div>
+            </div>
           </nav>
 
           <!-- 文件列表头部 -->
@@ -1399,6 +1425,11 @@ const selectMoveTarget = (path: string) => {
 const confirmMove = () => {
   if (!selectedItem.value || !moveTargetPath.value) return
 
+  if (moveTargetPath.value === '/') {
+    alert('不能移动到根目录')
+    return
+  }
+
   const item = selectedItem.value
   const targetPath = moveTargetPath.value
   const oldParentPath = getParentPath(item.path)
@@ -1817,6 +1848,27 @@ const handleDragStart = (event: DragEvent, item: DriveItem) => {
   if (event.dataTransfer) {
     event.dataTransfer.setData('text/plain', item.id)
     event.dataTransfer.effectAllowed = 'move'
+
+    // 自定义预览：克隆元素中的 svg 图标
+    const originEl = (event.currentTarget as HTMLElement)
+    const svgEl = originEl.querySelector('svg')?.cloneNode(true) as HTMLElement | null
+    if (svgEl) {
+      const wrapper = document.createElement('div')
+      wrapper.style.position = 'fixed'
+      wrapper.style.top = '-100px'
+      wrapper.style.left = '-100px'
+      wrapper.style.width = '32px'
+      wrapper.style.height = '32px'
+      wrapper.style.display = 'flex'
+      wrapper.style.alignItems = 'center'
+      wrapper.style.justifyContent = 'center'
+      svgEl.style.width = '28px'
+      svgEl.style.height = '28px'
+      wrapper.appendChild(svgEl)
+      document.body.appendChild(wrapper)
+      event.dataTransfer.setDragImage(wrapper, 12, 12)
+      setTimeout(() => document.body.removeChild(wrapper), 0)
+    }
   }
   // 可以在这里添加一个拖动时的样式，比如降低透明度
 }
@@ -1881,11 +1933,23 @@ const handleBreadcrumbDragOver = (event: DragEvent, path: BreadcrumbPath, index:
   if (index === breadcrumbPaths.value.length - 1) {
     return
   }
+  keepBreadcrumbDropdown()
   dragOverBreadcrumbPath.value = path.path
+  breadcrumbDropdownPath.value = path.path
+
+  // 获取该路径对应的子项用于下拉
+  let folder: DriveItem | undefined
+  if (path.path === '/') {
+    breadcrumbDropdownItems.value = driveStore.driveItems
+  } else {
+    folder = findItemByPath(path.path)
+    breadcrumbDropdownItems.value = folder?.children || []
+  }
 }
 
 const handleBreadcrumbDragLeave = () => {
   dragOverBreadcrumbPath.value = null
+  scheduleHideDropdown()
 }
 
 const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: number) => {
@@ -1915,6 +1979,34 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
 
 const dragOverBreadcrumbPath = ref<string | null>(null)
 
+// 面包屑下拉显示
+const breadcrumbDropdownPath = ref<string | null>(null)
+const breadcrumbDropdownItems = ref<DriveItem[]>([])
+
+const clearBreadcrumbDropdown = () => {
+  breadcrumbDropdownPath.value = null
+  breadcrumbDropdownItems.value = []
+}
+
+const dropdownHideTimer = ref<number | null>(null)
+
+const scheduleHideDropdown = () => {
+  if (dropdownHideTimer.value) {
+    clearTimeout(dropdownHideTimer.value)
+  }
+  dropdownHideTimer.value = window.setTimeout(() => {
+    clearBreadcrumbDropdown()
+    dropdownHideTimer.value = null
+  }, 400)
+}
+
+const keepBreadcrumbDropdown = () => {
+  if (dropdownHideTimer.value) {
+    clearTimeout(dropdownHideTimer.value)
+    dropdownHideTimer.value = null
+  }
+}
+
 // 防止快速连击导致重复打开
 const lastFolderOpenTime = ref(0)
 
@@ -1922,5 +2014,23 @@ const refreshAndHide = async () => {
   hideContextMenu()
   await refreshItems()
 }
+
+const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) => {
+  clearBreadcrumbDropdown()
+  if (!event.dataTransfer) return
+
+  const draggedItemId = event.dataTransfer.getData('text/plain')
+  const itemToMove = findItemInStore(draggedItemId)
+
+  if (itemToMove && itemToMove.id !== targetFolder.id) {
+    selectedItem.value = itemToMove
+    moveTargetPath.value = targetFolder.path
+    confirmMove()
+    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
+  }
+}
+
+// 当前悬停下拉条目
+const dragOverDropdownTargetId = ref<string | null>(null)
 
 </script> 
