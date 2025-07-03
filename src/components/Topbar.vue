@@ -1,12 +1,12 @@
 <template>
   <header 
     :class="[
-      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center px-8 py-6 draggable-area z-10 transition-all duration-300',
+      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center justify-between px-8 py-6 draggable-area z-10 transition-all duration-300',
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
   >
-    <!-- 绝对居中的开始专注按钮 -->
-    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+    <!-- 左侧 - 开始专注按钮 -->
+    <div>
       <button 
         @click="toggleFocus"
         :class="[
@@ -20,7 +20,7 @@
     </div>
 
     <!-- 右侧 - 用户头像和窗口控制 -->
-    <div class="flex items-center gap-4 ml-auto">
+    <div class="flex items-center gap-4">
       <!-- 用户头像下拉菜单 -->
       <div class="relative user-menu" @click="toggleUserMenu">
         <div class="w-10 h-10 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors">

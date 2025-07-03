@@ -25,11 +25,6 @@
     <!-- 底部音乐栏 - 独立浮动 -->
     <MusicBar />
   </div>
-
-  <Toaster :toast-options="{
-    style: { background: 'white', color: '#333', border: '1px solid #E5E7EB' },
-    class: 'my-toast-class',
-  }" rich-colors close-button position="top-center" />
 </template>
 
 <script setup lang="ts">
@@ -38,7 +33,6 @@ import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import MusicBar from '@/components/MusicBar.vue'
 import { useUIStore } from '@/store/UIStore'
-import { Toaster } from 'vue-sonner'
 
 const route = useRoute()
 const uiStore = useUIStore()

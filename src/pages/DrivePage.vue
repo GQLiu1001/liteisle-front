@@ -840,11 +840,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Upload,FolderClosed,ChevronRight, Music, FileText,Trash2,Shredder,RefreshCcw,FolderSync,ListOrdered,Logs,Grid2x2} from 'lucide-vue-next'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
-import { toast } from 'vue-sonner'
+import { useToast } from 'vue-toastification'
+import {
+  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, FolderSync, ListOrdered, Logs, Grid2x2
+} from 'lucide-vue-next'
+
+const toast = useToast()
 
 interface BreadcrumbPath {
   name: string
@@ -1512,34 +1516,43 @@ const cancelDelete = () => {
 
 // 回收站相关功能
 const restoreAllItems = () => {
-  if (driveStore.recycleBinItems.length === 0) return
-
-  if (confirm(`确定要还原所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
-    // 复制ID列表，因为store中的数组在迭代时会变化
-    const itemIds = driveStore.recycleBinItems.map((item: DriveItem) => item.id)
-    itemIds.forEach((id: string) => driveStore.restoreItem(id))
-    toast.success('所有项目已还原')
-  }
+  driveStore.restoreAllItems();
+  toast.success('所有项目已从回收站恢复');
 }
 
 const deleteAllItems = () => {
-  if (driveStore.recycleBinItems.length === 0) return
-
-  if (confirm(`确定要永久删除所有 ${driveStore.recycleBinItems.length} 个项目吗？此操作不可撤销！`)) {
-    driveStore.recycleBinItems.length = 0
-    toast.success('所有项目已永久删除')
+  if (confirm('确定要永久删除回收站中的所有项目吗？此操作不可恢复。')) {
+    driveStore.emptyRecycleBin();
+    toast.success('回收站已清空');
   }
-}
+};
 
-// 还原单个项目
-const restoreItem = (itemToRestore?: DriveItem) => {
-  const item = itemToRestore || selectedItem.value
-  if (!item) return
+const deleteItem = () => {
+  if (!selectedItem.value) return;
+  const itemName = selectedItem.value!.name;
+  driveStore.deleteItem(selectedItem.value!.id);
+  showContextMenuState.value = false;
+  selectedItem.value = null;
+  toast.success(`"${itemName}" 已移至回收站`);
+};
 
-  driveStore.restoreItem(item.id)
-  hideContextMenu()
-  toast.success(`"${item.name}" 已还原`)
-}
+const restoreItem = () => {
+  if (!selectedItem.value) return;
+  const itemName = selectedItem.value!.name;
+  driveStore.restoreItem(selectedItem.value!.id);
+  showContextMenuState.value = false;
+  selectedItem.value = null;
+  toast.success(`"${itemName}" 已恢复`);
+};
+
+const renameItem = () => {
+  if (!selectedItem.value) return;
+  const oldName = selectedItem.value.name;
+  driveStore.renameItem(selectedItem.value.id, renameValue.value);
+  showRenameDialog.value = false;
+  showContextMenuState.value = false;
+  toast.success(`"${oldName}" 已重命名为 "${renameValue.value}"`);
+};
 
 // 打开功能
 const openItem = () => {
@@ -1690,8 +1703,8 @@ const pasteItem = () => {
   }
 
   hideContextMenu()
-  // toast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
-  toast.success(`${isCut ? '移动' : '复制'}成功`)
+  // sonnerToast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
+  sonnerToast.success(`${isCut ? '移动' : '复制'}成功`)
 }
 
 // 格式化日期
@@ -1747,7 +1760,7 @@ const generateShareLink = () => {
   shareLink.value = link
   
   // 显示成功提示
-  toast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
+  sonnerToast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
 }
 
 const copyShareLink = async () => {
@@ -1758,7 +1771,7 @@ const copyShareLink = async () => {
 
   try {
     await navigator.clipboard.writeText(shareLink.value)
-    toast.success('分享链接已复制到剪贴板')
+    sonnerToast.success('分享链接已复制到剪贴板')
   } catch (err) {
     // 降级方案
     const textArea = document.createElement('textarea')
@@ -1767,7 +1780,7 @@ const copyShareLink = async () => {
     textArea.select()
     document.execCommand('copy')
     document.body.removeChild(textArea)
-    toast.success('分享链接已复制到剪贴板')
+    sonnerToast.success('分享链接已复制到剪贴板')
   }
 }
 
@@ -1810,7 +1823,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     selectedItem.value = itemToMove
     moveTargetPath.value = targetItem.path
     confirmMove()
-    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
+    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
   }
 }
 
@@ -1869,7 +1882,7 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
     selectedItem.value = itemToMove
     moveTargetPath.value = path.path
     confirmMove()
-    toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
+    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
   }
 }
 

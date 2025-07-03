@@ -40,7 +40,7 @@
     "vue-activity-calendar": "^1.2.2",
     "vue-pdf-embed": "^2.1.2",
     "vue-router": "^4.2.5",
-    "vue-sonner": "^2.0.1",
+    "vue-toastification": "^2.0.0-rc.5",
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {

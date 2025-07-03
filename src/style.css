@@ -96,4 +96,12 @@
   .topbar-control {
     @apply w-8 h-8 rounded-md flex items-center justify-center transition-all duration-200 hover:bg-black/10 cursor-pointer;
   }
-} 
+}
+
+@layer utilities {
+  @media (min-width: 768px) {
+      .my-toast-container {
+          margin-top: -20px !important;
+      }
+  }
+}
