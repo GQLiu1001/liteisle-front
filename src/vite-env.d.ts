@@ -105,4 +105,27 @@ declare module 'lucide-vue-next' {
   export const DiscAlbum: any
   export const BookImage: any
   export const Cloud: any
+  export const ArrowRightLeft: any
+  export const Download: any
+  export const Share2: any
+  export const UploadCloud: any
+  export const DownloadCloud: any
+  export const ArrowUp: any
+  export const ArrowDown: any
+  export const ArrowLeft: any
+  export const ArrowRight: any
+  export const ArrowUpLeft: any
+  export const ArrowUpRight: any
+  export const ArrowDownLeft: any
+  export const ArrowDownRight: any
+  export const File: any
+  export const Film: any
+  export const Link: any
+  export const FolderOpen: any
+  export const FolderClosed: any
+  export const Folder: any
+  export const FolderPlus: any
+  export const FolderMinus: any
+  export const FolderX: any
+  export const FolderCheck: any
 } 

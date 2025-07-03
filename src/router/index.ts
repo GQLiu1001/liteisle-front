@@ -25,6 +25,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/DrivePage.vue')
   },
   {
+    path: '/transfer',
+    name: 'transfer',
+    component: () => import('@/pages/TransferPage.vue')
+  },
+  {
     path: '/music',
     name: 'music',
     component: () => import('@/pages/MusicPage.vue')
