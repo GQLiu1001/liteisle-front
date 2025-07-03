@@ -11,10 +11,10 @@
           <span>返回列表</span>
         </button>
         <div class="h-6 w-px bg-gray-200"></div>
-        <div class="text-sm text-gray-600">
-          <div class="font-medium text-gray-900">{{ fileName }}</div>
-          <div class="text-gray-500">{{ fileDescription || 'Markdown文档' }}</div>
-        </div>
+                  <div class="text-sm text-gray-600">
+            <div class="font-medium text-gray-900">{{ fileName }}</div>
+            <div class="text-gray-500">{{ fileDescription || 'Markdown文档' }} • 按 Ctrl+Shift+C 创建代码块</div>
+          </div>
       </div>
       <div class="flex items-center space-x-3">
         <!-- 撤销/重做按钮 -->
@@ -81,7 +81,7 @@
           class="w-full max-w-7xl mx-auto min-h-full pb-24"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
-          <EditorContent :editor="editor" class="prose prose-lg max-w-none"/>
+          <EditorContent :editor="editor" class="prose prose-lg max-w-none editor-content"/>
         </div>
       </div>
     </div>
@@ -136,13 +136,12 @@ import UndoIcon from 'lucide-vue-next/dist/esm/icons/undo'
 import RedoIcon from 'lucide-vue-next/dist/esm/icons/redo'
 
 // 导入 Tiptap 相关
-import { useEditor, EditorContent, VueNodeViewRenderer, mergeAttributes } from '@tiptap/vue-3'
+import { useEditor, EditorContent, VueNodeViewRenderer } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { createLowlight } from 'lowlight'
 import CodeBlockComponent from './CodeBlockComponent.vue'
-import UniqueID from '@tiptap/extension-unique-id'
 import Heading from '@tiptap/extension-heading'
 import { TableOfContents } from '@tiptap/extension-table-of-contents'
 import OutlineNode from './OutlineNode.vue'
@@ -248,6 +247,50 @@ const toggleSection = (id: string) => {
   }
 };
 
+// 检测文本是否看起来像代码
+const isLikelyCode = (text: string): boolean => {
+  const codeIndicators = [
+    /function\s+\w+\s*\(/,
+    /class\s+\w+/,
+    /const\s+\w+\s*=/,
+    /let\s+\w+\s*=/,
+    /var\s+\w+\s*=/,
+    /import\s+.*from/,
+    /export\s+(default\s+)?/,
+    /if\s*\(.*\)\s*{/,
+    /for\s*\(.*\)\s*{/,
+    /while\s*\(.*\)\s*{/,
+    /{[\s\S]*}/,
+    /^\s*\/\/|^\s*\/\*/,
+    /<\w+[^>]*>/,
+    /\w+\s*:\s*\w+/,
+    /;\s*$/m,
+  ];
+  
+  return codeIndicators.some(pattern => pattern.test(text));
+};
+
+// 检测编程语言
+const detectLanguage = (text: string): string => {
+  if (/import.*from|export.*|function\s+\w+|const\s+\w+\s*=/.test(text)) {
+    if (/import.*react|jsx|tsx/.test(text)) return 'jsx';
+    if (/interface\s+\w+|type\s+\w+\s*=/.test(text)) return 'typescript';
+    return 'javascript';
+  }
+  if (/def\s+\w+|import\s+\w+|print\(/.test(text)) return 'python';
+  if (/public\s+class|private\s+\w+|System\.out/.test(text)) return 'java';
+  if (/using\s+System|public\s+static\s+void/.test(text)) return 'csharp';
+  if (/<\?php|\$\w+/.test(text)) return 'php';
+  if (/SELECT\s+.*FROM|INSERT\s+INTO|UPDATE\s+.*SET/i.test(text)) return 'sql';
+  if (/<html|<div|<span/.test(text)) return 'html';
+  if (/\.\w+\s*{|@media/.test(text)) return 'css';
+  if (/{[\s\S]*".*":/.test(text)) return 'json';
+  if (/^---$|^\w+:\s*$/m.test(text)) return 'yaml';
+  if (/#!/.test(text)) return 'bash';
+  
+  return '';
+};
+
 const toggleOutline = () => {
   isOutlineVisible.value = !isOutlineVisible.value;
 };
@@ -256,10 +299,7 @@ const toggleOutline = () => {
 const editor = useEditor({
   content: props.content || '',
   extensions: [
-    StarterKit.configure({
-      heading: false,
-      codeBlock: false,
-    }),
+    StarterKit,
     Heading.configure({
       levels: [1, 2, 3, 4, 5, 6],
     }),
@@ -274,17 +314,40 @@ const editor = useEditor({
       linkify: true,
       breaks: true,
     }),
-    CodeBlockLowlight
-      .extend({
-        addNodeView() {
-          return VueNodeViewRenderer(CodeBlockComponent)
-        },
-      })
-      .configure({ lowlight }),
   ],
   onCreate: () => {
+    console.log('Editor created');
   },
   onUpdate: () => {
+    console.log('Editor updated');
+  },
+  editorProps: {
+    attributes: {
+      class: 'prose prose-lg max-w-none focus:outline-none',
+      spellcheck: 'false',
+    },
+    handlePaste: (view, event, slice) => {
+      // 检查粘贴的内容是否看起来像代码
+      const text = event.clipboardData?.getData('text/plain') || '';
+      
+      // 如果包含多行并且看起来像代码，自动转换为代码块
+      if (text.includes('\n') && isLikelyCode(text)) {
+        event.preventDefault();
+        const { state, dispatch } = view;
+        const { tr } = state;
+        
+        // 插入代码块
+        const codeBlockNode = state.schema.nodes.codeBlock.create(
+          { language: detectLanguage(text) },
+          state.schema.text(text)
+        );
+        
+        dispatch(tr.replaceSelectionWith(codeBlockNode));
+        return true;
+      }
+      
+      return false;
+    },
   },
 });
 
@@ -414,6 +477,84 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     editor.value?.chain().focus().toggleHeading({ level }).run();
     return;
   }
+
+  // Ctrl/Cmd + Shift + C 创建代码块
+  if (isCtrlOrMeta && e.shiftKey && e.key.toLowerCase() === 'c') {
+    e.preventDefault();
+    editor.value?.chain().focus().toggleCodeBlock().run();
+    return;
+  }
+
+  // 物理一行一行跳的上下键逻辑
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isCtrlOrMeta && !e.shiftKey) {
+    const pm = document.querySelector('.ProseMirror') as HTMLElement;
+    if (!pm) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    let node = range.startContainer as HTMLElement;
+    // 找到当前行的block节点
+    while (node && node !== pm && node.nodeType === 3 || (node.nodeType === 1 && !(node as HTMLElement).matches('p, pre, li, h1, h2, h3, h4, h5, h6'))) {
+      node = node.parentElement as HTMLElement;
+    }
+    if (!node || node === pm) return;
+    // 获取所有block行
+    const blocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
+    const idx = blocks.indexOf(node);
+    if (idx === -1) return;
+    let targetIdx = e.key === 'ArrowUp' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= blocks.length) return;
+    e.preventDefault();
+    const target = blocks[targetIdx];
+    // 将光标移到目标行的开头
+    const r = document.createRange();
+    r.selectNodeContents(target);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    // 让Tiptap同步光标
+    editor.value?.commands.focus();
+    return;
+  }
+
+  // 回车：在当前行后插入新段落
+  if (e.key === 'Enter' && !isCtrlOrMeta && !e.shiftKey) {
+    const pm = document.querySelector('.ProseMirror') as HTMLElement;
+    if (!pm) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    let node = range.startContainer as HTMLElement;
+    while (node && node !== pm && node.nodeType === 3 || (node.nodeType === 1 && !(node as HTMLElement).matches('p, pre, li, h1, h2, h3, h4, h5, h6'))) {
+      node = node.parentElement as HTMLElement;
+    }
+    if (!node || node === pm) return;
+    const blocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
+    const idx = blocks.indexOf(node);
+    if (idx === -1) return;
+    e.preventDefault();
+    // 在当前行后插入新段落
+    const pos = editor.value?.view.posAtDOM(node, 0) ?? null;
+    const nodeTextLen = (node.textContent || '').length;
+    if (pos !== null) {
+      editor.value?.chain().focus().insertContentAt(pos + nodeTextLen + 1, { type: 'paragraph' }).run();
+      setTimeout(() => {
+        const newBlocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
+        if (newBlocks[idx + 1]) {
+          const r = document.createRange();
+          r.selectNodeContents(newBlocks[idx + 1]);
+          r.collapse(true);
+          const sel2 = window.getSelection();
+          if (sel2) {
+            sel2.removeAllRanges();
+            sel2.addRange(r);
+          }
+          editor.value?.commands.focus();
+        }
+      }, 0);
+    }
+    return;
+  }
 };
 
 onMounted(() => {
@@ -519,72 +660,136 @@ onUnmounted(() => {
 
 .prose pre {
   position: relative;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  padding: 1rem;
-  border-radius: 6px;
-  margin: 1.5em 0;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  padding: 20px 24px;
+  border-radius: 8px;
+  margin: 20px 0;
   overflow-x: auto;
+  min-height: 80px;
+  background: #f8f9fa !important;
+  border: none;
+  box-shadow: none;
 }
 
 .prose pre code {
   background: none;
-  color: inherit;
-  font-size: 1em;
+  color: #212529;
+  font-size: 14px;
+  font-weight: 400;
   padding: 0;
   white-space: pre;
   word-wrap: normal;
+  line-height: 1.6;
+  min-height: 28px;
+  display: block;
+  letter-spacing: 0.025em;
 }
 
 .hljs-comment,
 .hljs-quote {
-  color: #8b949e;
+  color: #6a737d;
+  font-style: italic;
 }
 
 .hljs-variable,
 .hljs-template-variable,
+.hljs-attr {
+  color: #e36209;
+}
+
 .hljs-tag,
 .hljs-name,
 .hljs-selector-id,
-.hljs-selector-class,
+.hljs-selector-class {
+  color: #d73a49;
+}
+
 .hljs-regexp,
 .hljs-meta {
-  color: #ff7b72;
+  color: #e36209;
 }
 
 .hljs-number,
+.hljs-literal {
+  color: #005cc5;
+}
+
 .hljs-built_in,
-.hljs-literal,
 .hljs-type,
-.hljs-params,
+.hljs-params {
+  color: #005cc5;
+}
+
 .hljs-link {
-  color: #79c0ff;
+  color: #0366d6;
 }
 
 .hljs-attribute {
-  color: #a5d6ff;
+  color: #6f42c1;
 }
 
 .hljs-string,
 .hljs-symbol,
 .hljs-bullet,
 .hljs-addition {
-  color: #a5d6ff;
+  color: #032f62;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-section {
-  color: #ff7b72;
+  color: #d73a49;
+  font-weight: 500;
 }
 
 .hljs-title,
 .hljs-emphasis {
-  color: #d2a8ff;
-  font-style: italic;
+  color: #6f42c1;
+  font-weight: 600;
 }
 
 .hljs-strong {
   font-weight: bold;
+  color: #032f62;
+}
+
+.hljs-function {
+  color: #6f42c1;
+}
+
+.hljs-class {
+  color: #e36209;
+}
+
+/* 特定语法高亮增强 */
+.hljs-annotation {
+  color: #d73a49;
+}
+
+.hljs-doctag {
+  color: #d73a49;
+}
+
+.hljs-property {
+  color: #005cc5;
+}
+
+/* 操作符和标点 */
+.hljs-operator {
+  color: #d73a49;
+}
+
+.hljs-punctuation {
+  color: #212529;
+}
+
+/* 访问修饰符 */
+.hljs-keyword.hljs-public,
+.hljs-keyword.hljs-private,
+.hljs-keyword.hljs-protected,
+.hljs-keyword.hljs-final {
+  color: #d73a49;
+  font-weight: 500;
 }
 
 .prose .code-lang {
@@ -596,13 +801,48 @@ onUnmounted(() => {
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
 }
 
-.prose :not(pre) > code {
+.prose :not(pre) > code,
+.prose .inline-code-element {
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
-  padding: 0.2em 0.4em;
-  margin: 0;
-  font-size: 85%;
-  background-color: rgba(175, 184, 193, 0.2);
-  border-radius: 0.25rem;
+  padding: 2px 6px;
+  margin: 0 1px;
+  font-size: 0.9em;
+  background-color: #f3f4f6;
+  color: #e53e3e;
+  border-radius: 3px;
+  border: none;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* 确保内联代码没有伪元素 */
+.prose :not(pre) > code::before,
+.prose :not(pre) > code::after,
+.prose .inline-code-element::before,
+.prose .inline-code-element::after {
+  content: none !important;
+}
+
+/* 修复Tiptap编辑器中的内联代码显示 */
+.ProseMirror code {
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  padding: 2px 6px;
+  margin: 0 1px;
+  font-size: 0.9em;
+  background-color: #f3f4f6;
+  color: #e53e3e;
+  border-radius: 3px;
+  border: none;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.ProseMirror code::before,
+.ProseMirror code::after {
+  content: none !important;
 }
 
 .prose ul, .prose ol {
@@ -702,5 +942,160 @@ onUnmounted(() => {
 /* Tiptap Editor focus outline removal */
 .ProseMirror:focus {
   outline: none;
+}
+
+/* 确保编辑器内容可选择 */
+.ProseMirror {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* 编辑器内容样式 */
+.editor-content .ProseMirror {
+  min-height: 200px;
+  padding: 2rem;
+  line-height: 1.7;
+}
+
+.editor-content .ProseMirror p {
+  margin: 1rem 0;
+  line-height: 1.7;
+}
+
+/* 标题样式优化 */
+.editor-content .ProseMirror h1 {
+  margin: 2rem 0 1rem 0;
+}
+
+.editor-content .ProseMirror h2 {
+  margin: 1.8rem 0 0.8rem 0;
+}
+
+.editor-content .ProseMirror h3 {
+  margin: 1.5rem 0 0.6rem 0;
+}
+
+/* 空状态提示 */
+.editor-content .ProseMirror:empty::before {
+  content: "开始编写您的文档...";
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+}
+
+/* 空代码块提示 */
+.ProseMirror [data-type="codeBlock"] code:empty::before {
+  content: "// 在此输入代码...";
+  color: #6c757d;
+  font-style: italic;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 代码块选择样式 */
+.ProseMirror [data-type="codeBlock"] code::selection {
+  background: rgba(3, 102, 214, 0.2);
+}
+
+.ProseMirror [data-type="codeBlock"] code::-moz-selection {
+  background: rgba(3, 102, 214, 0.2);
+}
+
+/* 修复可能的Markdown标记显示问题 */
+.ProseMirror .ProseMirror-trailingBreak {
+  display: none;
+}
+
+/* 确保代码元素在编辑时不显示额外的标记 */
+.ProseMirror [data-type="codeBlock"] {
+  position: relative;
+}
+
+.ProseMirror [data-type="codeBlock"]::before,
+.ProseMirror [data-type="codeBlock"]::after {
+  content: none !important;
+}
+
+/* 代码块编辑区域样式 */
+.ProseMirror [data-type="codeBlock"] {
+  margin: 20px 0;
+}
+
+.ProseMirror [data-type="codeBlock"] pre {
+  background: #f8f9fa !important;
+  border-radius: 8px;
+  padding: 20px 24px;
+  min-height: 80px;
+  overflow-x: auto;
+  position: relative;
+  border: none;
+  box-shadow: none;
+}
+
+.ProseMirror [data-type="codeBlock"] code {
+  color: #212529 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.6 !important;
+  min-height: 28px;
+  display: block;
+  white-space: pre;
+  outline: none;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  letter-spacing: 0.025em;
+}
+
+/* 确保代码块内的光标可见 */
+.ProseMirror [data-type="codeBlock"] code:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+/* Node view wrapper 样式 */
+.code-block-wrapper {
+  margin: 20px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+  border: none;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.code-block-wrapper:hover {
+  background: #f8f9fa;
+}
+
+.code-block-wrapper:focus-within {
+  background: #f8f9fa;
+}
+
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 20px 24px;
+  min-height: 80px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.code-block-wrapper code {
+  color: #212529;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: pre;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  min-height: 28px;
+  display: block;
+  letter-spacing: 0.025em;
 }
 </style>

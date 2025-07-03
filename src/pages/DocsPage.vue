@@ -46,6 +46,7 @@
         <!-- Markdown 展示 -->
         <div v-else-if="docsStore.currentDocument.type === 'markdown'" class="h-full">
           <MarkdownViewer 
+            :key="docsStore.currentDocument.path"
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
             :file-description="docsStore.currentDocument.summary"
@@ -294,7 +295,6 @@ import {
   ChevronLeft,
   BookImage
 } from 'lucide-vue-next';
-import markdownit from 'markdown-it';
 import draggable from 'vuedraggable';
 import PDFViewer from '@/components/PDFViewer.vue';
 import WordViewer from '@/components/WordViewer.vue';
@@ -334,8 +334,6 @@ onMounted(() => {
   }
 })
 
-const md = markdownit();
-
 const onDragStart = (event: any) => {
   if (event.item) {
     draggedItemId.value = event.item.dataset.id;
@@ -359,47 +357,6 @@ const currentDocsList = computed({
     draggedItemId.value = null;
   }
 });
-
-const renderedMarkdown = computed(() => {
-  if (!docsStore.currentDocument || docsStore.currentDocument.type !== 'markdown') {
-    return ''
-  }
-  
-  // 简单的 Markdown 渲染
-  let content = docsStore.currentDocument.content || ''
-  
-  // 标题渲染
-  content = content.replace(/^### (.*$)/gim, '<h3>$1</h3>')
-  content = content.replace(/^## (.*$)/gim, '<h2>$1</h2>')
-  content = content.replace(/^# (.*$)/gim, '<h1>$1</h1>')
-  
-  // 代码块渲染
-  content = content.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-  content = content.replace(/`([^`]+)`/g, '<code>$1</code>')
-  
-  // 列表渲染
-  content = content.replace(/^\- (.*$)/gim, '<li>$1</li>')
-  content = content.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-  
-  // 任务列表
-  content = content.replace(/- \[ \] (.*)/g, '<input type="checkbox" disabled> $1<br>')
-  content = content.replace(/- \[x\] (.*)/g, '<input type="checkbox" checked disabled> $1<br>')
-  
-  // 段落渲染
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = '<p>' + content + '</p>'
-  
-  // 清理空段落
-  content = content.replace(/<p><\/p>/g, '')
-  content = content.replace(/<p>(<h[1-6]>)/g, '$1')
-  content = content.replace(/(<\/h[1-6]>)<\/p>/g, '$1')
-  content = content.replace(/<p>(<ul>)/g, '$1')
-  content = content.replace(/(<\/ul>)<\/p>/g, '$1')
-  content = content.replace(/<p>(<pre>)/g, '$1')
-  content = content.replace(/(<\/pre>)<\/p>/g, '$1')
-  
-  return content
-})
 
 // 辅助函数
 const getFileIconColor = (type: string): string => {
