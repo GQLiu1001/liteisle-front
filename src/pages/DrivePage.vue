@@ -304,13 +304,13 @@
             </div>
 
             <!-- 空状态 -->
-            <div v-if="filteredItems.length === 0 && searchQuery" class="flex-1 flex items-center justify-center">
+            <div v-if="filteredItems.length === 0 && driveStore.searchQuery" class="flex-1 flex items-center justify-center">
               <div class="text-center">
                 <div class="w-16 h-16 bg-morandi-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FolderClosed :size="32" class="text-morandi-400" />
                 </div>
                 <h3 class="text-lg font-medium text-morandi-700 mb-2">
-                  {{ isInRecycleBin ? '回收站中未找到匹配的文件' : '未找到匹配的文件' }}
+                  {{ driveStore.isInRecycleBin ? '回收站中未找到匹配的文件' : '未找到匹配的文件' }}
                 </h3>
                 <p class="text-morandi-500">
                   尝试其他搜索词
@@ -319,16 +319,16 @@
             </div>
 
             <!-- 完全空状态（无文件且无搜索） -->
-            <div v-if="filteredItems.length === 0 && !searchQuery" class="flex-1 flex items-center justify-center">
+            <div v-if="filteredItems.length === 0 && !driveStore.searchQuery" class="flex-1 flex items-center justify-center">
               <div class="text-center">
                 <div class="w-16 h-16 bg-morandi-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FolderClosed :size="32" class="text-morandi-400" />
                 </div>
                 <h3 class="text-lg font-medium text-morandi-700 mb-2">
-                  {{ isInRecycleBin ? '回收站为空' : (getCurrentLevel() === 0 ? '云盘为空' : '文件夹为空') }}
+                  {{ driveStore.isInRecycleBin ? '回收站为空' : (getCurrentLevel() === 0 ? '云盘为空' : '文件夹为空') }}
                 </h3>
                 <p class="text-morandi-500">
-                  {{ isInRecycleBin ? '没有已删除的文件' : getEmptyStateMessage() }}
+                  {{ driveStore.isInRecycleBin ? '没有已删除的文件' : getEmptyStateMessage() }}
                 </p>
               </div>
             </div>
@@ -388,7 +388,7 @@
               @change="handleFileSelect"
             />
             <button 
-              @click="$refs.fileInput?.click()"
+              @click="() => (fileInput as HTMLInputElement | null)?.click()"
               class="mt-3 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
             >
               选择文件
@@ -466,22 +466,15 @@
       <!-- 选中项目的右键菜单 -->
       <template v-else>
         <!-- 回收站模式下的右键菜单 -->
-        <template v-if="isInRecycleBin">
+        <template v-if="driveStore.isInRecycleBin">
           <button 
-            @click="restoreItem"
+            @click="() => restoreItem()"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
           >
             还原
           </button>
-          <hr class="my-1 border-morandi-200">
           <button 
-            @click="showDeleteConfirm"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            永久删除
-          </button>
-          <button 
-            @click="showItemDetails"
+            @click="() => showItemDetails()"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             <FileText :size="16" />
@@ -833,6 +826,7 @@ import { ref, computed } from 'vue'
 import { Upload,FolderClosed,ChevronRight, Music, FileText,Trash2,Shredder,RefreshCcw,FolderSync,ListOrdered,Logs,Grid2x2} from 'lucide-vue-next'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 interface BreadcrumbPath {
   name: string
@@ -1067,6 +1061,7 @@ const navigateToPath = (index: number) => {
 
 const handleItemClick = (item: DriveItem) => {
   if (driveStore.isInRecycleBin) {
+    restoreItem(item)
     return
   }
 
@@ -1206,7 +1201,7 @@ const confirmUpload = () => {
 
   showUploadDialog.value = false
   selectedFiles.value = []
-  alert(`成功上传 ${selectedFiles.value.length} 个文件`)
+  toast.success(`成功上传 ${selectedFiles.value.length} 个文件`)
 }
 
 const getFileType = (fileName: string): 'audio' | 'document' | 'other' => {
@@ -1270,7 +1265,7 @@ const copyItem = () => {
   if (selectedItem.value) {
     clipboard.value = { ...selectedItem.value }
     clipboardAction.value = 'copy'
-    alert(`已复制 "${selectedItem.value.name}" 到剪贴板`)
+    toast.success(`已复制 "${selectedItem.value.name}" 到剪贴板`)
   }
   hideContextMenu()
 }
@@ -1280,7 +1275,7 @@ const cutItem = () => {
   if (selectedItem.value) {
     clipboard.value = { ...selectedItem.value }
     clipboardAction.value = 'cut'
-    alert(`已剪切 "${selectedItem.value.name}" 到剪贴板`)
+    toast.success(`已剪切 "${selectedItem.value.name}" 到剪贴板`)
   }
   hideContextMenu()
 }
@@ -1291,7 +1286,7 @@ const showRenameDialog = () => {
     renameValue.value = selectedItem.value.name
     showRenameDialogState.value = true
   }
-  hideContextMenu()
+  showContextMenuState.value = false;
 }
 
 const confirmRename = () => {
@@ -1327,7 +1322,7 @@ const confirmRename = () => {
   showRenameDialogState.value = false
   renameValue.value = ''
   selectedItem.value = null
-  alert(`重命名成功`)
+  toast.success(`重命名成功`)
 }
 
 const cancelRename = () => {
@@ -1342,7 +1337,7 @@ const showMoveDialog = () => {
     moveTargetPath.value = ''
     showMoveDialogState.value = true
   }
-  hideContextMenu()
+  showContextMenuState.value = false;
 }
 
 const selectMoveTarget = (path: string) => {
@@ -1420,7 +1415,7 @@ const confirmMove = () => {
   showMoveDialogState.value = false
   moveTargetPath.value = ''
   selectedItem.value = null
-  alert(`移动成功`)
+  toast.success(`移动成功`)
 }
 
 const cancelMove = () => {
@@ -1434,7 +1429,7 @@ const showDeleteConfirm = () => {
   if (selectedItem.value) {
     showDeleteConfirmState.value = true
   }
-  hideContextMenu()
+  showContextMenuState.value = false;
 }
 
 const confirmDelete = () => {
@@ -1451,7 +1446,7 @@ const confirmDelete = () => {
     }
     showDeleteConfirmState.value = false
     selectedItem.value = null
-    alert(`"${item.name}" 已永久删除`)
+    toast.success(`"${item.name}" 已永久删除`)
     return
   }
 
@@ -1481,7 +1476,7 @@ const confirmDelete = () => {
 
   showDeleteConfirmState.value = false
   selectedItem.value = null
-  alert(`"${item.name}" 已移至回收站`)
+  toast.success(`"${item.name}" 已移至回收站`)
 }
 
 const cancelDelete = () => {
@@ -1509,7 +1504,7 @@ const restoreAllItems = () => {
     })
     
     driveStore.recycleBinItems.length = 0
-    alert('所有项目已还原到根目录')
+    toast.success('所有项目已还原到根目录')
   }
 }
 
@@ -1518,21 +1513,21 @@ const deleteAllItems = () => {
 
   if (confirm(`确定要永久删除所有 ${driveStore.recycleBinItems.length} 个项目吗？此操作不可撤销！`)) {
     driveStore.recycleBinItems.length = 0
-    alert('所有项目已永久删除')
+    toast.success('所有项目已永久删除')
   }
 }
 
 // 还原单个项目
-const restoreItem = () => {
-  if (!selectedItem.value) return
+const restoreItem = (itemToRestore?: DriveItem) => {
+  const item = itemToRestore || selectedItem.value
+  if (!item) return
 
-  const item = selectedItem.value
-  const { deletedAt, ...restoreItem } = item
+  const { deletedAt, ...restoreItemData } = item
 
   // 还原到原位置（简化逻辑，暂时放到根目录）
   const restoredItem: DriveItem = {
-    ...restoreItem,
-    path: `/${restoreItem.name}`,
+    ...restoreItemData,
+    path: `/${restoreItemData.name}`,
     parentId: null
   }
 
@@ -1546,7 +1541,7 @@ const restoreItem = () => {
   driveStore.driveItems.push(restoredItem)
 
   hideContextMenu()
-  alert(`"${item.name}" 已还原到根目录`)
+  toast.success(`"${item.name}" 已还原到根目录`)
 }
 
 // 打开功能
@@ -1556,7 +1551,7 @@ const openItem = () => {
       driveStore.setCurrentPath(selectedItem.value.path)
     } else {
       console.log('打开文件:', selectedItem.value.name)
-      alert(`打开文件: ${selectedItem.value.name}`)
+      toast.success(`打开文件: ${selectedItem.value.name}`)
     }
   }
   hideContextMenu()
@@ -1567,7 +1562,7 @@ const showItemDetails = () => {
   if (selectedItem.value) {
     showItemDetailsState.value = true
   }
-  hideContextMenu()
+  showContextMenuState.value = false;
 }
 
 const closeItemDetails = () => {
@@ -1585,10 +1580,10 @@ const refreshItems = async () => {
   // 根据当前模式显示不同的刷新消息
   if (driveStore.isInRecycleBin) {
     console.log('回收站刷新完成')
-    alert('回收站刷新完成')
+    toast.success('回收站刷新完成')
   } else {
     console.log('云盘刷新完成')
-    alert('云盘刷新完成')
+    toast.success('云盘刷新完成')
   }
   
   isRefreshing.value = false
@@ -1697,7 +1692,7 @@ const pasteItem = () => {
   }
 
   hideContextMenu()
-  alert(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
+  toast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
 }
 
 // 格式化日期
@@ -1727,7 +1722,7 @@ const showShareDialog = () => {
     sharePassword.value = ''
     enableSharePassword.value = false
   }
-  hideContextMenu()
+  showContextMenuState.value = false;
 }
 
 const closeShareDialog = () => {
@@ -1753,7 +1748,7 @@ const generateShareLink = () => {
   shareLink.value = link
   
   // 显示成功提示
-  alert(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
+  toast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
 }
 
 const copyShareLink = async () => {
@@ -1764,7 +1759,7 @@ const copyShareLink = async () => {
 
   try {
     await navigator.clipboard.writeText(shareLink.value)
-    alert('分享链接已复制到剪贴板')
+    toast.success('分享链接已复制到剪贴板')
   } catch (err) {
     // 降级方案
     const textArea = document.createElement('textarea')
@@ -1773,7 +1768,9 @@ const copyShareLink = async () => {
     textArea.select()
     document.execCommand('copy')
     document.body.removeChild(textArea)
-    alert('分享链接已复制到剪贴板')
+    toast.success('分享链接已复制到剪贴板')
   }
 }
+
+const fileInput = ref<HTMLInputElement | null>(null)
 </script> 
