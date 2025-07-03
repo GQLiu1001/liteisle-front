@@ -114,7 +114,7 @@
                     : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
                 ]"
               >
-                <HardDrive :size="20" />
+                <BookImage :size="20" />
                 <div class="flex-1">
                   <div class="font-medium">{{ category.name }}</div>
                   <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
@@ -292,7 +292,7 @@ import {
   FileText, 
   X,
   ChevronLeft,
-  HardDrive
+  BookImage
 } from 'lucide-vue-next';
 import markdownit from 'markdown-it';
 import draggable from 'vuedraggable';

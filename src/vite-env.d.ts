@@ -103,4 +103,5 @@ declare module 'lucide-vue-next' {
   export const Shuffle: any
   export const Repeat1: any
   export const DiscAlbum: any
+  export const BookImage: any
 } 
