@@ -99,4 +99,5 @@ declare module 'lucide-vue-next' {
   export const Logs: any
   export const Grid2x2: any
   export const FolderClosed: any
+  export const Upload: any
 } 

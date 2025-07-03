@@ -209,7 +209,7 @@
               >
                 <div class="flex flex-col items-center">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <FileText :size="48" class="text-green-500" />
+                    <Upload :size="48" class="text-green-500" />
                   </div>
 
                   <p class="text-sm text-center font-medium text-green-600">
@@ -830,7 +830,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { FolderClosed,ChevronRight, Music, FileText,Trash2,Shredder,RefreshCcw,FolderSync,ListOrdered,Logs,Grid2x2} from 'lucide-vue-next'
+import { Upload,FolderClosed,ChevronRight, Music, FileText,Trash2,Shredder,RefreshCcw,FolderSync,ListOrdered,Logs,Grid2x2} from 'lucide-vue-next'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
 
