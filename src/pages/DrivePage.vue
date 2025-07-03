@@ -42,7 +42,7 @@
                 class="p-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
                 title="刷新"
               >
-                <HardDrive :size="18" :class="{ 'animate-spin': isRefreshing }" />
+                <FolderSync :size="18" :class="{ 'animate-spin': isRefreshing }" />
               </button>
               <input
                 v-model="driveStore.searchQuery"
@@ -57,7 +57,7 @@
                   class="flex items-center gap-1 px-3 py-2 rounded-lg border border-morandi-300 text-morandi-700 text-sm bg-white hover:bg-morandi-50 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
                   title="排序选项"
                 >
-                  <FileText :size="16" />
+                  <ListOrdered :size="20" />
                   <ChevronRight :size="12" :class="{ 'rotate-90': showSortMenu }" class="transition-transform" />
                 </button>
                 
@@ -76,7 +76,7 @@
                       sortBy === option.value ? 'text-teal-600 bg-teal-50' : 'text-morandi-700'
                     ]"
                   >
-                                         <FileText :size="16" />
+                                         <!-- <FileText :size="16" /> -->
                      <span>{{ option.label }}</span>
                      <ChevronRight v-if="sortBy === option.value" :size="14" class="ml-auto text-teal-600" />
                   </button>
@@ -96,7 +96,7 @@
                   class="rounded-l-lg"
                   title="网格视图"
                 >
-                  <HardDrive :size="16" />
+                  <Grid2x2 :size="16" />
                 </button>
                 <button
                   @click="viewMode = 'list'"
@@ -109,7 +109,7 @@
                   class="rounded-r-lg"
                   title="列表视图"
                 >
-                  <FileText :size="16" />
+                  <Logs :size="16" />
                 </button>
               </div>
             </div>
@@ -123,7 +123,7 @@
                 class="flex items-center justify-center w-10 h-10 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
                 title="回收站"
               >
-                <HardDrive :size="20" />
+                <Trash2 :size="20" />
               </button>
               
               <!-- 回收站模式：操作按钮 -->
@@ -134,7 +134,7 @@
                   title="一键还原"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
-                  <HardDrive :size="16" />
+                  <RefreshCcw :size="16" />
                 </button>
                 <button
                   @click="deleteAllItems"
@@ -142,7 +142,9 @@
                   title="一键删除"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
-                  <HardDrive :size="16" />
+                  <!-- <OctagonX :size="16" /> -->
+                  <Shredder :size="16" />
+
                 </button>
               </div>
             </div>
@@ -162,7 +164,7 @@
               >
                 <div class="flex flex-col items-center">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <HardDrive v-if="item.type === 'folder'" :size="48" class="text-blue-500" />
+                    <FolderClosed v-if="item.type === 'folder'" :size="48" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="48" class="text-green-500" />
                     <FileText v-else :size="48" class="text-morandi-500" />
                   </div>
@@ -186,7 +188,7 @@
               >
                 <div class="flex flex-col items-center">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <HardDrive :size="48" class="text-teal-500" />
+                    <FolderClosed :size="48" class="text-teal-500" />
                   </div>
 
                   <p class="text-sm text-center font-medium text-morandi-600">
@@ -242,7 +244,7 @@
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3">
                   <div class="w-8 h-8 flex items-center justify-center">
-                    <HardDrive v-if="item.type === 'folder'" :size="20" class="text-blue-500" />
+                    <FolderClosed v-if="item.type === 'folder'" :size="20" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="20" class="text-green-500" />
                     <FileText v-else :size="20" class="text-morandi-500" />
                   </div>
@@ -274,7 +276,7 @@
               >
                 <div class="flex items-center flex-1 gap-3">
                   <div class="w-8 h-8 flex items-center justify-center">
-                    <HardDrive :size="20" class="text-teal-500" />
+                    <FolderClosed :size="20" class="text-teal-500" />
                   </div>
                   <span class="text-sm font-medium text-morandi-600">新建文件夹</span>
                 </div>
@@ -305,7 +307,7 @@
             <div v-if="filteredItems.length === 0 && searchQuery" class="flex-1 flex items-center justify-center">
               <div class="text-center">
                 <div class="w-16 h-16 bg-morandi-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <HardDrive :size="32" class="text-morandi-400" />
+                  <FolderClosed :size="32" class="text-morandi-400" />
                 </div>
                 <h3 class="text-lg font-medium text-morandi-700 mb-2">
                   {{ isInRecycleBin ? '回收站中未找到匹配的文件' : '未找到匹配的文件' }}
@@ -320,7 +322,7 @@
             <div v-if="filteredItems.length === 0 && !searchQuery" class="flex-1 flex items-center justify-center">
               <div class="text-center">
                 <div class="w-16 h-16 bg-morandi-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <HardDrive :size="32" class="text-morandi-400" />
+                  <FolderClosed :size="32" class="text-morandi-400" />
                 </div>
                 <h3 class="text-lg font-medium text-morandi-700 mb-2">
                   {{ isInRecycleBin ? '回收站为空' : (getCurrentLevel() === 0 ? '云盘为空' : '文件夹为空') }}
@@ -449,7 +451,6 @@
           @click="createNewFolder"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
-          <HardDrive :size="16" />
           新建文件夹
         </button>
         <button 
@@ -470,7 +471,6 @@
             @click="restoreItem"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
           >
-            <HardDrive :size="16" />
             还原
           </button>
           <hr class="my-1 border-morandi-200">
@@ -478,7 +478,6 @@
             @click="showDeleteConfirm"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <HardDrive :size="16" />
             永久删除
           </button>
           <button 
@@ -496,14 +495,12 @@
             @click="openItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <HardDrive :size="16" />
             打开
           </button>
           <button 
             @click="downloadItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             下载
           </button>
           <!-- 分享功能，一级文件夹不显示 -->
@@ -512,7 +509,6 @@
             @click="showShareDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <Settings :size="16" />
             分享
           </button>
           <hr class="my-1 border-morandi-200">
@@ -520,14 +516,12 @@
             @click="copyItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             复制
           </button>
           <button 
             @click="cutItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             剪切
           </button>
           <hr class="my-1 border-morandi-200">
@@ -535,21 +529,18 @@
             @click="showDeleteConfirm"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
-            <HardDrive :size="16" />
             删除
           </button>
           <button 
             @click="showRenameDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             重命名
           </button>
           <button 
             @click="showMoveDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <HardDrive :size="16" />
             移动到
           </button>
           <hr class="my-1 border-morandi-200">
@@ -557,7 +548,6 @@
             @click="showItemDetails"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             详细信息
           </button>
         </template>
@@ -614,7 +604,7 @@
                 ]"
               >
                 <div class="flex items-center gap-2">
-                  <HardDrive :size="16" />
+                  <FolderClosed :size="16" />
                   <span>根目录</span>
                 </div>
               </div>
@@ -628,7 +618,7 @@
                 ]"
               >
                 <div class="flex items-center gap-2" :style="{ paddingLeft: (folder.level || 0) * 20 + 'px' }">
-                  <HardDrive :size="16" />
+                  <FolderClosed :size="16" />
                   <span>{{ folder.name }}</span>
                 </div>
               </div>
@@ -735,7 +725,7 @@
           <!-- 分享项目信息 -->
           <div class="p-4 bg-morandi-50 rounded-lg">
             <div class="flex items-center gap-3">
-              <HardDrive v-if="selectedItem.type === 'folder'" :size="20" class="text-teal-600" />
+              <FolderClosed v-if="selectedItem.type === 'folder'" :size="20" class="text-teal-600" />
               <FileText v-else :size="20" class="text-blue-600" />
               <div>
                 <div class="font-medium">{{ selectedItem.name }}</div>
@@ -840,7 +830,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ChevronRight, HardDrive, Music, FileText, Settings } from 'lucide-vue-next'
+import { FolderClosed,ChevronRight, Music, FileText,Trash2,Shredder,RefreshCcw,FolderSync,ListOrdered,Logs,Grid2x2} from 'lucide-vue-next'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
 

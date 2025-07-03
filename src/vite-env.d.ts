@@ -91,4 +91,12 @@ declare module 'lucide-vue-next' {
   export const Clock: any
   export const Loader2: any
   export const LogOut: any
+  export const Trash2: any
+  export const Shredder: any
+  export const RefreshCcw: any
+  export const FolderSync: any
+  export const ListOrdered: any
+  export const Logs: any
+  export const Grid2x2: any
+  export const FolderClosed: any
 } 
