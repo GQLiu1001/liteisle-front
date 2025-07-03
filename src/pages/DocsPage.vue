@@ -50,7 +50,7 @@
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
             :file-description="docsStore.currentDocument.summary"
-            :content="docsStore.currentDocument.content"
+            v-model:content="docsStore.currentDocument.content"
             @close="docsStore.setCurrentDocument(null)"
             @save="docsStore.saveDocumentContent"
           />

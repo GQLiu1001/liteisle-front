@@ -191,6 +191,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   save: [content: string]
+  'update:content': [content: string]
 }>()
 
 const scale = ref(1)
@@ -295,11 +296,17 @@ const toggleOutline = () => {
   isOutlineVisible.value = !isOutlineVisible.value;
 };
 
-// --- Tiptap 编辑器核心 ---
 const editor = useEditor({
   content: props.content || '',
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      paragraph: {
+        HTMLAttributes: {
+          class: 'my-paragraph',
+        },
+      },
+      hardBreak: {},
+    }),
     Heading.configure({
       levels: [1, 2, 3, 4, 5, 6],
     }),
@@ -318,9 +325,12 @@ const editor = useEditor({
   onCreate: () => {
     console.log('Editor created');
   },
-  onUpdate: () => {
-    console.log('Editor updated');
+  onUpdate: ({ editor }) => {
+    emit('update:content', editor.storage.markdown.getMarkdown());
   },
+  editable: true,
+  enableInputRules: true,
+  enablePasteRules: true,
   editorProps: {
     attributes: {
       class: 'prose prose-lg max-w-none focus:outline-none',
@@ -364,13 +374,6 @@ const saveContent = () => {
 const toggleEdit = () => {
   saveContent();
 };
-
-watch(() => props.content, (newContent) => {
-  const contentToSet = newContent || '';
-  if (editor.value && contentToSet !== editor.value.storage.markdown.getMarkdown()) {
-    editor.value.commands.setContent(contentToSet, false);
-  }
-}, { immediate: true });
 
 const undo = () => editor.value?.chain().focus().undo().run();
 const redo = () => editor.value?.chain().focus().redo().run();
@@ -484,77 +487,6 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     editor.value?.chain().focus().toggleCodeBlock().run();
     return;
   }
-
-  // 物理一行一行跳的上下键逻辑
-  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !isCtrlOrMeta && !e.shiftKey) {
-    const pm = document.querySelector('.ProseMirror') as HTMLElement;
-    if (!pm) return;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    let node = range.startContainer as HTMLElement;
-    // 找到当前行的block节点
-    while (node && node !== pm && node.nodeType === 3 || (node.nodeType === 1 && !(node as HTMLElement).matches('p, pre, li, h1, h2, h3, h4, h5, h6'))) {
-      node = node.parentElement as HTMLElement;
-    }
-    if (!node || node === pm) return;
-    // 获取所有block行
-    const blocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
-    const idx = blocks.indexOf(node);
-    if (idx === -1) return;
-    let targetIdx = e.key === 'ArrowUp' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= blocks.length) return;
-    e.preventDefault();
-    const target = blocks[targetIdx];
-    // 将光标移到目标行的开头
-    const r = document.createRange();
-    r.selectNodeContents(target);
-    r.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(r);
-    // 让Tiptap同步光标
-    editor.value?.commands.focus();
-    return;
-  }
-
-  // 回车：在当前行后插入新段落
-  if (e.key === 'Enter' && !isCtrlOrMeta && !e.shiftKey) {
-    const pm = document.querySelector('.ProseMirror') as HTMLElement;
-    if (!pm) return;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    let node = range.startContainer as HTMLElement;
-    while (node && node !== pm && node.nodeType === 3 || (node.nodeType === 1 && !(node as HTMLElement).matches('p, pre, li, h1, h2, h3, h4, h5, h6'))) {
-      node = node.parentElement as HTMLElement;
-    }
-    if (!node || node === pm) return;
-    const blocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
-    const idx = blocks.indexOf(node);
-    if (idx === -1) return;
-    e.preventDefault();
-    // 在当前行后插入新段落
-    const pos = editor.value?.view.posAtDOM(node, 0) ?? null;
-    const nodeTextLen = (node.textContent || '').length;
-    if (pos !== null) {
-      editor.value?.chain().focus().insertContentAt(pos + nodeTextLen + 1, { type: 'paragraph' }).run();
-      setTimeout(() => {
-        const newBlocks = Array.from(pm.querySelectorAll('p, pre, li, h1, h2, h3, h4, h5, h6'));
-        if (newBlocks[idx + 1]) {
-          const r = document.createRange();
-          r.selectNodeContents(newBlocks[idx + 1]);
-          r.collapse(true);
-          const sel2 = window.getSelection();
-          if (sel2) {
-            sel2.removeAllRanges();
-            sel2.addRange(r);
-          }
-          editor.value?.commands.focus();
-        }
-      }, 0);
-    }
-    return;
-  }
 };
 
 onMounted(() => {
@@ -579,6 +511,59 @@ onUnmounted(() => {
 /* 基础样式 */
 .markdown-viewer {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 编辑器内容区域样式 */
+.editor-content {
+  position: relative;
+}
+
+.editor-content .ProseMirror {
+  min-height: 200px;
+  padding: 2rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  cursor: text;
+}
+
+.editor-content .ProseMirror p {
+  margin: 1rem 0;
+  line-height: 1.7;
+  min-height: 1.7em;
+}
+
+/* 确保编辑器内容可选择和编辑 */
+.ProseMirror {
+  position: relative;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  -webkit-font-variant-ligatures: none;
+  font-variant-ligatures: none;
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 确保段落之间有足够的空间 */
+.my-paragraph {
+  margin: 1em 0;
+  min-height: 1.5em;
+}
+
+/* 确保光标可见 */
+.ProseMirror-focused {
+  outline: none;
+}
+
+.ProseMirror-selectednode {
+  outline: 2px solid #68cef8;
 }
 
 /* 选择文本样式 */
@@ -952,18 +937,6 @@ onUnmounted(() => {
   -ms-user-select: text;
 }
 
-/* 编辑器内容样式 */
-.editor-content .ProseMirror {
-  min-height: 200px;
-  padding: 2rem;
-  line-height: 1.7;
-}
-
-.editor-content .ProseMirror p {
-  margin: 1rem 0;
-  line-height: 1.7;
-}
-
 /* 标题样式优化 */
 .editor-content .ProseMirror h1 {
   margin: 2rem 0 1rem 0;
@@ -1097,5 +1070,16 @@ onUnmounted(() => {
   min-height: 28px;
   display: block;
   letter-spacing: 0.025em;
+}
+
+/* 确保编辑器内容可选择和编辑 */
+.ProseMirror {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  position: relative;
+  outline: none;
+  overflow-wrap: break-word;
 }
 </style>
