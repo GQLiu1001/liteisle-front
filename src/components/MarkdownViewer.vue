@@ -76,7 +76,7 @@
         </div>
       </div>
       <!-- 内容区域 -->
-      <div class="flex-1 overflow-auto p-6" ref="mdContainer">
+      <div class="flex-1 overflow-auto p-6" ref="mdContainer" @mouseup="handleTextSelection" @contextmenu.prevent="handleContextMenu">
         <div 
           class="w-full max-w-7xl mx-auto min-h-full pb-24"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
@@ -96,14 +96,14 @@
         <button 
           class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           :disabled="!selectedText"
-          @click="copyText"
+          @click.stop="copyText"
         >
           <span>📋 复制{{ translatedText ? '译文' : '' }}</span>
         </button>
         <button 
           class="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           :disabled="!selectedText || isTranslating"
-          @click="translateText"
+          @click.stop="translateText"
         >
           <span>🌐 翻译</span>
           <span v-if="isTranslating" class="text-blue-600">翻译中...</span>
@@ -333,6 +333,10 @@ const handleContextMenu = (e: MouseEvent) => {
   e.preventDefault()
   const selection = window.getSelection()
   if (selection && selection.toString().trim()) {
+    // 重置翻译状态
+    translatedText.value = ''
+    isTranslating.value = false
+
     selectedText.value = selection.toString().trim()
     contextMenuX.value = e.clientX
     contextMenuY.value = e.clientY
@@ -416,6 +420,11 @@ onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown);
   mdContainer.value?.addEventListener('wheel', handleWheel, { passive: false });
   document.addEventListener('click', handleClickOutside);
+
+  // 点击页面其他位置隐藏右键菜单
+  const hide = () => { showContextMenu.value = false }
+  document.addEventListener('click', hide)
+  onUnmounted(() => document.removeEventListener('click', hide))
 });
 
 onUnmounted(() => {
