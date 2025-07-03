@@ -175,9 +175,9 @@
             :class="{ 'bg-white/60': musicStore.playMode !== 'order' }"
             :title="getPlayModeText()"
           >
-            <Play v-if="musicStore.playMode === 'order'" :size="20" />
-            <Music v-else-if="musicStore.playMode === 'shuffle'" :size="20" />
-            <Repeat v-else :size="20" />
+            <Repeat v-if="musicStore.playMode === 'order'" :size="20" />
+            <Shuffle v-else-if="musicStore.playMode === 'shuffle'" :size="20" />
+            <Repeat1 v-else :size="20" />
           </button>
           
           <!-- 播放列表按钮 -->
@@ -267,7 +267,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp } from 'lucide-vue-next'
+import { Repeat1,Shuffle,Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
 import { useRoute } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
