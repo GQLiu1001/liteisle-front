@@ -11,10 +11,14 @@
               v-for="(path, index) in breadcrumbPaths"
               :key="index"
               @click="navigateToPath(index)"
+              @dragover.prevent="handleBreadcrumbDragOver($event, path, index)"
+              @dragleave="handleBreadcrumbDragLeave"
+              @drop="handleBreadcrumbDrop($event, path, index)"
               class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
               :class="{ 
                 'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
-                'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1
+                'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1,
+                'bg-teal-100 ring-2 ring-teal-400': dragOverBreadcrumbPath === path.path
               }"
             >
               <span>{{ path.name }}</span>
@@ -159,10 +163,17 @@
                 v-for="item in filteredItems"
                 :key="item.id"
                 @click="handleItemClick(item)"
+                @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
-                class="p-4 rounded-lg border-2 border-transparent hover:border-morandi-300 hover:bg-morandi-50 transition-all duration-200 cursor-pointer"
+                :draggable="!driveStore.isInRecycleBin"
+                @dragstart="handleDragStart($event, item)"
+                @dragover.prevent="handleDragOver($event, item)"
+                @dragleave="handleDragLeave"
+                @drop="handleDrop($event, item)"
+                class="p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer"
+                :class="getDragOverClass(item)"
               >
-                <div class="flex flex-col items-center">
+                <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
                     <FolderClosed v-if="item.type === 'folder'" :size="48" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="48" class="text-green-500" />
@@ -238,11 +249,18 @@
                 v-for="item in filteredItems"
                 :key="item.id"
                 @click="handleItemClick(item)"
+                @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
-                class="flex items-center px-4 py-3 rounded-lg border border-transparent hover:border-morandi-300 hover:bg-morandi-50 transition-all duration-200 cursor-pointer"
+                :draggable="!driveStore.isInRecycleBin"
+                @dragstart="handleDragStart($event, item)"
+                @dragover.prevent="handleDragOver($event, item)"
+                @dragleave="handleDragLeave"
+                @drop="handleDrop($event, item)"
+                class="flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer"
+                :class="getDragOverClass(item, true)"
               >
                 <!-- 图标和名称 -->
-                <div class="flex items-center flex-1 gap-3">
+                <div class="flex items-center flex-1 gap-3 pointer-events-none">
                   <div class="w-8 h-8 flex items-center justify-center">
                     <FolderClosed v-if="item.type === 'folder'" :size="20" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="20" class="text-green-500" />
@@ -1061,7 +1079,7 @@ const navigateToPath = (index: number) => {
 
 const handleItemClick = (item: DriveItem) => {
   if (driveStore.isInRecycleBin) {
-    restoreItem(item)
+    // 在回收站中单击不执行任何操作
     return
   }
 
@@ -1091,6 +1109,14 @@ const handleItemClick = (item: DriveItem) => {
   } else {
     // 文档或其他文件类型的点击逻辑 - 之后实现
     console.log('Clicked on file:', item)
+  }
+}
+
+const handleItemDoubleClick = (item: DriveItem) => {
+  if (driveStore.isInRecycleBin) {
+    restoreItem(item)
+  } else {
+    handleItemClick(item) // 在正常视图中，双击行为与单击相同（打开）
   }
 }
 
@@ -1489,22 +1515,10 @@ const restoreAllItems = () => {
   if (driveStore.recycleBinItems.length === 0) return
 
   if (confirm(`确定要还原所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
-    driveStore.recycleBinItems.forEach((item: DriveItem) => {
-      // 移除deletedAt属性
-      const { deletedAt, ...restoreItem } = item
-      
-      // 还原到原位置（简化逻辑，暂时放到根目录）
-      const restoredItem: DriveItem = {
-        ...restoreItem,
-        path: `/${restoreItem.name}`,
-        parentId: null
-      }
-      
-      driveStore.driveItems.push(restoredItem)
-    })
-    
-    driveStore.recycleBinItems.length = 0
-    toast.success('所有项目已还原到根目录')
+    // 复制ID列表，因为store中的数组在迭代时会变化
+    const itemIds = driveStore.recycleBinItems.map((item: DriveItem) => item.id)
+    itemIds.forEach((id: string) => driveStore.restoreItem(id))
+    toast.success('所有项目已还原')
   }
 }
 
@@ -1522,26 +1536,9 @@ const restoreItem = (itemToRestore?: DriveItem) => {
   const item = itemToRestore || selectedItem.value
   if (!item) return
 
-  const { deletedAt, ...restoreItemData } = item
-
-  // 还原到原位置（简化逻辑，暂时放到根目录）
-  const restoredItem: DriveItem = {
-    ...restoreItemData,
-    path: `/${restoreItemData.name}`,
-    parentId: null
-  }
-
-  // 从回收站移除
-  const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
-  if (index > -1) {
-    driveStore.recycleBinItems.splice(index, 1)
-  }
-
-  // 添加到根目录
-  driveStore.driveItems.push(restoredItem)
-
+  driveStore.restoreItem(item.id)
   hideContextMenu()
-  toast.success(`"${item.name}" 已还原到根目录`)
+  toast.success(`"${item.name}" 已还原`)
 }
 
 // 打开功能
@@ -1668,7 +1665,8 @@ const pasteItem = () => {
   }
 
   // 如果是剪切操作，从原位置删除
-  if (clipboardAction.value === 'cut') {
+  const isCut = clipboardAction.value === 'cut'
+  if (isCut) {
     const originalParentPath = getParentPath(clipboard.value.path)
     if (originalParentPath === '/') {
       const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === clipboard.value!.id)
@@ -1692,7 +1690,8 @@ const pasteItem = () => {
   }
 
   hideContextMenu()
-  toast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
+  // toast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
+  toast.success(`${isCut ? '移动' : '复制'}成功`)
 }
 
 // 格式化日期
@@ -1773,4 +1772,107 @@ const copyShareLink = async () => {
 }
 
 const fileInput = ref<HTMLInputElement | null>(null)
+
+const handleDragStart = (event: DragEvent, item: DriveItem) => {
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('text/plain', item.id)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+  // 可以在这里添加一个拖动时的样式，比如降低透明度
+}
+
+// 拖拽状态
+const dragOverTargetId = ref<string | null>(null)
+
+const handleDragOver = (event: DragEvent, targetItem: DriveItem) => {
+  if (targetItem.type === 'folder') {
+    dragOverTargetId.value = targetItem.id
+  }
+}
+
+const handleDragLeave = () => {
+  dragOverTargetId.value = null
+}
+
+const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
+  dragOverTargetId.value = null
+  if (targetItem.type !== 'folder' || !event.dataTransfer) return
+
+  const draggedItemId = event.dataTransfer.getData('text/plain')
+  if (draggedItemId === targetItem.id) return // 不能拖到自己身上
+
+  // 在Store中实现移动逻辑
+  // driveStore.moveItem(draggedItemId, targetItem.id)
+  
+  // 暂时使用现有的移动逻辑（后续可以重构到store）
+  const itemToMove = findItemInStore(draggedItemId)
+  if (itemToMove) {
+    selectedItem.value = itemToMove
+    moveTargetPath.value = targetItem.path
+    confirmMove()
+    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
+  }
+}
+
+const getDragOverClass = (item: DriveItem, isList: boolean = false) => {
+  if (item.id === dragOverTargetId.value) {
+    return isList ? 'bg-teal-100 border-teal-300' : 'border-teal-400 bg-teal-50'
+  }
+  return isList ? 'border-transparent hover:border-morandi-300 hover:bg-morandi-50' : 'border-transparent hover:border-morandi-300 hover:bg-morandi-50'
+}
+
+const findItemInStore = (itemId: string): DriveItem | null => {
+  const find = (items: DriveItem[]): DriveItem | null => {
+    for (const item of items) {
+      if (item.id === itemId) return item
+      if (item.children) {
+        const found = find(item.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  return find(driveStore.driveItems)
+}
+
+// 面包屑拖拽处理
+const handleBreadcrumbDragOver = (event: DragEvent, path: BreadcrumbPath, index: number) => {
+  // 阻止放置到当前目录
+  if (index === breadcrumbPaths.value.length - 1) {
+    return
+  }
+  dragOverBreadcrumbPath.value = path.path
+}
+
+const handleBreadcrumbDragLeave = () => {
+  dragOverBreadcrumbPath.value = null
+}
+
+const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: number) => {
+  dragOverBreadcrumbPath.value = null
+  // 阻止放置到当前目录
+  if (index === breadcrumbPaths.value.length - 1) {
+    return
+  }
+
+  if (!event.dataTransfer) return
+
+  const draggedItemId = event.dataTransfer.getData('text/plain')
+  const itemToMove = findItemInStore(draggedItemId)
+  
+  if (itemToMove) {
+    // 检查是否拖动到自己的父目录（无效操作）
+    if (getParentPath(itemToMove.path) === path.path) {
+        return;
+    }
+
+    selectedItem.value = itemToMove
+    moveTargetPath.value = path.path
+    confirmMove()
+    toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
+  }
+}
+
+const dragOverBreadcrumbPath = ref<string | null>(null)
+
 </script> 

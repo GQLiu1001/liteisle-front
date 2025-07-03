@@ -305,6 +305,41 @@ export const useDriveStore = defineStore('drive', () => {
     isInRecycleBin.value = false
   }
 
+  // 恢复项目
+  const restoreItem = (itemId: string) => {
+    const itemIndex = recycleBinItems.value.findIndex(i => i.id === itemId)
+    if (itemIndex === -1) return
+
+    const itemToRestore = recycleBinItems.value[itemIndex]
+    recycleBinItems.value.splice(itemIndex, 1)
+
+    // 尝试在 driveItems 中递归查找父项
+    const findParent = (items: DriveItem[], parentId: string | null): DriveItem | null => {
+      if (!parentId) return null
+      for (const item of items) {
+        if (item.id === parentId) {
+          return item
+        }
+        if (item.children) {
+          const found = findParent(item.children, parentId)
+          if (found) return found
+        }
+      }
+      return null
+    }
+
+    const parent = findParent(driveItems.value, itemToRestore.parentId)
+
+    if (parent && parent.children) {
+      // 恢复到原父级
+      parent.children.push(itemToRestore)
+      parent.itemCount = (parent.itemCount || 0) + 1
+    } else {
+      // 如果找不到父级，恢复到根目录
+      driveItems.value.push(itemToRestore)
+    }
+  }
+
   return {
     // 状态
     driveItems,
@@ -320,6 +355,7 @@ export const useDriveStore = defineStore('drive', () => {
     setCurrentPath,
     setSearchQuery,
     openRecycleBin,
-    exitRecycleBin
+    exitRecycleBin,
+    restoreItem,
   }
 })
