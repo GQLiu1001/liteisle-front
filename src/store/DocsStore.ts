@@ -79,7 +79,49 @@ export const useDocsStore = defineStore('docs', () => {
                 path: file.path,
                 categoryId: subfolder.id,
                 // 为演示目的，动态生成模拟内容和摘要
-                content: `# ${file.name}\n\n这是从云盘加载的文档 **${file.name}** 的模拟内容。`,
+                content: fileType === 'markdown' ? 
+                  `# ${file.name.split('.')[0]}
+
+这是一个**Milkdown 编辑器**的测试文档，展示了所见即所得的 Markdown 编辑功能。
+
+## 功能特性
+
+### 基本格式
+- **粗体文本**
+- *斜体文本*
+- ~~删除线文本~~
+- \`内联代码\`
+
+### 列表
+1. 有序列表项 1
+2. 有序列表项 2
+   - 无序子列表项
+   - 另一个子列表项
+
+### 代码块
+\`\`\`javascript
+function hello() {
+  console.log("Hello, Milkdown!");
+}
+\`\`\`
+
+### 引用
+> 这是一个引用块，展示了编辑器的引用功能。
+
+### 表格
+| 列1 | 列2 | 列3 |
+|-----|-----|-----|
+| 内容1 | 内容2 | 内容3 |
+| 数据A | 数据B | 数据C |
+
+### 链接和图片
+[Milkdown官网](https://milkdown.dev)
+
+---
+
+这个编辑器支持完整的 Markdown 语法，包括数学公式、表情符号等扩展功能。
+` : 
+                  `# ${file.name}\n\n这是从云盘加载的文档 **${file.name}** 的模拟内容。`,
                 summary: `这是一个关于 "${file.name.split('.')[0]}" 的文档。`
               }
             })

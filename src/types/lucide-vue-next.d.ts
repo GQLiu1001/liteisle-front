@@ -38,4 +38,34 @@ declare module 'lucide-vue-next/dist/esm/icons/chevron-right' {
   import { DefineComponent } from 'vue'
   const component: DefineComponent
   export default component
+}
+
+declare module 'lucide-vue-next/dist/esm/icons/check' {
+  import { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
+}
+
+declare module 'lucide-vue-next/dist/esm/icons/menu' {
+  import { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
+}
+
+declare module 'lucide-vue-next/dist/esm/icons/clipboard' {
+  import { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
+}
+
+declare module 'lucide-vue-next/dist/esm/icons/globe' {
+  import { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
+}
+
+declare module 'lucide-vue-next/dist/esm/icons/x' {
+  import { DefineComponent } from 'vue'
+  const component: DefineComponent
+  export default component
 } 
