@@ -48,7 +48,7 @@
                     : 'hover:bg-morandi-100'
                 ]"
               >
-                <HardDrive :size="16" class="text-blue-500 flex-shrink-0" />
+                <DiscAlbum :size="16" class="text-blue-500 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate text-sm">{{ playlist.name }}</p>
                   <p class="text-xs text-morandi-500">{{ getPlaylistDisplayCount(playlist) }} 首</p>
@@ -145,7 +145,7 @@
                     : 'hover:bg-morandi-100'
                 ]"
               >
-                <HardDrive :size="20" class="text-blue-500" />
+                <DiscAlbum :size="20" class="text-blue-500" />
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate">{{ playlist.name }}</p>
                   <p class="text-sm text-morandi-500">
@@ -384,7 +384,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Music, HardDrive } from 'lucide-vue-next'
+import { Music, DiscAlbum } from 'lucide-vue-next'
 import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
 import draggable from 'vuedraggable'

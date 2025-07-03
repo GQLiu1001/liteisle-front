@@ -285,7 +285,7 @@ let hideTimeout: number | null = null
 // 新增的响应式状态
 const showVolumeSlider = ref(false)
 const showPlaylistPanel = ref(false)
-const showPlaylistSelector = ref(ref(false))
+const showPlaylistSelector = ref(false)
 
 // 菜单引用
 const volumeRef = ref<HTMLElement>()
@@ -300,10 +300,16 @@ const handleClickOutside = (event: MouseEvent) => {
 
   // 检查播放列表面板 - 点击面板内部不关闭，只有点击外部才关闭
   if (showPlaylistPanel.value) {
-    const playlistButton = document.querySelector('[data-playlist-button]') as HTMLElement
+    const playlistButtons = document.querySelectorAll('[data-playlist-button]')
+    let isPlaylistButtonClick = false
+    playlistButtons.forEach(button => {
+      if (button.contains(target)) {
+        isPlaylistButtonClick = true
+      }
+    })
     
     // 如果点击的是播放列表按钮，不处理（让按钮自己的点击事件处理）
-    if (playlistButton?.contains(target)) {
+    if (isPlaylistButtonClick) {
       return
     }
     

@@ -102,4 +102,5 @@ declare module 'lucide-vue-next' {
   export const Upload: any
   export const Shuffle: any
   export const Repeat1: any
+  export const DiscAlbum: any
 } 
