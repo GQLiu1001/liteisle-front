@@ -146,4 +146,5 @@ declare module 'lucide-vue-next' {
   export const ArrowRight: any
   export const ArrowUp: any
   export const ArrowDown: any
+  export const RotateCw: any
 } 

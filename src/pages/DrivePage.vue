@@ -72,7 +72,7 @@
                 class="p-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
                 title="刷新"
               >
-                <FolderSync :size="18" :class="{ 'animate-spin': isRefreshing }" />
+                <RotateCw :size="18" :class="{ 'animate-spin': isRefreshing }" />
               </button>
               <input
                 v-model="driveStore.searchQuery"
@@ -527,8 +527,7 @@
         >
           上传文件
         </button>
-        <button
-          v-if="driveStore.isInRecycleBin || getCurrentLevel() <= 2"
+        <button 
           @click="refreshAndHide"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
@@ -538,8 +537,18 @@
       
       <!-- 多选状态下的右键菜单 -->
       <template v-else-if="selectedItemIds.size > 1">
+        <!-- 根目录多选只显示刷新 -->
+        <template v-if="getCurrentLevel() === 0">
+          <button 
+            @click="refreshAndHide"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            刷新
+          </button>
+        </template>
+        
         <!-- 回收站模式下的多选菜单 -->
-        <template v-if="driveStore.isInRecycleBin">
+        <template v-else-if="driveStore.isInRecycleBin">
           <button 
             @click="restoreMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
@@ -641,40 +650,42 @@
           </button>
           <hr class="my-1 border-morandi-200">
           <button 
+            v-if="getCurrentLevel() !== 0"
             @click="copyItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             复制
           </button>
           <button 
-            v-if="!selectedItem?.isLocked"
+            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
             @click="cutItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             剪切
           </button>
-          <hr class="my-1 border-morandi-200" v-if="!selectedItem?.isLocked">
+          <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0 && !selectedItem?.isLocked">
           <button 
-            v-if="!selectedItem?.isLocked"
+            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
             @click="showDeleteConfirm"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
             删除
           </button>
           <button 
+            v-if="getCurrentLevel() !== 0"
             @click="showRenameDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             重命名
           </button>
           <button 
-            v-if="!selectedItem?.isLocked"
+            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
             @click="showMoveDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             移动到
           </button>
-          <hr class="my-1 border-morandi-200">
+          <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0">
           <button 
             @click="showItemDetails"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
@@ -804,8 +815,8 @@
     </div>
 
     <!-- 详细信息对话框 -->
-    <div v-if="showItemDetailsState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showItemDetailsState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="closeItemDetails">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4">详细信息</h3>
         <div v-if="selectedItem" class="space-y-3">
           <div class="flex justify-between">
@@ -965,7 +976,7 @@ import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
-  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, FolderSync, ListOrdered, Logs, Grid2x2, FolderLock
+  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, FolderLock
 } from 'lucide-vue-next'
 
 const toast = useToast()
