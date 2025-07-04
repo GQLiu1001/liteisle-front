@@ -73,8 +73,7 @@
                 @click="playAll"
                 class="flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors text-sm"
               >
-                <Music :size="14" />
-                播放全部
+                播放
               </button>
             </div>
             
@@ -133,7 +132,17 @@
 
             <!-- 播放列表 -->
             <div class="space-y-2">
-              <h3 class="text-lg font-bold text-morandi-900 mb-4">播放列表</h3>
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-morandi-900">播放列表</h3>
+                <button
+                  @click="showCreatePlaylistDialog = true"
+                  class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                  title="添加列表"
+                >
+                  <Plus :size="16" />
+                  添加列表
+                </button>
+              </div>
               <div
                 v-for="playlist in musicStore.playlists"
                 :key="playlist.id"
@@ -179,26 +188,35 @@
               </div>
 
               <!-- 列表操作 -->
-              <div v-if="musicStore.currentPlaylist" class="flex items-center gap-3">
+              <div v-if="musicStore.currentPlaylist" class="flex items-center gap-2">
                 <button
                   @click="playAll"
-                  class="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors lg:text-sm xl:text-base"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors text-sm"
                 >
-                  <Music :size="16" />
-                  播放全部
+                  <Play :size="16" />
+                  播放
+                </button>
+                
+                <!-- 添加音乐按钮 -->
+                <button
+                  @click="showUploadMusicDialog = true"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+                >
+                  <Plus :size="16" />
+                  添加
                 </button>
                 
                 <!-- 右侧面板切换按钮 - 始终显示 -->
                 <button
                   @click="showRightPanel = !showRightPanel"
                   :class="[
-                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors lg:text-sm xl:text-base',
+                    'flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors text-sm',
                     showRightPanel 
                       ? 'bg-teal-100 text-teal-700 hover:bg-teal-200' 
                       : 'bg-morandi-200 text-morandi-700 hover:bg-morandi-300'
                   ]"
                 >
-                  {{ showRightPanel ? '隐藏详情' : '显示详情' }}
+                  {{ showRightPanel ? '隐藏' : '详情' }}
                 </button>
               </div>
             </div>
@@ -379,12 +397,104 @@
         </div>
       </div>
     </div>
+
+    <!-- 新建播放列表对话框 -->
+    <div v-if="showCreatePlaylistDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-96">
+        <h3 class="text-lg font-bold mb-4">新建播放列表</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-morandi-700 mb-2">播放列表名称</label>
+            <input
+              v-model="newPlaylistName"
+              type="text"
+              placeholder="请输入播放列表名称"
+              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              @keydown.enter="createNewPlaylist"
+            />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button
+            @click="showCreatePlaylistDialog = false"
+            class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="createNewPlaylist"
+            :disabled="!newPlaylistName.trim()"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            创建
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 上传音乐对话框 -->
+    <div v-if="showUploadMusicDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-96">
+        <h3 class="text-lg font-bold mb-4">添加音乐</h3>
+        <div class="space-y-4">
+          <div class="border-2 border-dashed border-morandi-300 rounded-lg p-8 text-center">
+            <Music :size="32" class="mx-auto mb-3 text-morandi-400" />
+            <p class="text-morandi-600 mb-2">点击选择音乐文件或拖拽到此处</p>
+            <p class="text-xs text-morandi-400">支持 MP3、WAV、FLAC、AAC、M4A、OGG 格式</p>
+            <input 
+              type="file" 
+              multiple 
+              accept="audio/*"
+              class="hidden" 
+              ref="musicFileInput"
+              @change="handleMusicFileSelect"
+            />
+            <button 
+              @click="() => musicFileInput?.click()"
+              class="mt-3 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            >
+              选择音乐文件
+            </button>
+          </div>
+          
+          <!-- 音乐文件列表 -->
+          <div v-if="selectedMusicFiles.length > 0" class="max-h-32 overflow-auto">
+            <h4 class="text-sm font-medium text-morandi-700 mb-2">待添加音乐：</h4>
+            <div class="space-y-1">
+              <div 
+                v-for="(file, index) in selectedMusicFiles" 
+                :key="index"
+                class="flex items-center justify-between text-xs bg-morandi-50 p-2 rounded"
+              >
+                <span class="truncate flex-1">{{ file.name }}</span>
+                <span class="text-morandi-500 ml-2">{{ (file.size / (1024 * 1024)).toFixed(1) }}MB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button
+            @click="showUploadMusicDialog = false; selectedMusicFiles = []"
+            class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="uploadMusicFiles"
+            :disabled="selectedMusicFiles.length === 0"
+            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            添加 ({{ selectedMusicFiles.length }})
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Music, DiscAlbum } from 'lucide-vue-next'
+import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
 import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
 import draggable from 'vuedraggable'
@@ -397,6 +507,11 @@ const route = useRoute()
 
 // 响应式状态
 const showRightPanel = ref(true)
+const showCreatePlaylistDialog = ref(false)
+const showUploadMusicDialog = ref(false)
+const newPlaylistName = ref('')
+const selectedMusicFiles = ref<File[]>([])
+const musicFileInput = ref<HTMLInputElement | null>(null)
 
 // 计算属性
 const filteredTracks = computed(() => {
@@ -491,6 +606,40 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     musicStore.cleanup()
   })
+}
+
+// 新建播放列表的方法
+const createNewPlaylist = () => {
+  const playlistName = newPlaylistName.value.trim()
+  if (!playlistName) return
+
+  // 这里调用创建播放列表的逻辑，相当于在云盘音乐目录下创建文件夹
+  // 实际实现需要与DriveStore配合
+  console.log('创建新播放列表:', playlistName)
+  
+  showCreatePlaylistDialog.value = false
+  newPlaylistName.value = ''
+}
+
+// 上传音乐文件的方法
+const uploadMusicFiles = () => {
+  if (selectedMusicFiles.value.length === 0) return
+  
+  // 这里调用上传音乐文件的逻辑，相当于在当前歌单目录下上传文件
+  console.log('上传音乐文件:', selectedMusicFiles.value.map(f => f.name))
+  
+  showUploadMusicDialog.value = false
+  selectedMusicFiles.value = []
+}
+
+// 处理音乐文件选择
+const handleMusicFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || []).filter(file => {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    return ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(ext || '')
+  })
+  selectedMusicFiles.value = files
 }
 </script>
 

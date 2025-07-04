@@ -345,6 +345,146 @@ export const useDriveStore = defineStore('drive', () => {
     }
   }
 
+  // 获取文件类型
+  const getFileType = (fileName: string): DriveItem['type'] => {
+    const ext = fileName.split('.').pop()?.toLowerCase()
+    if (['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(ext || '')) return 'audio'
+    if (['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext || '')) return 'document'
+    return 'other'
+  }
+
+  // 递归查找文件夹
+  const findFolderByPath = (path: string): DriveItem | null => {
+    if (path === '/') return null
+
+    const pathParts = path.split('/').filter(p => p)
+    let current = driveItems.value
+
+    for (const part of pathParts) {
+      const folder = current.find(item => item.type === 'folder' && item.name === part)
+      if (!folder) return null
+      if (folder.children) {
+        current = folder.children
+      }
+      if (pathParts[pathParts.length - 1] === part) {
+        return folder
+      }
+    }
+    return null
+  }
+
+  // 创建文件夹
+  const createFolder = (parentPath: string, folderName: string): DriveItem | null => {
+    // 验证文件夹名称
+    if (!folderName.trim()) return null
+
+    // 生成新ID
+    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    const now = new Date()
+    const fullPath = parentPath === '/' ? `/${folderName}` : `${parentPath}/${folderName}`
+
+    const newFolder: DriveItem = {
+      id: newId,
+      name: folderName,
+      type: 'folder',
+      size: 0,
+      modifiedAt: now,
+      createdAt: now,
+      path: fullPath,
+      parentId: null,
+      itemCount: 0,
+      children: []
+    }
+
+    if (parentPath === '/') {
+      // 添加到根目录
+      newFolder.level = 1
+      driveItems.value.push(newFolder)
+    } else {
+      // 添加到指定路径的文件夹
+      const parentFolder = findFolderByPath(parentPath)
+      if (!parentFolder) return null
+
+      newFolder.parentId = parentFolder.id
+      newFolder.level = (parentFolder.level || 1) + 1
+      
+      if (!parentFolder.children) parentFolder.children = []
+      parentFolder.children.push(newFolder)
+      parentFolder.itemCount = (parentFolder.itemCount || 0) + 1
+      parentFolder.modifiedAt = now
+    }
+
+    return newFolder
+  }
+
+  // 添加文件到指定路径
+  const addFileToPath = (targetPath: string, file: File): DriveItem | null => {
+    const folder = findFolderByPath(targetPath)
+    if (!folder) return null
+
+    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    const now = new Date()
+    const filePath = `${targetPath}/${file.name}`
+
+    const newFile: DriveItem = {
+      id: newId,
+      name: file.name,
+      type: getFileType(file.name),
+      size: file.size,
+      modifiedAt: now,
+      createdAt: now,
+      path: filePath,
+      parentId: folder.id
+    }
+
+    if (!folder.children) folder.children = []
+    folder.children.push(newFile)
+    folder.itemCount = (folder.itemCount || 0) + 1
+    folder.modifiedAt = now
+
+    return newFile
+  }
+
+  // 在音乐文件夹下创建播放列表文件夹
+  const createMusicPlaylist = (playlistName: string): DriveItem | null => {
+    return createFolder('/音乐', playlistName)
+  }
+
+  // 在文档文件夹下创建分类文件夹
+  const createDocumentCategory = (categoryName: string): DriveItem | null => {
+    return createFolder('/文档', categoryName)
+  }
+
+  // 上传音乐文件到指定播放列表
+  const uploadMusicToPlaylist = (playlistName: string, files: File[]): DriveItem[] => {
+    const targetPath = `/音乐/${playlistName}`
+    const uploadedFiles: DriveItem[] = []
+
+    for (const file of files) {
+      const uploadedFile = addFileToPath(targetPath, file)
+      if (uploadedFile) {
+        uploadedFiles.push(uploadedFile)
+      }
+    }
+
+    return uploadedFiles
+  }
+
+  // 上传文档文件到指定分类
+  const uploadDocumentToCategory = (categoryName: string, files: File[]): DriveItem[] => {
+    const targetPath = `/文档/${categoryName}`
+    const uploadedFiles: DriveItem[] = []
+
+    for (const file of files) {
+      const uploadedFile = addFileToPath(targetPath, file)
+      if (uploadedFile) {
+        uploadedFiles.push(uploadedFile)
+      }
+    }
+
+    return uploadedFiles
+  }
+
   return {
     // 状态
     driveItems,
@@ -362,5 +502,15 @@ export const useDriveStore = defineStore('drive', () => {
     openRecycleBin,
     exitRecycleBin,
     restoreItem,
+    
+    // 新增方法
+    createFolder,
+    addFileToPath,
+    createMusicPlaylist,
+    createDocumentCategory,
+    uploadMusicToPlaylist,
+    uploadDocumentToCategory,
+    findFolderByPath,
+    getFileType
   }
 })

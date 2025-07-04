@@ -102,6 +102,17 @@
             </div>
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-lg font-bold text-morandi-900">文档分类</h2>
+              <button
+                @click="showCreateCategoryDialog = true"
+                class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                title="添加分类"
+              >
+                <svg :size="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                添加分类
+              </button>
             </div>
             <nav class="space-y-2 flex-1 overflow-y-auto">
               <button
@@ -135,6 +146,24 @@
               <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentCategoryData?.name || '文档'">
                 {{ docsStore.currentCategoryData?.name || '文档' }}
               </h2>
+              <div v-if="docsStore.currentCategory" class="flex items-center gap-2">
+                <button
+                  @click="showUploadDocumentDialog = true"
+                  class="flex items-center gap-1 px-2 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors text-sm"
+                  title="上传文档"
+                >
+                  <Upload :size="16" />
+                  上传文档
+                </button>
+                <button
+                  @click="showAddMarkdownDialog = true"
+                  class="flex items-center gap-1 px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors text-sm"
+                  title="新建Markdown文档"
+                > 
+                  <Plus :size="16" />
+                  新建MD
+                </button>
+              </div>
             </div>
 
             <div class="flex-1 overflow-y-auto -mr-2 pr-2">
@@ -255,6 +284,126 @@
         </div>
       </div>
 
+      <!-- 创建分类对话框 -->
+      <div v-if="showCreateCategoryDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-96">
+          <h3 class="text-lg font-bold mb-4">新建文档分类</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-morandi-700 mb-2">分类名称</label>
+              <input
+                v-model="newCategoryName"
+                type="text"
+                placeholder="请输入分类名称"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                @keydown.enter="createNewCategory"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              @click="showCreateCategoryDialog = false"
+              class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="createNewCategory"
+              :disabled="!newCategoryName.trim()"
+              class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              创建
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 上传文档对话框 -->
+      <div v-if="showUploadDocumentDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-96">
+          <h3 class="text-lg font-bold mb-4">上传文档</h3>
+          <div class="space-y-4">
+            <div class="border-2 border-dashed border-morandi-300 rounded-lg p-8 text-center">
+              <FileText :size="32" class="mx-auto mb-3 text-morandi-400" />
+              <p class="text-morandi-600 mb-2">点击选择文档文件或拖拽到此处</p>
+              <p class="text-xs text-morandi-400">支持 PDF、Word、PowerPoint、Excel、文本等格式</p>
+              <input 
+                type="file" 
+                multiple 
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md"
+                class="hidden" 
+                ref="documentFileInput"
+                @change="handleDocumentFileSelect"
+              />
+              <button 
+                @click="() => documentFileInput?.click()"
+                class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                选择文档文件
+              </button>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              @click="showUploadDocumentDialog = false; selectedDocumentFiles = []"
+              class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="uploadDocumentFiles"
+              :disabled="selectedDocumentFiles.length === 0"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              上传 ({{ selectedDocumentFiles.length }})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新建Markdown文档对话框 -->
+      <div v-if="showAddMarkdownDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-96">
+          <h3 class="text-lg font-bold mb-4">新建Markdown文档</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-morandi-700 mb-2">文档名称</label>
+              <input
+                v-model="newDocumentName"
+                type="text"
+                placeholder="请输入文档名称"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                @keydown.enter="createMarkdownDocument"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-morandi-700 mb-2">文档摘要</label>
+              <textarea
+                v-model="newDocumentSummary"
+                placeholder="简要描述文档内容（可选）"
+                rows="3"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              @click="showAddMarkdownDialog = false"
+              class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="createMarkdownDocument"
+              :disabled="!newDocumentName.trim()"
+              class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              创建
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 翻译浮窗 -->
       <div
         v-if="docsStore.showTranslation"
@@ -290,8 +439,10 @@ import { useDocsStore, type Document, type DocumentCategory } from '../store/Doc
 import { useUIStore } from '@/store/UIStore';
 import { useRoute } from 'vue-router';
 import { 
+  Upload,
   FileText, 
   X,
+  Plus,
   ChevronLeft,
   BookImage
 } from 'lucide-vue-next';
@@ -306,9 +457,15 @@ const docsStore = useDocsStore();
 const uiStore = useUIStore();
 const route = useRoute();
 const showAddDocumentDialog = ref(false);
+const showUploadDocumentDialog = ref(false);
+const showAddMarkdownDialog = ref(false);
+const showCreateCategoryDialog = ref(false);
 const newDocumentName = ref('');
 const newDocumentType = ref('markdown');
 const newDocumentSummary = ref('');
+const newCategoryName = ref('');
+const selectedDocumentFiles = ref<File[]>([]);
+const documentFileInput = ref<HTMLInputElement | null>(null);
 const draggedItemId = ref<string | null>(null);
 
 watch(() => docsStore.currentDocument, (newDoc) => {
@@ -445,6 +602,59 @@ const addDocument = () => {
   newDocumentName.value = ''
   newDocumentType.value = 'markdown'
   newDocumentSummary.value = ''
+}
+
+// 创建新分类的方法
+const createNewCategory = () => {
+  const categoryName = newCategoryName.value.trim()
+  if (!categoryName) return
+
+  // 这里调用创建分类的逻辑，相当于在云盘文档目录下创建文件夹
+  console.log('创建新分类:', categoryName)
+  
+  showCreateCategoryDialog.value = false
+  newCategoryName.value = ''
+}
+
+// 上传文档文件的方法
+const uploadDocumentFiles = () => {
+  if (selectedDocumentFiles.value.length === 0) return
+  
+  // 这里调用上传文档文件的逻辑，相当于在当前分类目录下上传文件
+  console.log('上传文档文件:', selectedDocumentFiles.value.map(f => f.name))
+  
+  showUploadDocumentDialog.value = false
+  selectedDocumentFiles.value = []
+}
+
+// 新建Markdown文档的方法
+const createMarkdownDocument = () => {
+  const docName = newDocumentName.value.trim()
+  if (!docName) return
+
+  const newDoc = {
+    name: docName + '.md',
+    type: 'markdown',
+    size: 0,
+    modifiedAt: new Date(),
+    path: `/文档/${docsStore.currentCategoryData?.name}/${docName}`,
+    categoryId: docsStore.currentCategory,
+    summary: newDocumentSummary.value || '新建的Markdown文档',
+    content: `# ${docName}\n\n这是一个新的Markdown文档，请开始编辑内容。`
+  }
+  
+  docsStore.addDocument(docsStore.currentCategory, newDoc)
+  
+  showAddMarkdownDialog.value = false
+  newDocumentName.value = ''
+  newDocumentSummary.value = ''
+}
+
+// 处理文档文件选择
+const handleDocumentFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || [])
+  selectedDocumentFiles.value = files
 }
 </script>
 

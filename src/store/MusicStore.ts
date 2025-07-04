@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDriveStore } from './DriveStore'
+import { useTransferStore } from './TransferStore'
 
 export interface Track {
   id: string
@@ -11,6 +12,7 @@ export interface Track {
   filePath: string
   coverUrl?: string
   lyrics?: string
+  isUploading?: boolean // 标记是否正在上传
 }
 
 export interface Playlist {
@@ -639,6 +641,73 @@ export const useMusicStore = defineStore('music', () => {
     }
   }
 
+  // 创建新播放列表
+  const createNewPlaylist = async (playlistName: string): Promise<boolean> => {
+    const driveStore = useDriveStore()
+    const transferStore = useTransferStore()
+    
+    // 在云盘中创建文件夹
+    const newFolder = driveStore.createMusicPlaylist(playlistName)
+    if (!newFolder) return false
+    
+    // 重新加载播放列表以反映变化
+    await loadPlaylistsFromDrive()
+    
+    return true
+  }
+
+  // 上传音乐文件到当前播放列表
+  const uploadMusicFiles = async (files: File[]): Promise<boolean> => {
+    if (!currentPlaylist.value) return false
+    
+    const driveStore = useDriveStore()
+    const transferStore = useTransferStore()
+    
+    const playlistName = currentPlaylist.value.name
+    const targetPath = `/音乐/${playlistName}`
+    
+    // 创建上传任务
+    const tasks = await transferStore.uploadFiles(files, targetPath)
+    
+    // 立即在当前播放列表中添加正在上传的歌曲（显示为灰色状态）
+    const pendingTracks: Track[] = []
+    for (const file of files) {
+      const newTrack: Track = {
+        id: `pending-${Date.now()}-${Math.random()}`,
+        name: file.name.replace(/\.[^/.]+$/, ''),
+        artist: extractArtistFromFileName(file.name),
+        album: playlistName,
+        duration: estimateDurationFromSize(file.size),
+        filePath: `${targetPath}/${file.name}`,
+        coverUrl: '',
+        lyrics: getLyricsForTrack(file.name),
+        isUploading: true // 标记为正在上传状态
+      }
+      pendingTracks.push(newTrack)
+    }
+    
+    // 添加到当前播放列表
+    currentPlaylist.value.tracks.push(...pendingTracks)
+    
+    // 监听上传完成
+    const checkUploadComplete = () => {
+      const allCompleted = tasks.every((task: any) => 
+        transferStore.tasks.find((t: any) => t.id === task.id)?.status === 'completed'
+      )
+      
+      if (allCompleted) {
+        // 上传完成，重新加载播放列表以获取正确的数据
+        loadPlaylistsFromDrive()
+      } else {
+        // 继续检查
+        setTimeout(checkUploadComplete, 1000)
+      }
+    }
+    
+    setTimeout(checkUploadComplete, 1000)
+    return true
+  }
+
   // 清理定时器的方法（用于组件卸载时）
   const cleanup = () => {
     stopPlayTimer()
@@ -686,6 +755,10 @@ export const useMusicStore = defineStore('music', () => {
     formatTime,
     reorderTracks,
     initializeMockData,
-    cleanup
+    cleanup,
+    
+    // 新增方法
+    createNewPlaylist,
+    uploadMusicFiles
   }
 }) 
