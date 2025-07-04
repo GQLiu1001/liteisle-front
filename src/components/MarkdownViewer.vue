@@ -16,7 +16,17 @@
       </div>
       
       <div class="flex items-center space-x-2">
-        
+        <!-- 缩放指示器 -->
+        <div class="flex items-center space-x-2 px-3 py-2 text-gray-600 bg-gray-100 rounded-lg">
+          <span class="text-sm">{{ Math.round(zoomLevel * 100) }}%</span>
+          <button 
+            @click="resetZoom"
+            class="text-xs hover:text-gray-800 transition-colors"
+            title="重置缩放 (Ctrl+0)"
+          >
+            重置
+          </button>
+        </div>
 
         <!-- 保存按钮 -->
         <button 
@@ -66,6 +76,7 @@ const emit = defineEmits<{
 
 // 状态管理
 const currentContent = ref(props.content || '')
+const zoomLevel = ref(1) // 添加缩放级别状态
 
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
@@ -186,6 +197,18 @@ const initVditor = async () => {
           // 定期检查并设置背景
           const interval = setInterval(setWhiteBackground, 500)
           setTimeout(() => clearInterval(interval), 5000)
+          
+          // 在 Vditor 初始化完成后添加滚轮事件监听
+          if (vditorElement.value) {
+            // 监听整个编辑器区域的滚轮事件
+            const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
+            const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
+            
+            const targetElement = vditorIr || vditorContent
+            if (targetElement) {
+              targetElement.addEventListener('wheel', handleZoom, { passive: false })
+            }
+          }
         }, 100)
       },
       hint: {
@@ -207,6 +230,50 @@ const saveContent = () => {
   }
 }
 
+// 缩放功能
+const handleZoom = (event: WheelEvent) => {
+  // 检查是否按下 Ctrl 键
+  if (event.ctrlKey) {
+    event.preventDefault()
+    
+    // 根据滚轮方向调整缩放级别
+    const delta = event.deltaY > 0 ? -0.1 : 0.1
+    const newZoomLevel = Math.max(0.5, Math.min(3, zoomLevel.value + delta))
+    
+    zoomLevel.value = newZoomLevel
+    
+    // 应用缩放到编辑器内容区域（不包括大纲）
+    if (vditorElement.value) {
+      // 查找编辑器的主要内容区域
+      const vditorIr = vditorElement.value.querySelector('.vditor-ir .vditor-reset') as HTMLElement
+      const vditorContent = vditorElement.value.querySelector('.vditor-content .vditor-reset') as HTMLElement
+      
+      // 应用缩放到找到的内容区域
+      const targetElement = vditorIr || vditorContent
+      if (targetElement) {
+        targetElement.style.fontSize = `${newZoomLevel}rem`
+        targetElement.style.lineHeight = '1.6'
+      }
+    }
+  }
+}
+
+// 重置缩放
+const resetZoom = () => {
+  zoomLevel.value = 1
+  if (vditorElement.value) {
+    // 重置编辑器内容区域的缩放
+    const vditorIr = vditorElement.value.querySelector('.vditor-ir .vditor-reset') as HTMLElement
+    const vditorContent = vditorElement.value.querySelector('.vditor-content .vditor-reset') as HTMLElement
+    
+    const targetElement = vditorIr || vditorContent
+    if (targetElement) {
+      targetElement.style.fontSize = '1rem'
+      targetElement.style.lineHeight = '1.6'
+    }
+  }
+}
+
 // 键盘快捷键
 const handleGlobalKeydown = (e: KeyboardEvent) => {
   const isCtrlOrMeta = e.ctrlKey || e.metaKey
@@ -215,6 +282,13 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
   if (isCtrlOrMeta && e.key.toLowerCase() === 's') {
     e.preventDefault()
     saveContent()
+    return
+  }
+  
+  // Ctrl/Cmd + 0 重置缩放
+  if (isCtrlOrMeta && e.key === '0') {
+    e.preventDefault()
+    resetZoom()
     return
   }
 }
@@ -235,10 +309,26 @@ onMounted(async () => {
   document.addEventListener('keydown', handleGlobalKeydown)
   await nextTick()
   await initVditor()
+  
+  // 添加滚轮事件监听
+  if (vditorElement.value) {
+    vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
+  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
+  if (vditorElement.value) {
+    vditorElement.value.removeEventListener('wheel', handleZoom)
+    // 清理内容区域的事件监听器
+    const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
+    const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
+    
+    const targetElement = vditorIr || vditorContent
+    if (targetElement) {
+      targetElement.removeEventListener('wheel', handleZoom)
+    }
+  }
   vditor?.destroy()
 })
 </script>
@@ -395,6 +485,19 @@ onBeforeUnmount(() => {
   background: #f1f3f4 !important;
   padding: 2px 4px !important;
   border-radius: 3px !important;
+}
+
+/* 确保大纲视图不受缩放影响 */
+:deep(.vditor-outline) {
+  font-size: 14px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item) {
+  font-size: 14px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__title) {
+  font-size: 14px !important;
 }
 
 /* 列表样式 */
