@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer w-full h-[calc(100vh-8rem)] flex flex-col bg-white rounded-2xl overflow-hidden shadow-lg">
+  <div class="markdown-viewer w-full h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden shadow-lg">
     <!-- 顶部工具栏 -->
     <div class="flex-shrink-0 border-b p-4 flex items-center justify-between bg-gray-50">
       <div class="flex items-center space-x-4">
@@ -178,7 +178,7 @@ const initVditor = async () => {
           inlineDigit: false
         },
         markdown: {
-          codeBlockPreview: true, // 启用代码块预览以获得更好的 IR 体验
+          codeBlockPreview: false, // 禁用代码块预览以避免点击时的弹窗问题
           mathBlockPreview: true, // 启用数学公式预览
           autoSpace: true, // 自动在中西文之间添加空格
           fixTermTypo: true, // 自动矫正术语

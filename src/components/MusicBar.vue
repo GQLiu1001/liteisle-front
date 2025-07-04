@@ -5,15 +5,19 @@
       'fixed bottom-0 right-0 z-20 px-4 lg:px-6 transition-all duration-300',
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
-    @mouseenter="showMusicBar"
-    @mouseleave="hideMusicBar"
+    @mouseenter="!isOnMarkdownEditor ? showMusicBar() : undefined"
+    @mouseleave="!isOnMarkdownEditor ? hideMusicBar() : undefined"
   >
     <!-- 音乐栏指示器 - 固定在屏幕最底边 -->
     <div 
       class="absolute bottom-0 left-1/2 -translate-x-1/2 transition-all duration-300"
       :class="isVisible ? 'opacity-0 pointer-events-none' : 'opacity-60 hover:opacity-100'"
+      @click="isOnMarkdownEditor ? toggleMusicBar() : undefined"
     >
-      <div class="w-12 h-4 bg-morandi-300/80 hover:bg-morandi-400/80 rounded-t-md flex items-center justify-center cursor-pointer transition-all duration-200 backdrop-blur-sm">
+      <div class="w-12 h-4 bg-morandi-300/80 hover:bg-morandi-400/80 rounded-t-md flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+           :class="isOnMarkdownEditor ? 'cursor-pointer' : 'cursor-default'"
+           :title="isOnMarkdownEditor ? '点击展开音乐栏' : ''"
+      >
         <ChevronUp :size="12" class="text-morandi-700" />
       </div>
     </div>
@@ -271,10 +275,12 @@ import { Repeat1,Shuffle,Music, Play, Pause, SkipBack, SkipForward, Volume2, Vol
 import { useMusicStore } from '../store/MusicStore'
 import { useRoute } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
+import { useDocsStore } from '@/store/DocsStore'
 import { storeToRefs } from 'pinia'
 
 const musicStore = useMusicStore()
 const uiStore = useUIStore()
+const docsStore = useDocsStore()
 const { progressPercentage } = storeToRefs(musicStore)
 const route = useRoute()
 
@@ -350,6 +356,11 @@ if (typeof document !== 'undefined') {
 // 判断是否在音乐页面
 const isOnMusicPage = computed(() => route.path === '/music')
 
+// 判断是否在 Markdown 编辑器页面
+const isOnMarkdownEditor = computed(() => {
+  return route.path === '/docs' && docsStore.currentDocument?.type === 'markdown'
+})
+
 // 监听路由变化，自动控制音乐栏显示/隐藏
 const updateMusicBarVisibility = () => {
   if (isOnMusicPage.value) {
@@ -413,6 +424,23 @@ const hideMusicBar = () => {
   hideTimeout = setTimeout(() => {
     isVisible.value = false
   }, 500) // 500ms延迟，避免快速移入移出闪烁
+}
+
+// 在 Markdown 编辑器页面中切换音乐栏显示状态
+const toggleMusicBar = () => {
+  if (isVisible.value) {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout)
+      hideTimeout = null
+    }
+    isVisible.value = false
+  } else {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout)
+      hideTimeout = null
+    }
+    isVisible.value = true
+  }
 }
 
 // 音量控制方法
