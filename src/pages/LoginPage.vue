@@ -104,41 +104,20 @@ const isLoading = ref(false)
 
 // 窗口控制函数
 const minimizeWindow = () => {
-  try {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      console.log('最小化窗口...')
-      ;(window as any).electronAPI.minimizeWindow()
-    } else {
-      console.log('未检测到 Electron 环境 - 最小化窗口')
-    }
-  } catch (error) {
-    console.error('最小化窗口失败:', error)
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    ;(window as any).electronAPI.minimizeWindow()
   }
 }
 
 const maximizeWindow = () => {
-  try {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      console.log('最大化/还原窗口...')
-      ;(window as any).electronAPI.maximizeWindow()
-    } else {
-      console.log('未检测到 Electron 环境 - 最大化窗口')
-    }
-  } catch (error) {
-    console.error('最大化窗口失败:', error)
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    ;(window as any).electronAPI.maximizeWindow()
   }
 }
 
 const closeWindow = () => {
-  try {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      console.log('关闭窗口...')
-      ;(window as any).electronAPI.closeWindow()
-    } else {
-      console.log('未检测到 Electron 环境 - 关闭窗口')
-    }
-  } catch (error) {
-    console.error('关闭窗口失败:', error)
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    ;(window as any).electronAPI.closeWindow()
   }
 }
 

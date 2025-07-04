@@ -6,12 +6,7 @@ const isDev = process.env.NODE_ENV === 'development'
 let mainWindow
 
 function createWindow() {
-  console.log('创建窗口...');
-  console.log('当前目录:', __dirname);
-  
   const preloadPath = path.join(__dirname, 'preload.js');
-  console.log('Preload 文件路径:', preloadPath);
-  console.log('Preload 文件是否存在:', fs.existsSync(preloadPath));
   
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
@@ -79,37 +74,24 @@ Menu.setApplicationMenu(null)
 
 // IPC 事件处理 - 窗口控制
 ipcMain.on('window-minimize', () => {
-  console.log('main: 收到 window-minimize 事件');
   if (mainWindow) {
     mainWindow.minimize();
-    console.log('main: 窗口已最小化');
-  } else {
-    console.error('main: mainWindow 不存在');
   }
 })
 
 ipcMain.on('window-maximize', () => {
-  console.log('main: 收到 window-maximize 事件');
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
       mainWindow.unmaximize();
-      console.log('main: 窗口已还原');
     } else {
       mainWindow.maximize();
-      console.log('main: 窗口已最大化');
     }
-  } else {
-    console.error('main: mainWindow 不存在');
   }
 })
 
 ipcMain.on('window-close', () => {
-  console.log('main: 收到 window-close 事件');
   if (mainWindow) {
     mainWindow.close();
-    console.log('main: 窗口关闭请求已发送');
-  } else {
-    console.error('main: mainWindow 不存在');
   }
 })
 
@@ -121,14 +103,11 @@ ipcMain.handle('select-directory', async () => {
         properties: ['openDirectory'],
         title: '选择下载目录'
       })
-      console.log('Directory selection result:', result)
       return result
     } else {
-      console.error('Main window not available')
       return { canceled: true }
     }
   } catch (error) {
-    console.error('Error in select-directory:', error)
     return { canceled: true, error: error.message }
   }
 }) 

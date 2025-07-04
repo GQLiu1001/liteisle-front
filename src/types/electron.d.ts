@@ -9,9 +9,6 @@ export interface ElectronAPI {
     canceled: boolean;
     filePaths?: string[];
   }>;
-  
-  // 测试函数
-  test: () => string;
 }
 
 declare global {
