@@ -28,6 +28,16 @@
           </button>
         </div>
 
+        <!-- 快捷键提示按钮 -->
+        <button 
+          @click="showShortcuts = !showShortcuts"
+          class="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          title="快捷键提示"
+        >
+          <span class="text-sm">?</span>
+          <span>快捷键</span>
+        </button>
+
         <!-- 保存按钮 -->
         <button 
           @click="saveContent"
@@ -40,7 +50,63 @@
       </div>
     </div>
 
-        <!-- 主内容区 -->
+    <!-- 快捷键提示弹窗 -->
+    <div v-if="showShortcuts" class="absolute top-16 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-80 z-50">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold text-gray-800">快捷键</h3>
+        <button @click="showShortcuts = false" class="text-gray-500 hover:text-gray-700">
+          <span class="text-xl">×</span>
+        </button>
+      </div>
+      
+      <div class="space-y-2 text-sm">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="font-medium text-gray-700">标题:</div>
+          <div class="text-gray-600">Ctrl+1-6</div>
+          
+          <div class="font-medium text-gray-700">粗体:</div>
+          <div class="text-gray-600">Ctrl+B</div>
+          
+          <div class="font-medium text-gray-700">斜体:</div>
+          <div class="text-gray-600">Ctrl+I</div>
+          
+          <div class="font-medium text-gray-700">下划线:</div>
+          <div class="text-gray-600">Ctrl+U</div>
+          
+          <div class="font-medium text-gray-700">行内代码:</div>
+          <div class="text-gray-600">Ctrl+`</div>
+          
+          <div class="font-medium text-gray-700">代码块:</div>
+          <div class="text-gray-600">Ctrl+Shift+`</div>
+          
+          <div class="font-medium text-gray-700">链接:</div>
+          <div class="text-gray-600">Ctrl+K</div>
+          
+          <div class="font-medium text-gray-700">列表:</div>
+          <div class="text-gray-600">Ctrl+L</div>
+          
+          <div class="font-medium text-gray-700">表格:</div>
+          <div class="text-gray-600">Ctrl+E</div>
+          
+          <div class="font-medium text-gray-700">分割线:</div>
+          <div class="text-gray-600">Ctrl+D</div>
+          
+          <div class="font-medium text-gray-700">引用:</div>
+          <div class="text-gray-600">Ctrl+Q</div>
+          
+          <div class="font-medium text-gray-700">保存:</div>
+          <div class="text-gray-600">Ctrl+S</div>
+          
+          <div class="font-medium text-gray-700">缩放:</div>
+          <div class="text-gray-600">Ctrl+滚轮</div>
+          
+          <div class="font-medium text-gray-700">重置缩放:</div>
+          <div class="text-gray-600">Ctrl+0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主内容区 -->
     <div class="flex-1 flex overflow-hidden">
       <!-- 编辑器容器 -->
       <div class="flex-1 overflow-hidden">
@@ -77,6 +143,7 @@ const emit = defineEmits<{
 // 状态管理
 const currentContent = ref(props.content || '')
 const zoomLevel = ref(1) // 添加缩放级别状态
+const showShortcuts = ref(false) // 添加快捷键提示状态
 
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
@@ -91,10 +158,11 @@ const initVditor = async () => {
   try {
     vditor = new Vditor(vditorElement.value, {
       height: '100%',
-      mode: 'ir', // 即时渲染模式
+      mode: 'ir', // 即时渲染模式 - 类似 Typora 的优雅编辑方式
       value: currentContent.value,
       placeholder: '开始编写 Markdown...',
       theme: 'classic',
+      typewriterMode: false, // 打字机模式，可选启用
       preview: {
         theme: {
           current: 'light',
@@ -106,14 +174,24 @@ const initVditor = async () => {
           lineNumber: false
         },
         math: {
-          engine: 'KaTeX'
+          engine: 'KaTeX',
+          inlineDigit: false
         },
         markdown: {
-          codeBlockPreview: false, // 禁用代码块预览
-          mathBlockPreview: false, // 禁用数学公式预览
+          codeBlockPreview: true, // 启用代码块预览以获得更好的 IR 体验
+          mathBlockPreview: true, // 启用数学公式预览
+          autoSpace: true, // 自动在中西文之间添加空格
+          fixTermTypo: true, // 自动矫正术语
+          toc: true, // 支持目录
+          footnotes: true, // 支持脚注
+          paragraphBeginningSpace: false, // 段落开头不自动空格
+          listStyle: false, // 不为列表添加样式
+          linkBase: '',
+          linkPrefix: '',
+          mark: true // 支持标记高亮
         }
       },
-      toolbar: [], // 完全隐藏工具栏
+      toolbar: [], // 完全隐藏工具栏以获得纯净的 IR 体验
       counter: {
         enable: false
       },
@@ -121,10 +199,65 @@ const initVditor = async () => {
         enable: false
       },
       outline: {
-        enable: true, // 启用官方大纲
+        enable: true, // 启用大纲以增强文档结构感
         position: 'left'
       },
       tab: '\t', // 设置 Tab 键行为
+      // IR 模式特有的优化
+      hint: {
+        delay: 200, // 快速提示
+        emoji: {
+          '+1': '👍',
+          '-1': '👎', 
+          'heart': '❤️',
+          'smile': '😊',
+          'laughing': '😆',
+          'blush': '😊',
+          'smiley': '😃',
+          'relaxed': '😌',
+          'smirk': '😏',
+          'heart_eyes': '😍',
+          'kissing_heart': '😘',
+          'kissing_closed_eyes': '😚',
+          'flushed': '😳',
+          'relieved': '😌',
+          'satisfied': '😆',
+          'grin': '😁',
+          'wink': '😉',
+          'stuck_out_tongue_winking_eye': '😜',
+          'stuck_out_tongue_closed_eyes': '😝',
+          'grinning': '😀',
+          'kissing': '😗',
+          'kissing_smiling_eyes': '😙',
+          'stuck_out_tongue': '😛',
+          'sleeping': '😴',
+          'worried': '😟',
+          'frowning': '😦',
+          'anguished': '😧',
+          'open_mouth': '😮',
+          'grimacing': '😬',
+          'confused': '😕',
+          'hushed': '😯',
+          'expressionless': '😑',
+          'unamused': '😒',
+          'sweat_smile': '😅',
+          'sweat': '😓',
+          'disappointed_relieved': '😥',
+          'weary': '😩',
+          'pensive': '😔',
+          'disappointed': '😞',
+          'confounded': '😖',
+          'fearful': '😨',
+          'cold_sweat': '😰',
+          'persevere': '😣',
+          'cry': '😢',
+          'sob': '😭',
+          'joy': '😂',
+          'astonished': '😲',
+          'scream': '😱'
+        },
+        emojiPath: 'https://unpkg.com/vditor/dist/images/emoji'
+      },
       // 自定义快捷键
       keydown: (event: KeyboardEvent) => {
         // 检查是否在表格中按回车
@@ -180,7 +313,7 @@ const initVditor = async () => {
         emit('update:content', value)
       },
       after: () => {
-        console.log('Vditor 初始化完成')
+        console.log('Vditor IR 模式初始化完成 - 享受类似 Typora 的优雅编辑体验')
         // 设置编辑器背景
         setTimeout(() => {
           const setWhiteBackground = () => {
@@ -210,13 +343,10 @@ const initVditor = async () => {
             }
           }
         }, 100)
-      },
-      hint: {
-        emojiPath: 'https://unpkg.com/vditor/dist/images/emoji'
       }
     })
     } catch (error) {
-    console.error('Vditor 初始化失败:', error)
+    console.error('Vditor IR 模式初始化失败:', error)
   }
 }
 
@@ -291,6 +421,345 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     resetZoom()
     return
   }
+
+  // 只有编辑器获得焦点时才处理 Markdown 格式化快捷键
+  if (!vditor) return
+
+  // Ctrl/Cmd + 1-6 设置标题
+  if (isCtrlOrMeta && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+    e.preventDefault()
+    const level = parseInt(e.key)
+    insertHeading(level)
+    return
+  }
+
+  // Ctrl/Cmd + B 粗体
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'b') {
+    e.preventDefault()
+    toggleBold()
+    return
+  }
+
+  // Ctrl/Cmd + I 斜体
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'i') {
+    e.preventDefault()
+    toggleItalic()
+    return
+  }
+
+  // Ctrl/Cmd + U 下划线
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'u') {
+    e.preventDefault()
+    toggleUnderline()
+    return
+  }
+
+  // Ctrl/Cmd + K 插入链接
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    insertLink()
+    return
+  }
+
+  // Ctrl/Cmd + ` 插入行内代码
+  if (isCtrlOrMeta && e.key === '`') {
+    e.preventDefault()
+    toggleInlineCode()
+    return
+  }
+
+  // Ctrl/Cmd + Shift + ` 插入代码块
+  if (isCtrlOrMeta && e.shiftKey && e.key === '`') {
+    e.preventDefault()
+    insertCodeBlock()
+    return
+  }
+
+  // Ctrl/Cmd + L 插入列表
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'l') {
+    e.preventDefault()
+    insertList()
+    return
+  }
+
+  // Ctrl/Cmd + E 插入表格
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'e') {
+    e.preventDefault()
+    insertTable()
+    return
+  }
+
+  // Ctrl/Cmd + D 插入分割线
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'd') {
+    e.preventDefault()
+    insertDivider()
+    return
+  }
+
+  // Ctrl/Cmd + Q 插入引用
+  if (isCtrlOrMeta && e.key.toLowerCase() === 'q') {
+    e.preventDefault()
+    insertQuote()
+    return
+  }
+}
+
+// 使用 Vditor 官方 API 的快捷键功能函数
+const insertHeading = (level: number) => {
+  if (!vditor) return
+  
+  // 获取当前选中的文本
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 如果有选中文本，将选中文本转换为标题
+    const cleanText = selectedText.replace(/^(#{1,6})\s*/, '').trim() || '标题文本'
+    const headingText = '#'.repeat(level) + ' ' + cleanText
+    ;(vditor as any).deleteValue()
+    vditor.insertValue(headingText)
+  } else {
+    // 如果没有选中文本，操作当前行
+    // 使用插入标记的方法来定位光标位置
+    const marker = '||CURSOR_MARKER||'
+    
+    // 在光标位置插入标记
+    vditor.insertValue(marker)
+    
+    // 获取包含标记的内容
+    const contentWithMarker = vditor.getValue()
+    
+    // 找到标记的位置
+    const markerIndex = contentWithMarker.indexOf(marker)
+    
+    if (markerIndex !== -1) {
+      // 分析标记所在的行
+      const lines = contentWithMarker.split('\n')
+      let currentLineIndex = 0
+      let charCount = 0
+      
+      // 找到包含标记的行
+      for (let i = 0; i < lines.length; i++) {
+        if (charCount + lines[i].length >= markerIndex) {
+          currentLineIndex = i
+          break
+        }
+        charCount += lines[i].length + 1 // +1 for newline
+      }
+      
+      // 获取当前行（移除标记）
+      const currentLine = lines[currentLineIndex].replace(marker, '')
+      
+      // 移除现有标题标记
+      const headerRegex = /^(#{1,6})\s*/
+      const cleanLine = currentLine.replace(headerRegex, '').trim() || '标题文本'
+      
+      // 创建新的标题文本
+      const newHeaderText = '#'.repeat(level) + ' ' + cleanLine
+      
+      // 替换当前行
+      lines[currentLineIndex] = newHeaderText
+      
+      // 更新编辑器内容（移除标记）
+      const newContent = lines.join('\n')
+      vditor.setValue(newContent)
+    } else {
+      // 如果找不到标记，移除标记并使用备用方案
+      const cleanContent = contentWithMarker.replace(marker, '')
+      const headingText = '#'.repeat(level) + ' 标题文本'
+      vditor.setValue(cleanContent)
+      vditor.insertValue(headingText)
+    }
+  }
+  
+  // 重新聚焦编辑器
+  setTimeout(() => {
+    vditor?.focus()
+  }, 50)
+}
+
+const toggleBold = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 检查是否已经是粗体格式
+    if (selectedText.startsWith('**') && selectedText.endsWith('**')) {
+      // 移除粗体格式
+      const cleanText = selectedText.slice(2, -2)
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(cleanText)
+    } else {
+      // 添加粗体格式
+      const boldText = `**${selectedText}**`
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(boldText)
+    }
+  } else {
+    // 没有选中文本，插入粗体模板
+    vditor.insertValue('**粗体文本**')
+  }
+}
+
+const toggleItalic = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 检查是否已经是斜体格式
+    if (selectedText.startsWith('*') && selectedText.endsWith('*') && !selectedText.startsWith('**')) {
+      // 移除斜体格式
+      const cleanText = selectedText.slice(1, -1)
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(cleanText)
+    } else {
+      // 添加斜体格式
+      const italicText = `*${selectedText}*`
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(italicText)
+    }
+  } else {
+    // 没有选中文本，插入斜体模板
+    vditor.insertValue('*斜体文本*')
+  }
+}
+
+const toggleUnderline = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 检查是否已经是下划线格式
+    if (selectedText.startsWith('<u>') && selectedText.endsWith('</u>')) {
+      // 移除下划线格式
+      const cleanText = selectedText.slice(3, -4)
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(cleanText)
+    } else {
+      // 添加下划线格式
+      const underlineText = `<u>${selectedText}</u>`
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(underlineText)
+    }
+  } else {
+    // 没有选中文本，插入下划线模板
+    vditor.insertValue('<u>下划线文本</u>')
+  }
+}
+
+const toggleInlineCode = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 检查是否已经是行内代码格式
+    if (selectedText.startsWith('`') && selectedText.endsWith('`')) {
+      // 移除行内代码格式
+      const cleanText = selectedText.slice(1, -1)
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(cleanText)
+    } else {
+      // 添加行内代码格式
+      const codeText = `\`${selectedText}\``
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(codeText)
+    }
+  } else {
+    // 没有选中文本，插入行内代码模板
+    vditor.insertValue('`行内代码`')
+  }
+}
+
+const insertCodeBlock = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 将选中文本包装为代码块
+    const codeBlock = `\n\`\`\`\n${selectedText}\n\`\`\`\n`
+    ;(vditor as any).deleteValue()
+    vditor.insertValue(codeBlock)
+  } else {
+    // 没有选中文本，插入代码块模板
+    vditor.insertValue('\n```\n代码块\n```\n')
+  }
+}
+
+const insertLink = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 将选中文本作为链接文本
+    const linkText = `[${selectedText}](URL)`
+    ;(vditor as any).deleteValue()
+    vditor.insertValue(linkText)
+  } else {
+    // 没有选中文本，插入链接模板
+    vditor.insertValue('[链接文本](URL)')
+  }
+}
+
+const insertList = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 将选中文本转为列表项
+    const lines = selectedText.split('\n')
+    const listText = lines.map((line: string) => line.trim() ? `- ${line.trim()}` : '').join('\n')
+    ;(vditor as any).deleteValue()
+    vditor.insertValue(listText)
+  } else {
+    // 没有选中文本，插入列表模板
+    vditor.insertValue('\n- 列表项1\n- 列表项2\n- 列表项3\n')
+  }
+}
+
+const insertTable = () => {
+  if (!vditor) return
+  
+  const tableText = '\n| 标题1 | 标题2 | 标题3 |\n|-------|-------|-------|\n| 内容1 | 内容2 | 内容3 |\n| 内容4 | 内容5 | 内容6 |\n'
+  vditor.insertValue(tableText)
+}
+
+const insertDivider = () => {
+  if (!vditor) return
+  
+  const dividerText = '\n---\n'
+  vditor.insertValue(dividerText)
+}
+
+const insertQuote = () => {
+  if (!vditor) return
+  
+  const selectedText = (vditor as any).getSelection()
+  
+  if (selectedText) {
+    // 将选中文本转为引用
+    const lines = selectedText.split('\n')
+    const quoteText = lines.map((line: string) => line.trim() ? `> ${line.trim()}` : '>').join('\n')
+    ;(vditor as any).deleteValue()
+    vditor.insertValue(quoteText)
+  } else {
+    // 没有选中文本，插入引用模板
+    vditor.insertValue('> 引用文本')
+  }
+}
+
+// 辅助函数：获取选中的文本
+const getSelectedText = (): string => {
+  const selection = window.getSelection()
+  if (selection && selection.rangeCount > 0) {
+    return selection.toString()
+  }
+  return ''
 }
 
 // 监听 props 变化
