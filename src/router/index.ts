@@ -1,12 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/store/AuthStore'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
-      return isLoggedIn ? '/home' : '/login'
+      const authStore = useAuthStore()
+      return authStore.isAuthenticated ? '/home' : '/login'
     }
   },
   {
@@ -51,16 +52,27 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫：检查登录状态
-router.beforeEach((to: any, from: any, next: any) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'
+// 路由守卫：检查认证状态
+router.beforeEach(async (to: any, from: any, next: any) => {
+  const authStore = useAuthStore()
+  
+  // 初始化认证状态（只在第一次访问时）
+  if (!authStore.token && localStorage.getItem('access_token')) {
+    try {
+      await authStore.initializeAuth()
+    } catch (error) {
+      console.warn('初始化认证状态失败:', error)
+    }
+  }
+  
+  const isAuthenticated = authStore.isAuthenticated
   
   // 如果没有登录且不是去登录页，重定向到登录页
-  if (!isLoggedIn && to.name !== 'login') {
+  if (!isAuthenticated && to.name !== 'login') {
     next({ name: 'login' })
   } 
   // 如果已经登录且去登录页，重定向到首页
-  else if (isLoggedIn && to.name === 'login') {
+  else if (isAuthenticated && to.name === 'login') {
     next({ name: 'home' })
   } 
   // 其他情况正常导航

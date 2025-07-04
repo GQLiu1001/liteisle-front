@@ -29,13 +29,25 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
+import { onMounted } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import MusicBar from '@/components/MusicBar.vue'
 import { useUIStore } from '@/store/UIStore'
+import { useAuthStore } from '@/store/AuthStore'
 
 const route = useRoute()
 const uiStore = useUIStore()
+const authStore = useAuthStore()
+
+// 应用启动时初始化认证状态
+onMounted(async () => {
+  try {
+    await authStore.initializeAuth()
+  } catch (error) {
+    console.warn('初始化认证状态失败:', error)
+  }
+})
 </script>
 
 <style>

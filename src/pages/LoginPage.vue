@@ -107,11 +107,11 @@
           <!-- 登录按钮 -->
           <button
             type="submit"
-            :disabled="isLoading"
+            :disabled="authStore.isLoading"
             class="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-morandi-300 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center"
           >
-            <Loader2 v-if="isLoading" :size="20" class="animate-spin mr-2" />
-            {{ isLoading ? '登录中...' : '登录' }}
+            <Loader2 v-if="authStore.isLoading" :size="20" class="animate-spin mr-2" />
+            {{ authStore.isLoading ? '登录中...' : '登录' }}
           </button>
 
           <!-- 底部提示 -->
@@ -189,11 +189,11 @@
           <!-- 注册按钮 -->
           <button
             type="submit"
-            :disabled="isLoading"
+            :disabled="authStore.isLoading"
             class="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-morandi-300 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center"
           >
-            <Loader2 v-if="isLoading" :size="20" class="animate-spin mr-2" />
-            {{ isLoading ? '注册中...' : '注册账号' }}
+            <Loader2 v-if="authStore.isLoading" :size="20" class="animate-spin mr-2" />
+            {{ authStore.isLoading ? '注册中...' : '注册账号' }}
           </button>
         </form>
 
@@ -251,11 +251,11 @@
           <!-- 重置密码按钮 -->
           <button
             type="submit"
-            :disabled="isLoading"
+            :disabled="authStore.isLoading"
             class="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-morandi-300 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center"
           >
-            <Loader2 v-if="isLoading" :size="20" class="animate-spin mr-2" />
-            {{ isLoading ? '重置中...' : '重置密码' }}
+            <Loader2 v-if="authStore.isLoading" :size="20" class="animate-spin mr-2" />
+            {{ authStore.isLoading ? '重置中...' : '重置密码' }}
           </button>
 
           <!-- 提示信息 -->
@@ -274,8 +274,10 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, Minus, Square, X } from 'lucide-vue-next'
+import { useAuthStore } from '@/store/AuthStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 活跃标签页
 const activeTab = ref<'login' | 'register' | 'forgot'>('login')
@@ -301,7 +303,6 @@ const forgotForm = reactive({
 })
 
 // 加载状态
-const isLoading = ref(false)
 const isCodeLoading = ref(false)
 
 // 验证码倒计时
@@ -329,95 +330,71 @@ const closeWindow = () => {
 
 // 处理登录
 const handleLogin = async () => {
-  isLoading.value = true
-  
   try {
-    // 模拟登录请求延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await authStore.login({
+      username: loginForm.username,
+      password: loginForm.password,
+      remember: loginForm.remember
+    })
     
-    // 简单的演示登录逻辑
-    if (loginForm.username === 'admin' && loginForm.password === '123456') {
-      // 登录成功，保存登录状态
-      localStorage.setItem('isLoggedIn', 'true')
-      localStorage.setItem('username', loginForm.username)
-      
-      // 跳转到首页
-      router.push('/home')
-    } else {
-      alert('用户名或密码错误！\n请使用：admin / 123456')
-    }
+    // 登录成功，跳转到首页
+    router.push('/home')
   } catch (error) {
-    console.error('登录失败:', error)
-    alert('登录失败，请重试！')
-  } finally {
-    isLoading.value = false
+    alert(`登录失败：${error instanceof Error ? error.message : '未知错误'}\n请使用：admin / 123456`)
   }
 }
 
 // 处理注册
 const handleRegister = async () => {
-  isLoading.value = true
-  
   try {
-    // 模拟注册请求延迟
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await authStore.register({
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password,
+      verificationCode: registerForm.verificationCode
+    })
     
-    // 简单的演示注册逻辑
-    if (registerForm.verificationCode === '123456') {
-      alert(`注册成功！\n用户名：${registerForm.username}\n邮箱：${registerForm.email}\n请使用新账号登录`)
-      
-      // 注册成功后切换到登录页面
-      activeTab.value = 'login'
-      loginForm.username = registerForm.username
-      
-      // 清空注册表单
-      Object.assign(registerForm, {
-        username: '',
-        email: '',
-        password: '',
-        verificationCode: ''
-      })
-    } else {
-      alert('验证码错误！\n演示验证码：123456')
-    }
+    alert(`注册成功！\n用户名：${registerForm.username}\n邮箱：${registerForm.email}\n请使用新账号登录`)
+    
+    // 注册成功后切换到登录页面
+    activeTab.value = 'login'
+    loginForm.username = registerForm.username
+    
+    // 清空注册表单
+    Object.assign(registerForm, {
+      username: '',
+      email: '',
+      password: '',
+      verificationCode: ''
+    })
   } catch (error) {
-    console.error('注册失败:', error)
-    alert('注册失败，请重试！')
-  } finally {
-    isLoading.value = false
+    alert(`注册失败：${error instanceof Error ? error.message : '未知错误'}\n演示验证码：123456`)
   }
 }
 
 // 处理忘记密码
 const handleForgotPassword = async () => {
-  isLoading.value = true
-  
   try {
-    // 模拟重置密码请求延迟
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await authStore.forgotPassword({
+      username: forgotForm.username,
+      email: forgotForm.email,
+      verificationCode: forgotForm.verificationCode
+    })
     
-    // 简单的演示重置密码逻辑
-    if (forgotForm.verificationCode === '123456') {
-      alert(`密码重置成功！\n新密码已发送到：${forgotForm.email}\n演示新密码：newpass123`)
-      
-      // 重置成功后切换到登录页面
-      activeTab.value = 'login'
-      loginForm.username = forgotForm.username
-      
-      // 清空忘记密码表单
-      Object.assign(forgotForm, {
-        username: '',
-        email: '',
-        verificationCode: ''
-      })
-    } else {
-      alert('验证码错误！\n演示验证码：123456')
-    }
+    alert(`密码重置成功！\n新密码已发送到：${forgotForm.email}\n演示新密码：newpass123`)
+    
+    // 重置成功后切换到登录页面
+    activeTab.value = 'login'
+    loginForm.username = forgotForm.username
+    
+    // 清空忘记密码表单
+    Object.assign(forgotForm, {
+      username: '',
+      email: '',
+      verificationCode: ''
+    })
   } catch (error) {
-    console.error('重置密码失败:', error)
-    alert('重置密码失败，请重试！')
-  } finally {
-    isLoading.value = false
+    alert(`重置密码失败：${error instanceof Error ? error.message : '未知错误'}\n演示验证码：123456`)
   }
 }
 
@@ -431,9 +408,7 @@ const sendRegisterCode = async () => {
   isCodeLoading.value = true
   
   try {
-    // 模拟发送验证码延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await authStore.sendVerificationCode(registerForm.email, 'register')
     alert(`验证码已发送到：${registerForm.email}\n演示验证码：123456`)
     
     // 开始倒计时
@@ -445,8 +420,7 @@ const sendRegisterCode = async () => {
       }
     }, 1000)
   } catch (error) {
-    console.error('发送验证码失败:', error)
-    alert('发送验证码失败，请重试！')
+    alert(`发送验证码失败：${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
     isCodeLoading.value = false
   }
@@ -462,9 +436,7 @@ const sendForgotCode = async () => {
   isCodeLoading.value = true
   
   try {
-    // 模拟发送验证码延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await authStore.sendVerificationCode(forgotForm.email, 'forgot')
     alert(`验证码已发送到：${forgotForm.email}\n演示验证码：123456`)
     
     // 开始倒计时
@@ -476,8 +448,7 @@ const sendForgotCode = async () => {
       }
     }, 1000)
   } catch (error) {
-    console.error('发送验证码失败:', error)
-    alert('发送验证码失败，请重试！')
+    alert(`发送验证码失败：${error instanceof Error ? error.message : '未知错误'}`)
   } finally {
     isCodeLoading.value = false
   }
