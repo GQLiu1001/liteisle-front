@@ -10,7 +10,7 @@ dist-electron/
 build/
 out/
 release/
-
+sql/
 # Development
 .cache/
 .temp/

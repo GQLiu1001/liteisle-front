@@ -106,6 +106,80 @@
             </div>
           </div>
 
+          <!-- 专注记录 -->
+          <div v-else-if="settingsStore.currentCategoryId === 'focus'">
+            <h3 class="text-xl font-bold text-morandi-900 mb-6">专注记录</h3>
+            
+            <!-- 统计概览 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200 text-center">
+                <div class="text-sm text-blue-600 mb-1">累计专注时长</div>
+                <div class="text-2xl font-bold text-blue-800">{{ formatTotalTime(focusStats.totalMinutes) }}</div>
+              </div>
+              <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200 text-center">
+                <div class="text-sm text-green-600 mb-1">专注天数</div>
+                <div class="text-2xl font-bold text-green-800">{{ focusStats.totalDays }} 天</div>
+              </div>
+              <div class="bg-gradient-to-r from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200 text-center">
+                <div class="text-sm text-orange-600 mb-1">连续签到</div>
+                <div class="text-2xl font-bold text-orange-800">{{ focusStats.streakDays }} 天</div>
+              </div>
+            </div>
+
+            <!-- 最近专注记录 -->
+            <div class="space-y-4">
+              <h4 class="text-lg font-semibold text-morandi-900">最近专注记录</h4>
+              
+              <!-- 记录列表 -->
+              <div 
+                class="bg-morandi-50 rounded-lg border border-morandi-200 max-h-96 overflow-y-auto"
+                @scroll="handleScroll"
+              >
+                <div v-if="focusRecords.length === 0" class="p-8 text-center text-morandi-500">
+                  暂无专注记录
+                </div>
+                <div v-else class="divide-y divide-morandi-200">
+                  <div 
+                    v-for="record in focusRecords" 
+                    :key="record.date"
+                    class="p-4 hover:bg-white transition-colors"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                          <div class="text-sm font-medium text-morandi-900">
+                            {{ formatDate(record.date) }}
+                          </div>
+                          <div v-if="record.hasCheckin" class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            已签到
+                          </div>
+                        </div>
+                        <div class="text-sm text-morandi-600 space-y-1">
+                          <div>专注时长: {{ formatMinutes(record.focusMinutes) }}</div>
+                          <div>专注次数: {{ record.focusSessions }} 次</div>
+                          <div v-if="record.longestSession">最长单次: {{ formatMinutes(record.longestSession) }}</div>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-lg font-bold text-morandi-900">
+                          {{ formatMinutes(record.focusMinutes) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 加载指示器 -->
+                  <div v-if="isLoadingRecords" class="p-4 text-center text-morandi-500">
+                    <div class="inline-flex items-center gap-2">
+                      <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span class="text-sm">加载中...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 关于 -->
           <div v-else-if="settingsStore.currentCategoryId === 'about'" class="h-full flex flex-col items-center justify-center text-center">
             <!-- 应用图标 -->
@@ -210,10 +284,12 @@
 
 <script setup lang="ts">
 import { useSettingsStore } from '@/store/SettingsStore';
-import { ref } from 'vue';
+import { useFocusStore } from '@/store/FocusStore';
+import { ref, computed, onMounted } from 'vue';
 import { User, HardDrive, FileText } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
+const focusStore = useFocusStore();
 
 // 修改密码对话框状态
 const showChangePasswordDialog = ref(false);
@@ -281,6 +357,123 @@ const submitPasswordChange = async () => {
   }
 };
 
+// 专注记录相关状态
+const focusRecords = ref<Array<{
+  date: string;
+  focusMinutes: number;
+  focusSessions: number;
+  longestSession: number;
+  hasCheckin: boolean;
+}>>([]);
+
+const isLoadingRecords = ref(false);
+const hasMoreRecords = ref(true);
+
+// 专注统计
+const focusStats = computed(() => ({
+  totalMinutes: focusStore.totalFocusTime / (1000 * 60), // 转换为分钟
+  totalDays: focusStore.totalFocusCount,
+  streakDays: focusStore.getCheckInStats.consecutiveCheckins
+}));
+
+// 格式化方法
+const formatTotalTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.floor(minutes % 60);
+  
+  if (hours >= 1) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  return `${remainingMinutes}m`;
+};
+
+const formatMinutes = (minutes: number): string => {
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  }
+  return `${minutes}m`;
+};
+
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (date.toDateString() === today.toDateString()) {
+    return '今天';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return '昨天';
+  } else {
+    return date.toLocaleDateString('zh-CN', { 
+      month: 'long', 
+      day: 'numeric',
+      weekday: 'short'
+    });
+  }
+};
+
+// 加载专注记录
+const loadFocusRecords = () => {
+  // 从 focusStore 获取最近的专注数据
+  const records: Array<{
+    date: string;
+    focusMinutes: number;
+    focusSessions: number;
+    longestSession: number;
+    hasCheckin: boolean;
+  }> = [];
+  
+  // 获取最近30天的数据
+  for (let i = 0; i < 30; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dailyMinutes = focusStore.dailyFocusData.get(dateStr) || 0;
+    
+    if (dailyMinutes > 0) {
+      records.push({
+        date: dateStr,
+        focusMinutes: dailyMinutes,
+        focusSessions: Math.ceil(dailyMinutes / 25), // 假设每次25分钟
+        longestSession: Math.min(dailyMinutes, 90), // 假设最长90分钟
+        hasCheckin: dailyMinutes >= 30
+      });
+    }
+  }
+  
+  focusRecords.value = records;
+};
+
+const loadMoreRecords = () => {
+  if (isLoadingRecords.value || !hasMoreRecords.value) return;
+  
+  // 模拟加载更多
+  isLoadingRecords.value = true;
+  setTimeout(() => {
+    // 这里可以加载更多数据到 focusRecords.value
+    // 现在先模拟没有更多数据
+    isLoadingRecords.value = false;
+    hasMoreRecords.value = false;
+  }, 1000);
+};
+
+// 滚动加载处理
+const handleScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  const scrollTop = target.scrollTop;
+  const scrollHeight = target.scrollHeight;
+  const clientHeight = target.clientHeight;
+  
+  // 当滚动到接近底部时触发加载更多（距离底部50px）
+  if (scrollTop + clientHeight >= scrollHeight - 50 && hasMoreRecords.value && !isLoadingRecords.value) {
+    loadMoreRecords();
+  }
+};
+
 // 检查更新
 const checkForUpdates = async () => {
   isCheckingUpdates.value = true;
@@ -294,6 +487,11 @@ const checkForUpdates = async () => {
     isCheckingUpdates.value = false;
   }
 };
+
+// 初始化专注记录
+onMounted(() => {
+  loadFocusRecords();
+});
 </script>
 
 <style scoped>

@@ -147,4 +147,10 @@ declare module 'lucide-vue-next' {
   export const ArrowUp: any
   export const ArrowDown: any
   export const RotateCw: any
+  export const Star: any
+  export const Clock: any
+  export const Calendar: any
+  export const CalendarCheck: any
+  export const CalendarX: any
+  export const CalendarCheck: any
 } 

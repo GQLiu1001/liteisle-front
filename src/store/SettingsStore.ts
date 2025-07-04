@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
-import { Settings, User, FileText } from 'lucide-vue-next'
+import { Settings, User, FileText, Clock } from 'lucide-vue-next'
 
 // 设置接口定义
 interface AppSettings {
@@ -76,6 +76,12 @@ export const useSettingsStore = defineStore('settings', () => {
       name: '账户与云盘',
       description: '账户信息和云盘管理',
       icon: shallowRef(User)
+    },
+    {
+      id: 'focus',
+      name: '专注记录',
+      description: '专注历史和统计',
+      icon: shallowRef(Clock)
     },
     {
       id: 'about',
