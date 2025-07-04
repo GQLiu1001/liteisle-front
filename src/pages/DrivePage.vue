@@ -185,14 +185,33 @@
           </div>
 
                         <!-- 内容视图 -->
-          <div class="flex-1 overflow-auto" @contextmenu.prevent="showEmptyContextMenu">
+          <div 
+            class="flex-1 overflow-auto select-none relative" 
+            @contextmenu.prevent="showEmptyContextMenu"
+            @mousedown="startSelection"
+          >
+            <!-- 选择框 -->
+            <div
+              v-if="isSelecting"
+              class="absolute border-2 border-blue-500 bg-blue-100/20 pointer-events-none z-10"
+              :style="{
+                left: `${Math.min(selectionStart.x, selectionEnd.x)}px`,
+                top: `${Math.min(selectionStart.y, selectionEnd.y)}px`,
+                width: `${Math.abs(selectionEnd.x - selectionStart.x)}px`,
+                height: `${Math.abs(selectionEnd.y - selectionStart.y)}px`
+              }"
+            ></div>
+
             <!-- 网格视图 -->
             <div v-if="viewMode === 'grid'" class="grid grid-cols-6 gap-4 pb-4">
               <!-- 现有文件和文件夹 -->
               <div
                 v-for="item in filteredItems"
                 :key="item.id"
-                @click="handleItemClick(item)"
+                :data-item-id="item.id"
+                class="item-card p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer select-none"
+                :class="getDragOverClass(item)"
+                @click="handleItemClick(item, $event)"
                 @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
                 :draggable="!driveStore.isInRecycleBin && !item.isLocked"
@@ -200,15 +219,11 @@
                 @dragover.prevent="handleDragOver($event, item)"
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
-                class="p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer"
-                :class="[
-                  getDragOverClass(item),
-                  selectedItemId === item.id ? 'border-teal-500 bg-teal-50 shadow-sm' : ''
-                ]"
               >
                 <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <FolderClosed v-if="item.type === 'folder'" :size="48" class="text-blue-500" />
+                    <FolderLock v-if="item.type === 'folder' && getCurrentLevel() === 0" :size="48" class="text-gray-500" />
+                    <FolderClosed v-else-if="item.type === 'folder'" :size="48" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="48" class="text-green-500" />
                     <FileText v-else :size="48" class="text-morandi-500" />
                   </div>
@@ -281,7 +296,10 @@
               <div
                 v-for="item in filteredItems"
                 :key="item.id"
-                @click="handleItemClick(item)"
+                :data-item-id="item.id"
+                class="item-card flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer select-none"
+                :class="getDragOverClass(item, true)"
+                @click="handleItemClick(item, $event)"
                 @dblclick="handleItemDoubleClick(item)"
                 @contextmenu.prevent="showContextMenu($event, item)"
                 :draggable="!driveStore.isInRecycleBin && !item.isLocked"
@@ -289,16 +307,12 @@
                 @dragover.prevent="handleDragOver($event, item)"
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
-                class="flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer"
-                :class="[
-                  getDragOverClass(item, true),
-                  selectedItemId === item.id ? 'border-teal-500 bg-teal-50 shadow-sm' : ''
-                ]"
               >
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3 pointer-events-none">
                   <div class="w-8 h-8 flex items-center justify-center">
-                    <FolderClosed v-if="item.type === 'folder'" :size="20" class="text-blue-500" />
+                    <FolderLock v-if="item.type === 'folder' && getCurrentLevel() === 0" :size="20" class="text-gray-500" />
+                    <FolderClosed v-else-if="item.type === 'folder'" :size="20" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="20" class="text-green-500" />
                     <FileText v-else :size="20" class="text-morandi-500" />
                   </div>
@@ -491,13 +505,12 @@
     >
 
       <!-- 空白区域的右键菜单 -->
-      <template v-if="!selectedItem">
+      <template v-if="!selectedItem && selectedItemIds.size === 0">
         <button 
-          v-if="clipboard && clipboardAction"
+          v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0"
           @click="pasteItem"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
-          <FileText :size="16" />
           粘贴
         </button>
         <button 
@@ -512,7 +525,6 @@
           @click="uploadFiles"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
-          <FileText :size="16" />
           上传文件
         </button>
         <button
@@ -524,7 +536,57 @@
         </button>
       </template>
       
-      <!-- 选中项目的右键菜单 -->
+      <!-- 多选状态下的右键菜单 -->
+      <template v-else-if="selectedItemIds.size > 1">
+        <!-- 回收站模式下的多选菜单 -->
+        <template v-if="driveStore.isInRecycleBin">
+          <button 
+            @click="restoreMultipleItems"
+            class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+          >
+            恢复 ({{ selectedItemIds.size }})
+          </button>
+          <button 
+            @click="deleteMultipleItems"
+            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            删除 ({{ selectedItemIds.size }})
+          </button>
+          <button 
+            @click="showItemDetails"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            详细信息
+          </button>
+        </template>
+        
+        <!-- 正常模式下的多选菜单 -->
+        <template v-else>
+          <button 
+            @click="copyMultipleItems"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            复制 ({{ selectedItemIds.size }})
+          </button>
+          <button 
+            v-if="!hasLockedItems()"
+            @click="cutMultipleItems"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            剪切 ({{ selectedItemIds.size }})
+          </button>
+          <hr class="my-1 border-morandi-200" v-if="!hasLockedItems()">
+          <button 
+            v-if="!hasLockedItems()"
+            @click="deleteMultipleItems"
+            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            删除 ({{ selectedItemIds.size }})
+          </button>
+        </template>
+      </template>
+      
+      <!-- 单选状态下的右键菜单 -->
       <template v-else>
         <!-- 回收站模式下的右键菜单 -->
         <template v-if="driveStore.isInRecycleBin">
@@ -532,7 +594,13 @@
             @click="() => restoreItem()"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
           >
-            还原
+            恢复
+          </button>
+          <button 
+            @click="() => deleteItem()"
+            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            删除
           </button>
           <button 
             @click="() => showItemDetails()"
@@ -897,7 +965,7 @@ import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
-  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, FolderSync, ListOrdered, Logs, Grid2x2
+  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, FolderSync, ListOrdered, Logs, Grid2x2, FolderLock
 } from 'lucide-vue-next'
 
 const toast = useToast()
@@ -945,7 +1013,7 @@ const showItemDetailsState = ref(false)
 const isRefreshing = ref(false)
 
 // 剪贴板
-const clipboard = ref<DriveItem | null>(null)
+const clipboard = ref<DriveItem[]>([])
 const clipboardAction = ref<'copy' | 'cut' | null>(null)
 
 // 分享相关
@@ -1136,14 +1204,28 @@ const navigateToPath = (index: number) => {
 
 const selectedItemId = ref<string | null>(null)
 
-const handleItemClick = (item: DriveItem) => {
+const handleItemClick = (item: DriveItem, event: MouseEvent) => {
   if (driveStore.isInRecycleBin) {
-    // 在回收站中单击不执行任何操作
     return
   }
 
-  // 只更新选中状态
-  selectedItemId.value = item.id
+  // Ctrl/Command 键多选
+  if (event.ctrlKey || event.metaKey) {
+    if (selectedItemIds.value.has(item.id)) {
+      selectedItemIds.value.delete(item.id)
+      if (selectedItemId.value === item.id) {
+        selectedItemId.value = null
+      }
+    } else {
+      selectedItemIds.value.add(item.id)
+      selectedItemId.value = item.id
+    }
+  } else {
+    // 普通点击
+    selectedItemIds.value.clear()
+    selectedItemIds.value.add(item.id)
+    selectedItemId.value = item.id
+  }
 }
 
 const handleItemDoubleClick = (item: DriveItem) => {
@@ -1327,6 +1409,14 @@ const getParentPath = (path: string): string => {
 // 右键菜单事件处理
 const showContextMenu = (event: MouseEvent, item: DriveItem) => {
   event.stopPropagation() // 阻止事件冒泡
+  
+  // 如果点击的项目不在选中列表中，只选中当前项目
+  if (!selectedItemIds.value.has(item.id)) {
+    selectedItemIds.value.clear()
+    selectedItemIds.value.add(item.id)
+    selectedItemId.value = item.id
+  }
+  
   selectedItem.value = item
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
   showContextMenuState.value = true
@@ -1360,7 +1450,7 @@ const downloadItem = () => {
 // 复制功能
 const copyItem = () => {
   if (selectedItem.value) {
-    clipboard.value = { ...selectedItem.value }
+    clipboard.value = [{ ...selectedItem.value }]
     clipboardAction.value = 'copy'
     toast.success(`已复制 "${selectedItem.value.name}" 到剪贴板`)
   }
@@ -1370,7 +1460,7 @@ const copyItem = () => {
 // 剪切功能
 const cutItem = () => {
   if (selectedItem.value) {
-    clipboard.value = { ...selectedItem.value }
+    clipboard.value = [{ ...selectedItem.value }]
     clipboardAction.value = 'cut'
     toast.success(`已剪切 "${selectedItem.value.name}" 到剪贴板`)
   }
@@ -1588,16 +1678,30 @@ const cancelDelete = () => {
 
 // 回收站相关功能
 const restoreAllItems = () => {
-  driveStore.restoreAllItems();
-  toast.success('所有项目已从回收站恢复');
+  if (driveStore.recycleBinItems.length === 0) {
+    toast.info('回收站为空，无需恢复')
+    return
+  }
+  
+  if (confirm(`确定要恢复回收站中的所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
+    const itemCount = driveStore.recycleBinItems.length
+    driveStore.restoreAllItems()
+    toast.success(`已从回收站恢复 ${itemCount} 个项目`)
+  }
 }
 
 const deleteAllItems = () => {
-  if (confirm('确定要永久删除回收站中的所有项目吗？此操作不可恢复。')) {
-    driveStore.emptyRecycleBin();
-    toast.success('回收站已清空');
+  if (driveStore.recycleBinItems.length === 0) {
+    toast.info('回收站为空，无需清空')
+    return
   }
-};
+  
+  if (confirm('确定要永久删除回收站中的所有项目吗？此操作不可恢复。')) {
+    const itemCount = driveStore.recycleBinItems.length
+    driveStore.emptyRecycleBin()
+    toast.success(`已永久删除 ${itemCount} 个项目`)
+  }
+}
 
 const deleteItem = (itemToDelete?: DriveItem) => {
   const item = itemToDelete || selectedItem.value
@@ -1646,8 +1750,8 @@ const openItem = () => {
 const showItemDetails = () => {
   if (selectedItem.value) {
     showItemDetailsState.value = true
+    showContextMenuState.value = false
   }
-  showContextMenuState.value = false;
 }
 
 const closeItemDetails = () => {
@@ -1699,8 +1803,14 @@ const toggleSortMenu = () => {
 
 // 空白区域右键菜单
 const showEmptyContextMenu = (event: MouseEvent) => {
+  // 如果点击的是项目本身，不清除选择
+  if ((event.target as HTMLElement).closest('.item-card')) {
+    return
+  }
+
   selectedItem.value = null
-  selectedItemId.value = null // 清除选中状态
+  selectedItemId.value = null
+  selectedItemIds.value.clear()
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
   showContextMenuState.value = true
   
@@ -1710,83 +1820,90 @@ const showEmptyContextMenu = (event: MouseEvent) => {
 
 // 粘贴功能
 const pasteItem = () => {
-  if (!clipboard.value || !clipboardAction.value) return
+  if (!clipboard.value.length || !clipboardAction.value) return
 
-  const item = { ...clipboard.value }
-  const newId = Date.now().toString() + Math.random().toString()
-  const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
-  
-  // 检查名称冲突
-  const existingItems = currentItems.value
-  let finalName = item.name
-  let counter = 1
-  
-  while (existingItems.some((existing: DriveItem) => existing.name === finalName)) {
-    const nameWithoutExt = item.name.split('.').slice(0, -1).join('.')
-    const ext = item.name.split('.').pop()
-    if (item.name.includes('.') && item.type !== 'folder') {
-      finalName = `${nameWithoutExt}_副本${counter > 1 ? counter : ''}.${ext}`
+  const isCut = clipboardAction.value === 'cut'
+  let successCount = 0
+
+  clipboard.value.forEach((item) => {
+    const newId = Date.now().toString() + Math.random().toString()
+    const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
+    
+    // 检查名称冲突
+    const existingItems = currentItems.value
+    let finalName = item.name
+    let counter = 1
+    
+    while (existingItems.some((existing: DriveItem) => existing.name === finalName)) {
+      const nameWithoutExt = item.name.split('.').slice(0, -1).join('.')
+      const ext = item.name.split('.').pop()
+      if (item.name.includes('.') && item.type !== 'folder') {
+        finalName = `${nameWithoutExt}_副本${counter > 1 ? counter : ''}.${ext}`
+      } else {
+        finalName = `${item.name}_副本${counter > 1 ? counter : ''}`
+      }
+      counter++
+    }
+
+    const newItem: DriveItem = {
+      ...item,
+      id: newId,
+      name: finalName,
+      path: driveStore.currentPath === '/' ? `/${finalName}` : `${driveStore.currentPath}/${finalName}`,
+      parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
+      modifiedAt: new Date(),
+      createdAt: new Date(),
+      children: item.type === 'folder' ? [] : undefined,
+      itemCount: item.type === 'folder' ? 0 : undefined
+    }
+
+    // 添加到当前位置
+    if (driveStore.currentPath === '/') {
+      driveStore.driveItems.push(newItem)
     } else {
-      finalName = `${item.name}_副本${counter > 1 ? counter : ''}`
+      const parent = currentFolder.value
+      if (parent?.children) {
+        parent.children.push(newItem)
+        parent.itemCount = (parent.itemCount || 0) + 1
+      }
     }
-    counter++
-  }
 
-  const newItem: DriveItem = {
-    ...item,
-    id: newId,
-    name: finalName,
-    path: driveStore.currentPath === '/' ? `/${finalName}` : `${driveStore.currentPath}/${finalName}`,
-    parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
-    modifiedAt: new Date(),
-    createdAt: new Date(),
-    children: item.type === 'folder' ? [] : undefined,
-    itemCount: item.type === 'folder' ? 0 : undefined
-  }
-
-  // 添加到当前位置
-  if (driveStore.currentPath === '/') {
-    driveStore.driveItems.push(newItem)
-  } else {
-    const parent = currentFolder.value
-    if (parent?.children) {
-      parent.children.push(newItem)
-      parent.itemCount = (parent.itemCount || 0) + 1
-    }
-  }
+    successCount++
+  })
 
   // 如果是剪切操作，从原位置删除
-  const isCut = clipboardAction.value === 'cut'
   if (isCut) {
-    const originalParentPath = getParentPath(clipboard.value.path)
-    if (originalParentPath === '/') {
-      const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === clipboard.value!.id)
-      if (index > -1) {
-        driveStore.driveItems.splice(index, 1)
-      }
-    } else {
-      const parent = findItemByPath(originalParentPath)
-      if (parent?.children) {
-        const index = parent.children.findIndex((i: DriveItem) => i.id === clipboard.value!.id)
+    clipboard.value.forEach((item) => {
+      const originalParentPath = getParentPath(item.path)
+      if (originalParentPath === '/') {
+        const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
         if (index > -1) {
-          parent.children.splice(index, 1)
-          parent.itemCount = (parent.itemCount || 1) - 1
+          driveStore.driveItems.splice(index, 1)
+        }
+      } else {
+        const parent = findItemByPath(originalParentPath)
+        if (parent?.children) {
+          const index = parent.children.findIndex((i: DriveItem) => i.id === item.id)
+          if (index > -1) {
+            parent.children.splice(index, 1)
+            parent.itemCount = (parent.itemCount || 1) - 1
+          }
         }
       }
-    }
+    })
     
     hideContextMenu()
-    toast.success('移动成功')
+    toast.success(`移动了 ${successCount} 个项目`)
     
     // 清空剪贴板
-    clipboard.value = null
+    clipboard.value = []
     clipboardAction.value = null
   } else {
     hideContextMenu()
-    toast.success('复制成功')
+    toast.success(`复制了 ${successCount} 个项目`)
     
-    // 清空剪贴板（如果需要的话）
-    clipboard.value = null
+    // 清空剪贴板
+    clipboard.value = []
     clipboardAction.value = null
   }
 }
@@ -1875,11 +1992,25 @@ const handleDragStart = (event: DragEvent, item: DriveItem) => {
     event.preventDefault()
     return
   }
+
+  // 如果拖拽的项目不在选中列表中，只选中当前项目
+  if (!selectedItemIds.value.has(item.id)) {
+    selectedItemIds.value.clear()
+    selectedItemIds.value.add(item.id)
+    selectedItemId.value = item.id
+  }
+
   if (event.dataTransfer) {
-    event.dataTransfer.setData('text/plain', item.id)
+    // 如果是多选，传递所有选中项目的ID
+    const selectedIds = Array.from(selectedItemIds.value)
+    event.dataTransfer.setData('text/plain', JSON.stringify({
+      type: 'multiple',
+      ids: selectedIds,
+      count: selectedIds.length
+    }))
     event.dataTransfer.effectAllowed = 'move'
 
-    // 自定义预览：克隆元素中的 svg 图标
+    // 自定义预览：显示拖拽项目数量
     const originEl = (event.currentTarget as HTMLElement)
     const svgEl = originEl.querySelector('svg')?.cloneNode(true) as HTMLElement | null
     if (svgEl) {
@@ -1887,20 +2018,34 @@ const handleDragStart = (event: DragEvent, item: DriveItem) => {
       wrapper.style.position = 'fixed'
       wrapper.style.top = '-100px'
       wrapper.style.left = '-100px'
-      wrapper.style.width = '32px'
+      wrapper.style.width = 'auto'
       wrapper.style.height = '32px'
       wrapper.style.display = 'flex'
       wrapper.style.alignItems = 'center'
       wrapper.style.justifyContent = 'center'
-      svgEl.style.width = '28px'
-      svgEl.style.height = '28px'
+      wrapper.style.background = 'rgba(59, 130, 246, 0.9)'
+      wrapper.style.color = 'white'
+      wrapper.style.borderRadius = '6px'
+      wrapper.style.padding = '4px 8px'
+      wrapper.style.fontSize = '12px'
+      wrapper.style.fontWeight = 'bold'
+      wrapper.style.gap = '4px'
+      
+      svgEl.style.width = '16px'
+      svgEl.style.height = '16px'
       wrapper.appendChild(svgEl)
+      
+      if (selectedIds.length > 1) {
+        const countText = document.createElement('span')
+        countText.textContent = selectedIds.length.toString()
+        wrapper.appendChild(countText)
+      }
+      
       document.body.appendChild(wrapper)
-      event.dataTransfer.setDragImage(wrapper, 12, 12)
+      event.dataTransfer.setDragImage(wrapper, 16, 16)
       setTimeout(() => document.body.removeChild(wrapper), 0)
     }
   }
-  // 可以在这里添加一个拖动时的样式，比如降低透明度
 }
 
 // 拖拽状态
@@ -1920,27 +2065,64 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
   dragOverTargetId.value = null
   if (targetItem.type !== 'folder' || !event.dataTransfer) return
 
-  const draggedItemId = event.dataTransfer.getData('text/plain')
-  if (draggedItemId === targetItem.id) return // 不能拖到自己身上
-
-  // 在Store中实现移动逻辑
-  // driveStore.moveItem(draggedItemId, targetItem.id)
+  const dragData = event.dataTransfer.getData('text/plain')
   
-  // 暂时使用现有的移动逻辑（后续可以重构到store）
-  const itemToMove = findItemInStore(draggedItemId)
-  if (itemToMove) {
-    selectedItem.value = itemToMove
-    moveTargetPath.value = targetItem.path
-    confirmMove()
-    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
+  try {
+    const parsedData = JSON.parse(dragData)
+    
+    if (parsedData.type === 'multiple' && parsedData.ids) {
+      // 处理多选拖拽
+      const itemsToMove = parsedData.ids
+        .map((id: string) => findItemInStore(id))
+        .filter((item: DriveItem | null) => item !== null)
+      
+      if (itemsToMove.length === 0) return
+      
+      // 检查是否有任何项目拖拽到自己身上
+      if (itemsToMove.some((item: DriveItem) => item.id === targetItem.id)) return
+      
+      // 直接移动所有选中的项目
+      itemsToMove.forEach((item: DriveItem) => {
+        selectedItem.value = item
+        moveTargetPath.value = targetItem.path
+        confirmMove()
+      })
+      
+      // 清空选择
+      selectedItemIds.value.clear()
+      selectedItemId.value = null
+      
+      toast.success(`已将 ${itemsToMove.length} 个项目移动到 "${targetItem.name}"`)
+    }
+  } catch (e) {
+    // 如果不是JSON格式，按原来的单项拖拽处理
+    const draggedItemId = dragData
+    if (draggedItemId === targetItem.id) return
+
+    const itemToMove = findItemInStore(draggedItemId)
+    if (itemToMove) {
+      selectedItem.value = itemToMove
+      moveTargetPath.value = targetItem.path
+      confirmMove()
+      toast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
+    }
   }
 }
 
 const getDragOverClass = (item: DriveItem, isList: boolean = false) => {
-  if (item.id === dragOverTargetId.value) {
-    return isList ? 'bg-teal-100 border-teal-300' : 'border-teal-400 bg-teal-50'
-  }
-  return isList ? 'border-transparent hover:border-morandi-300 hover:bg-morandi-50' : 'border-transparent hover:border-morandi-300 hover:bg-morandi-50'
+  const baseClasses = isList 
+    ? 'border-transparent hover:border-morandi-300 hover:bg-morandi-50' 
+    : 'border-transparent hover:border-morandi-300 hover:bg-morandi-50'
+
+  const selectedClasses = selectedItemIds.value.has(item.id)
+    ? 'border-blue-500 bg-blue-100 shadow-md ring-2 ring-blue-300 ring-opacity-50'
+    : ''
+
+  const dragOverClasses = item.id === dragOverTargetId.value
+    ? isList ? 'bg-teal-100 border-teal-300' : 'border-teal-400 bg-teal-50'
+    : ''
+
+  return [baseClasses, selectedClasses, dragOverClasses].filter(Boolean)
 }
 
 const findItemInStore = (itemId: string): DriveItem | null => {
@@ -1954,7 +2136,13 @@ const findItemInStore = (itemId: string): DriveItem | null => {
     }
     return null
   }
-  return find(driveStore.driveItems)
+  
+  // 先在正常项目中查找
+  const foundInDrive = find(driveStore.driveItems)
+  if (foundInDrive) return foundInDrive
+  
+  // 如果没找到，在回收站中查找
+  return driveStore.recycleBinItems.find((item: DriveItem) => item.id === itemId) || null
 }
 
 // 面包屑拖拽处理
@@ -1991,19 +2179,51 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
 
   if (!event.dataTransfer) return
 
-  const draggedItemId = event.dataTransfer.getData('text/plain')
-  const itemToMove = findItemInStore(draggedItemId)
+  const dragData = event.dataTransfer.getData('text/plain')
   
-  if (itemToMove) {
-    // 检查是否拖动到自己的父目录（无效操作）
-    if (getParentPath(itemToMove.path) === path.path) {
-        return;
+  try {
+    const parsedData = JSON.parse(dragData)
+    
+    if (parsedData.type === 'multiple' && parsedData.ids) {
+      // 处理多选拖拽到面包屑
+      const itemsToMove = parsedData.ids
+        .map((id: string) => findItemInStore(id))
+        .filter((item: DriveItem | null) => item !== null)
+      
+      if (itemsToMove.length === 0) return
+      
+      // 直接移动所有选中的项目
+      itemsToMove.forEach((item: DriveItem) => {
+        // 检查是否拖动到自己的父目录（无效操作）
+        if (getParentPath(item.path) !== path.path) {
+          selectedItem.value = item
+          moveTargetPath.value = path.path
+          confirmMove()
+        }
+      })
+      
+      // 清空选择
+      selectedItemIds.value.clear()
+      selectedItemId.value = null
+      
+      toast.success(`已将 ${itemsToMove.length} 个项目移动到 "${path.name}"`)
     }
+  } catch (e) {
+    // 如果不是JSON格式，按原来的单项拖拽处理
+    const draggedItemId = dragData
+    const itemToMove = findItemInStore(draggedItemId)
+    
+    if (itemToMove) {
+      // 检查是否拖动到自己的父目录（无效操作）
+      if (getParentPath(itemToMove.path) === path.path) {
+          return;
+      }
 
-    selectedItem.value = itemToMove
-    moveTargetPath.value = path.path
-    confirmMove()
-    toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
+      selectedItem.value = itemToMove
+      moveTargetPath.value = path.path
+      confirmMove()
+      toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
+    }
   }
 }
 
@@ -2049,14 +2269,43 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
   clearBreadcrumbDropdown()
   if (!event.dataTransfer) return
 
-  const draggedItemId = event.dataTransfer.getData('text/plain')
-  const itemToMove = findItemInStore(draggedItemId)
+  const dragData = event.dataTransfer.getData('text/plain')
+  
+  try {
+    const parsedData = JSON.parse(dragData)
+    
+    if (parsedData.type === 'multiple' && parsedData.ids) {
+      // 处理多选拖拽到面包屑子项
+      const itemsToMove = parsedData.ids
+        .map((id: string) => findItemInStore(id))
+        .filter((item: DriveItem | null) => item !== null && item.id !== targetFolder.id)
+      
+      if (itemsToMove.length === 0) return
+      
+      // 移动所有选中的项目
+      itemsToMove.forEach((item: DriveItem) => {
+        selectedItem.value = item
+        moveTargetPath.value = targetFolder.path
+        confirmMove()
+      })
+      
+      // 清空选择
+      selectedItemIds.value.clear()
+      selectedItemId.value = null
+      
+      toast.success(`已将 ${itemsToMove.length} 个项目移动到 "${targetFolder.name}"`)
+    }
+  } catch (e) {
+    // 如果不是JSON格式，按原来的单项拖拽处理
+    const draggedItemId = dragData
+    const itemToMove = findItemInStore(draggedItemId)
 
-  if (itemToMove && itemToMove.id !== targetFolder.id) {
-    selectedItem.value = itemToMove
-    moveTargetPath.value = targetFolder.path
-    confirmMove()
-    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
+    if (itemToMove && itemToMove.id !== targetFolder.id) {
+      selectedItem.value = itemToMove
+      moveTargetPath.value = targetFolder.path
+      confirmMove()
+      toast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
+    }
   }
 }
 
@@ -2079,21 +2328,294 @@ const handleTrashDrop = (event: DragEvent) => {
   isDraggingOverTrash.value = false
   if (!event.dataTransfer) return
 
-  const draggedItemId = event.dataTransfer.getData('text/plain')
-  const itemToDelete = findItemInStore(draggedItemId)
+  const dragData = event.dataTransfer.getData('text/plain')
   
-  if (itemToDelete) {
-    // 如果是锁定的文件，不允许删除
-    if (itemToDelete.isLocked) {
-      toast.error('此文件已锁定，无法删除')
-      return
+  try {
+    const parsedData = JSON.parse(dragData)
+    
+    if (parsedData.type === 'multiple' && parsedData.ids) {
+      // 处理多选拖拽到回收站
+      const itemsToDelete = parsedData.ids
+        .map((id: string) => findItemInStore(id))
+        .filter((item: DriveItem | null) => item !== null && !item.isLocked)
+      
+      if (itemsToDelete.length === 0) {
+        toast.error('所选文件已锁定，无法删除')
+        return
+      }
+      
+      // 检查是否有锁定文件
+      const lockedItems = parsedData.ids
+        .map((id: string) => findItemInStore(id))
+        .filter((item: DriveItem | null) => item !== null && item.isLocked)
+      
+      if (lockedItems.length > 0) {
+        toast.error(`有 ${lockedItems.length} 个文件已锁定，无法删除`)
+        return
+      }
+      
+      // 直接删除所有选中的项目
+      itemsToDelete.forEach((item: DriveItem) => {
+        // 从父级移除
+        const parentPath = getParentPath(item.path)
+        if (parentPath === '/') {
+          const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
+          if (index > -1) {
+            driveStore.driveItems.splice(index, 1)
+          }
+        } else {
+          const parent = findItemByPath(parentPath)
+          if (parent?.children) {
+            const index = parent.children.findIndex((i: DriveItem) => i.id === item.id)
+            if (index > -1) {
+              parent.children.splice(index, 1)
+              parent.itemCount = (parent.itemCount || 1) - 1
+            }
+          }
+        }
+        
+        // 添加到回收站
+        driveStore.recycleBinItems.push({
+          ...item,
+          deletedAt: new Date()
+        })
+      })
+      
+      // 清空选择
+      selectedItemIds.value.clear()
+      selectedItemId.value = null
+      
+      toast.success(`已将 ${itemsToDelete.length} 个项目移至回收站`)
     }
+  } catch (e) {
+    // 如果不是JSON格式，按原来的单项拖拽处理
+    const draggedItemId = dragData
+    const itemToDelete = findItemInStore(draggedItemId)
+    
+    if (itemToDelete) {
+      // 如果是锁定的文件，不允许删除
+      if (itemToDelete.isLocked) {
+        toast.error('此文件已锁定，无法删除')
+        return
+      }
 
-    // 确认删除
-    if (confirm(`确定要将 "${itemToDelete.name}" 移至回收站吗？`)) {
-      deleteItem(itemToDelete)
+      // 从父级移除
+      const parentPath = getParentPath(itemToDelete.path)
+      if (parentPath === '/') {
+        const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === itemToDelete.id)
+        if (index > -1) {
+          driveStore.driveItems.splice(index, 1)
+        }
+      } else {
+        const parent = findItemByPath(parentPath)
+        if (parent?.children) {
+          const index = parent.children.findIndex((i: DriveItem) => i.id === itemToDelete.id)
+          if (index > -1) {
+            parent.children.splice(index, 1)
+            parent.itemCount = (parent.itemCount || 1) - 1
+          }
+        }
+      }
+      
+      // 添加到回收站
+      driveStore.recycleBinItems.push({
+        ...itemToDelete,
+        deletedAt: new Date()
+      })
+      
+      toast.success(`"${itemToDelete.name}" 已移至回收站`)
     }
   }
+}
+
+// 添加多选相关的响应式数据
+const isSelecting = ref(false)
+const selectionStart = ref({ x: 0, y: 0 })
+const selectionEnd = ref({ x: 0, y: 0 })
+const selectedItemIds = ref<Set<string>>(new Set())
+const initialSelectedIds = ref<Set<string>>(new Set())
+
+// 多选框相关方法
+const startSelection = (event: MouseEvent) => {
+  // 如果点击的是项目本身或者不是左键点击，不启动框选
+  if ((event.target as HTMLElement).closest('.item-card') || event.button !== 0) {
+    return
+  }
+
+  const container = event.currentTarget as HTMLElement
+  const rect = container.getBoundingClientRect()
+  
+  isSelecting.value = true
+  selectionStart.value = {
+    x: event.clientX - rect.left + container.scrollLeft,
+    y: event.clientY - rect.top + container.scrollTop
+  }
+  selectionEnd.value = { ...selectionStart.value }
+
+  // 保存当前选择状态
+  initialSelectedIds.value = new Set(selectedItemIds.value)
+
+  // 如果没有按住 Ctrl/Command 键，清除之前的选择
+  if (!event.ctrlKey && !event.metaKey) {
+    selectedItemIds.value.clear()
+    selectedItemId.value = null
+    initialSelectedIds.value.clear()
+  }
+
+  // 防止文字选择
+  event.preventDefault()
+
+  // 添加全局鼠标事件监听
+  document.addEventListener('mousemove', handleGlobalMouseMove, { passive: false })
+  document.addEventListener('mouseup', handleGlobalMouseUp, { passive: false })
+}
+
+const handleGlobalMouseMove = (event: MouseEvent) => {
+  if (!isSelecting.value) return
+
+  // 防止默认行为
+  event.preventDefault()
+
+  const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
+  if (!container) return
+
+  const rect = container.getBoundingClientRect()
+  
+  // 限制鼠标位置在容器范围内
+  const mouseX = Math.max(rect.left, Math.min(rect.right, event.clientX))
+  const mouseY = Math.max(rect.top, Math.min(rect.bottom, event.clientY))
+  
+  selectionEnd.value = {
+    x: mouseX - rect.left + container.scrollLeft,
+    y: mouseY - rect.top + container.scrollTop
+  }
+
+  updateSelectedItems()
+}
+
+const handleGlobalMouseUp = (event: MouseEvent) => {
+  if (!isSelecting.value) return
+  
+  event.preventDefault()
+  isSelecting.value = false
+  
+  // 移除全局事件监听
+  document.removeEventListener('mousemove', handleGlobalMouseMove)
+  document.removeEventListener('mouseup', handleGlobalMouseUp)
+
+  // 如果只选中了一个项目，更新 selectedItemId
+  if (selectedItemIds.value.size === 1) {
+    selectedItemId.value = Array.from(selectedItemIds.value)[0]
+  }
+}
+
+const updateSelectedItems = () => {
+  const container = document.querySelector('.flex-1.overflow-auto') as HTMLElement
+  if (!container) return
+
+  const rect = container.getBoundingClientRect()
+  const left = Math.min(selectionStart.value.x, selectionEnd.value.x)
+  const top = Math.min(selectionStart.value.y, selectionEnd.value.y)
+  const right = Math.max(selectionStart.value.x, selectionEnd.value.x)
+  const bottom = Math.max(selectionStart.value.y, selectionEnd.value.y)
+
+  // 从初始选择状态开始
+  selectedItemIds.value = new Set(initialSelectedIds.value)
+
+  // 检查每个项目是否在选择框内
+  const items = document.querySelectorAll('.item-card')
+  items.forEach((item) => {
+    const itemRect = item.getBoundingClientRect()
+    const itemLeft = itemRect.left - rect.left + container.scrollLeft
+    const itemTop = itemRect.top - rect.top + container.scrollTop
+    const itemRight = itemLeft + itemRect.width
+    const itemBottom = itemTop + itemRect.height
+
+    const itemId = item.getAttribute('data-item-id')
+    if (!itemId) return
+
+    // 检查是否有重叠 - 更精确的碰撞检测
+    const isOverlapping = !(
+      itemRight < left ||
+      itemLeft > right ||
+      itemBottom < top ||
+      itemTop > bottom
+    )
+
+    if (isOverlapping) {
+      selectedItemIds.value.add(itemId)
+    }
+  })
+}
+
+const hasLockedItems = () => {
+  return Array.from(selectedItemIds.value).some((id: string) => findItemInStore(id)?.isLocked)
+}
+
+const copyMultipleItems = () => {
+  const selectedItems = Array.from(selectedItemIds.value)
+    .map((id: string) => findItemInStore(id))
+    .filter((item): item is DriveItem => item !== null)
+  if (!selectedItems.length) return
+  clipboard.value = selectedItems.map(item => ({ ...item }))
+  clipboardAction.value = 'copy'
+  toast.success(`已复制 ${selectedItems.length} 个项目到剪贴板`)
+  hideContextMenu()
+}
+
+const cutMultipleItems = () => {
+  const selectedItems = Array.from(selectedItemIds.value)
+    .map((id: string) => findItemInStore(id))
+    .filter((item): item is DriveItem => item !== null)
+  if (!selectedItems.length) return
+  clipboard.value = selectedItems.map(item => ({ ...item }))
+  clipboardAction.value = 'cut'
+  toast.success(`已剪切 ${selectedItems.length} 个项目到剪贴板`)
+  hideContextMenu()
+}
+
+const deleteMultipleItems = () => {
+  const selectedItems = Array.from(selectedItemIds.value)
+    .map((id: string) => findItemInStore(id))
+    .filter((item): item is DriveItem => item !== null)
+  if (!selectedItems.length) return
+  
+  if (driveStore.isInRecycleBin) {
+    // 在回收站中是永久删除
+    selectedItems.forEach((item: DriveItem) => {
+      const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
+      if (index > -1) {
+        driveStore.recycleBinItems.splice(index, 1)
+      }
+    })
+    toast.success(`已永久删除 ${selectedItems.length} 个项目`)
+  } else {
+    // 正常模式下是移至回收站
+    selectedItems.forEach((item: DriveItem) => {
+      deleteItem(item)
+    })
+    toast.success(`已将 ${selectedItems.length} 个项目移至回收站`)
+  }
+  
+  selectedItemIds.value.clear()
+  selectedItemId.value = null
+  hideContextMenu()
+}
+
+const restoreMultipleItems = () => {
+  const selectedItems = Array.from(selectedItemIds.value)
+    .map((id: string) => findItemInStore(id))
+    .filter((item): item is DriveItem => item !== null)
+  if (!selectedItems.length) return
+  
+  selectedItems.forEach((item: DriveItem) => {
+    driveStore.restoreItem(item.id)
+  })
+  
+  selectedItemIds.value.clear()
+  selectedItemId.value = null
+  toast.success(`已从回收站恢复 ${selectedItems.length} 个项目`)
+  hideContextMenu()
 }
 
 </script> 
