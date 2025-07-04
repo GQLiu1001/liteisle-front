@@ -19,7 +19,10 @@
         <router-link
           :to="item.path"
           class="sidebar-item"
-          :class="{ active: route.name === item.name }"
+          :class="{ 
+            active: route.name === item.name,
+            'has-active-tasks': item.name === 'transfer' && hasActiveTasks
+          }"
         >
           <component :is="item.icon" :size="28" />
           <span class="text-sm font-medium">{{ item.label }}</span>
@@ -30,10 +33,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Home, Cloud, Music, FileText, Settings, ArrowRightLeft } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
+import { useTransferStore } from '../store/TransferStore'
 
 const route = useRoute()
+const transferStore = useTransferStore()
+
+// 检查是否有活跃的传输任务
+const hasActiveTasks = computed(() => {
+  return transferStore.progressingTasks.length > 0
+})
 
 const navItems = [
   {
@@ -73,4 +84,14 @@ const navItems = [
     icon: Settings
   }
 ]
-</script> 
+</script>
+
+<style scoped>
+.sidebar-item.has-active-tasks {
+  @apply bg-orange-500 text-white;
+}
+
+.sidebar-item.has-active-tasks:hover {
+  @apply bg-orange-600;
+}
+</style> 

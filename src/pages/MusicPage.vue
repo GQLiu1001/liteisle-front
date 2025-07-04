@@ -561,10 +561,7 @@ const playAll = () => {
   }
 }
 
-const addToFavorites = (track: any) => {
-  console.log('添加到我喜欢的:', track.name)
-  // 这里可以实现添加到收藏的逻辑
-}
+
 
 const seekToPosition = (event: MouseEvent) => {
   const target = event.currentTarget as HTMLElement
