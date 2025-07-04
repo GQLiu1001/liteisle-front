@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6">
+  <div class="min-h-full bg-liteisle-bg p-6 select-none">
     <div class="max-w-7xl mx-auto">
       <div class="h-[calc(100vh-12rem)] card p-0 flex">
         <!-- 左侧导航 -->
@@ -114,7 +114,7 @@
             v-model="linkUrl"
             type="text"
             placeholder="请输入分享链接"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 pr-20"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 pr-20 select-text"
           />
           <button @click="pasteFromClipboard" class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded">
             粘贴

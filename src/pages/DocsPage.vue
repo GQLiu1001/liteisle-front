@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
+  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6 select-none">
     <div class="mx-auto h-full">
       <!-- 详情视图 -->
       <div v-if="docsStore.currentDocument" class="h-full rounded-2xl overflow-hidden">
@@ -97,7 +97,7 @@
               <input 
                 v-model="docsStore.searchQuery"
                 placeholder="搜索所有文档..."
-                class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
               />
             </div>
             <div class="flex items-center justify-between mb-4">
@@ -237,7 +237,7 @@
               <input
                 v-model="newDocumentName"
                 placeholder="请输入文档名称"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               />
             </div>
             <div>
@@ -263,7 +263,7 @@
                 v-model="newDocumentSummary"
                 placeholder="简要描述文档内容"
                 rows="3"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@
                 v-model="newCategoryName"
                 type="text"
                 placeholder="请输入分类名称"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
                 @keydown.enter="createNewCategory"
               />
             </div>
@@ -372,7 +372,7 @@
                 v-model="newDocumentName"
                 type="text"
                 placeholder="请输入文档名称"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
                 @keydown.enter="createMarkdownDocument"
               />
             </div>
@@ -382,7 +382,7 @@
                 v-model="newDocumentSummary"
                 placeholder="简要描述文档内容（可选）"
                 rows="3"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
               />
             </div>
           </div>
@@ -422,10 +422,10 @@
             <X :size="16" class="text-morandi-500" />
           </button>
         </div>
-        <div class="text-sm text-morandi-600 mb-2">
+        <div class="text-sm text-morandi-600 mb-2 select-text">
           原文：{{ docsStore.selectedText }}
         </div>
-        <div class="text-sm text-morandi-900">
+        <div class="text-sm text-morandi-900 select-text">
           {{ docsStore.translationResult }}
         </div>
       </div>

@@ -1,8 +1,16 @@
 <template>
-  <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col z-50">
+  <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col z-50 select-none">
     <!-- Logo -->
-    <div class="pt-8 pb-4 px-6">
-      <img src="/titlepic.png" alt="Liteisle" class="w-full h-auto max-w-[150px] object-contain" />
+    <div class="pt-6 pb-6 px-4 flex justify-center">
+      <div class="relative">
+        <img 
+          src="/titlepic.png" 
+          alt="Liteisle" 
+          class="w-20 h-20 object-contain drop-shadow-md hover:drop-shadow-lg transition-all duration-300 hover:scale-105" 
+        />
+        <!-- 可选：添加背景光环效果 -->
+        <div class="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-blue-400/20 rounded-2xl -z-10 blur-xl"></div>
+      </div>
     </div>
     
     <!-- Navigation Items - Centered vertically -->

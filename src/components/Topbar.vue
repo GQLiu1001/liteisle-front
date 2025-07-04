@@ -1,7 +1,7 @@
 <template>
   <header 
     :class="[
-      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center justify-between px-8 py-6 draggable-area z-10 transition-all duration-300',
+      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center justify-between px-8 py-6 draggable-area z-10 transition-all duration-300 select-none',
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
   >

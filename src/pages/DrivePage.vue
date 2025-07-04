@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6">
+  <div class="min-h-full bg-liteisle-bg p-6 select-none">
     <div class="max-w-7xl mx-auto">
       <div class="h-[calc(100vh-12rem)]">
         <!-- 主要内容区域 -->
@@ -77,7 +77,7 @@
               <input
                 v-model="driveStore.searchQuery"
                 :placeholder="driveStore.isInRecycleBin ? '搜索回收站...' : '搜索文件...'"
-                class="px-4 py-2 w-80 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="px-4 py-2 w-80 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
               />
               
               <!-- 排序按钮 -->
@@ -416,7 +416,7 @@
               v-model="newFolderName"
               type="text"
               placeholder="请输入文件夹名称"
-              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="confirmCreateFolder"
             />
           </div>
@@ -707,7 +707,7 @@
               v-model="renameValue"
               type="text"
               placeholder="请输入新名称"
-              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="confirmRename"
             />
           </div>
@@ -845,7 +845,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-morandi-600">路径：</span>
-            <span class="text-sm font-medium text-morandi-500 break-all">{{ selectedItem.path }}</span>
+            <span class="text-sm font-medium text-morandi-500 break-all select-text">{{ selectedItem.path }}</span>
           </div>
         </div>
         <div class="flex justify-end gap-3 mt-6">
@@ -886,7 +886,7 @@
                 v-model="shareLink"
                 type="text"
                 readonly
-                class="flex-1 px-4 py-2 border border-morandi-300 rounded-lg bg-morandi-50 text-morandi-700"
+                class="flex-1 px-4 py-2 border border-morandi-300 rounded-lg bg-morandi-50 text-morandi-700 select-text"
               />
               <button
                 @click="copyShareLink"
@@ -930,7 +930,7 @@
                   v-model="sharePassword"
                   type="text"
                   placeholder="请输入访问密码"
-                  class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
                 />
               </div>
             </div>

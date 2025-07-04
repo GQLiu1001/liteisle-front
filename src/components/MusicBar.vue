@@ -2,7 +2,7 @@
   <!-- 浮动音乐栏 - 与内容区域对齐，响应式适配 -->
   <div 
     :class="[
-      'fixed bottom-0 right-0 z-20 px-4 lg:px-6',
+      'fixed bottom-0 right-0 z-20 px-4 lg:px-6 select-none',
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
   >

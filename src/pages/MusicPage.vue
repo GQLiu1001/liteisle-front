@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
+  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6 select-none">
     <div class="max-w-7xl mx-auto">
       <!-- 移动端布局 - 垂直堆叠 -->
       <div class="lg:hidden space-y-4">
@@ -82,7 +82,7 @@
               <input
                 v-model="musicStore.searchQuery"
                 placeholder="搜索音乐..."
-                class="w-full px-3 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                class="w-full px-3 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm select-text"
               />
             </div>
 
@@ -126,7 +126,7 @@
               <input
                 v-model="musicStore.searchQuery"
                 placeholder="搜索音乐..."
-                class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
               />
             </div>
 
@@ -385,7 +385,7 @@
             <div class="flex-1 overflow-auto">
               <div class="text-center">
                 <h4 class="font-medium text-morandi-700 mb-3">歌词</h4>
-                <div v-if="musicStore.currentTrackInfo.lyrics" class="text-sm text-morandi-600 leading-relaxed">
+                <div v-if="musicStore.currentTrackInfo.lyrics" class="text-sm text-morandi-600 leading-relaxed select-text">
                   {{ musicStore.currentTrackInfo.lyrics }}
                 </div>
                 <div v-else class="text-sm text-morandi-500">
@@ -409,7 +409,7 @@
               v-model="newPlaylistName"
               type="text"
               placeholder="请输入播放列表名称"
-              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="createNewPlaylist"
             />
           </div>

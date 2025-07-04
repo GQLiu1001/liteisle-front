@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-liteisle-bg flex items-center justify-center">
+  <div class="min-h-screen bg-liteisle-bg flex items-center justify-center select-none">
     <div class="w-full max-w-md">
       <!-- Logo区域 -->
       <div class="text-center mb-12">
@@ -19,7 +19,7 @@
               v-model="form.username"
               type="text"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all"
+              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入用户名"
             />
           </div>
@@ -32,7 +32,7 @@
               v-model="form.password"
               type="password"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all"
+              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入密码"
             />
           </div>
@@ -61,7 +61,7 @@
 
         <!-- 底部提示 -->
         <div class="mt-6 text-center">
-          <p class="text-sm text-morandi-600">
+          <p class="text-sm text-morandi-600 select-text">
             演示账号：admin / 123456
           </p>
         </div>

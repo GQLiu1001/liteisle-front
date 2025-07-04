@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full p-6 pb-24">
+  <div class="flex flex-col h-full p-6 pb-24 select-none">
     <div class="flex flex-1 gap-6 min-h-0">
       <!-- 第一栏：设置分类导航 -->
       <div class="card w-64 flex-shrink-0">
@@ -162,7 +162,7 @@
               <input 
                 type="password" 
                 v-model="passwordForm.currentPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
               />
             </div>
@@ -171,7 +171,7 @@
               <input 
                 type="password" 
                 v-model="passwordForm.newPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
               />
             </div>
@@ -180,7 +180,7 @@
               <input 
                 type="password" 
                 v-model="passwordForm.confirmPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
               />
             </div>
