@@ -197,6 +197,7 @@ import { ref, computed } from 'vue';
 import { Upload, Download, Link, Trash2, FolderOpen, File as FileIcon, Film, X } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification'
 import { useDriveStore } from '@/store/DriveStore';
+import { useTransferStore } from '@/store/TransferStore';
 import type { DriveItem } from '@/store/DriveStore';
 
 const toast = useToast()
@@ -226,6 +227,7 @@ const linkUrl = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const driveStore = useDriveStore();
+const transferStore = useTransferStore();
 
 const categories: { type: CategoryType; label: string; icon: any; }[] = [
   { type: 'upload', label: '上传', icon: Upload },
@@ -240,15 +242,39 @@ const statuses: { type: StatusType; label: string; }[] = [
 const allTasks = ref<Task[]>([]);
 let taskIdCounter = 0;
 
-const getTaskCount = (category: CategoryType) => allTasks.value.filter(t => t.category === category).length;
-const getStatusCount = (status: StatusType) => allTasks.value.filter(t => t.category === activeCategory.value && t.status === status).length;
+const getTaskCount = (category: CategoryType) => {
+  return transferStore.tasks.filter((task: any) => task.type === category).length;
+};
+
+const getStatusCount = (status: StatusType) => {
+  return transferStore.tasks.filter((task: any) => 
+    task.type === activeCategory.value && 
+    (status === 'progressing' ? task.status === 'progressing' : task.status === 'completed')
+  ).length;
+};
 
 const hasCompletedTasks = computed(() => {
-  return allTasks.value.some(t => t.status === 'completed');
+  return transferStore.completedTasks.length > 0;
 });
 
 const filteredTasks = computed(() => {
-  return allTasks.value.filter(t => t.category === activeCategory.value && t.status === activeStatus.value);
+  // 使用 TransferStore 的任务，而不是本地的 allTasks
+  const storeTasks = transferStore.tasks
+  const mappedTasks = storeTasks.map((task: any) => ({
+    id: parseInt(task.id.split('-')[1]) || 0,
+    name: task.name,
+    category: task.type as CategoryType,
+    status: task.status === 'progressing' ? 'progressing' as StatusType : 'completed' as StatusType,
+    size: transferStore.formatBytes(task.size),
+    speed: task.speed,
+    progress: task.progress,
+    icon: task.type === 'upload' ? Upload : Download
+  }))
+  
+  return mappedTasks.filter((t: any) => 
+    t.category === activeCategory.value && 
+    t.status === activeStatus.value
+  )
 });
 
 const formatBytes = (bytes: number, decimals = 2) => {
@@ -329,10 +355,14 @@ const triggerFileUpload = () => {
   fileInput.value?.click();
 };
 
-const handleFileSelect = (event: Event) => {
+const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files) {
-    Array.from(target.files).forEach(file => addTask(file));
+    const files = Array.from(target.files);
+    // 使用 TransferStore 处理上传到"上传"文件夹
+    await transferStore.uploadFiles(files, '/上传');
+    activeCategory.value = 'upload';
+    activeStatus.value = 'progressing';
   }
 };
 

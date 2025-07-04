@@ -436,8 +436,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, onMounted } from 'vue';
 import { useDocsStore, type Document, type DocumentCategory } from '../store/DocsStore';
+import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
 import { useRoute } from 'vue-router';
+import { useToast } from 'vue-toastification';
 import { 
   Upload,
   FileText, 
@@ -454,7 +456,9 @@ import ExcelViewer from '@/components/ExcelViewer.vue';
 import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
 const docsStore = useDocsStore();
+const transferStore = useTransferStore();
 const uiStore = useUIStore();
+const toast = useToast();
 const route = useRoute();
 const showAddDocumentDialog = ref(false);
 const showUploadDocumentDialog = ref(false);
@@ -617,14 +621,19 @@ const createNewCategory = () => {
 }
 
 // 上传文档文件的方法
-const uploadDocumentFiles = () => {
+const uploadDocumentFiles = async () => {
   if (selectedDocumentFiles.value.length === 0) return
   
-  // 这里调用上传文档文件的逻辑，相当于在当前分类目录下上传文件
-  console.log('上传文档文件:', selectedDocumentFiles.value.map(f => f.name))
+  // 获取当前分类的路径，如果没有则上传到文档根目录
+  const currentCategory = docsStore.currentCategoryData
+  const targetPath = currentCategory ? `/文档/${currentCategory.name}` : '/文档'
+  
+  // 使用 TransferStore 处理上传
+  await transferStore.uploadFiles(selectedDocumentFiles.value, targetPath)
   
   showUploadDocumentDialog.value = false
   selectedDocumentFiles.value = []
+  toast.success(`已开始上传 ${selectedDocumentFiles.value.length} 个文档文件`)
 }
 
 // 新建Markdown文档的方法

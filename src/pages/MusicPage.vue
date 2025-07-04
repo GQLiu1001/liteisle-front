@@ -497,12 +497,16 @@ import { computed, onMounted, ref } from 'vue'
 import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
 import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
+import { useTransferStore } from '../store/TransferStore'
+import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
 import type { Track as TrackType } from '../store/MusicStore'
 import { useRoute } from 'vue-router'
 
 const musicStore = useMusicStore()
 const driveStore = useDriveStore()
+const transferStore = useTransferStore()
+const toast = useToast()
 const route = useRoute()
 
 // 响应式状态
@@ -619,14 +623,19 @@ const createNewPlaylist = () => {
 }
 
 // 上传音乐文件的方法
-const uploadMusicFiles = () => {
+const uploadMusicFiles = async () => {
   if (selectedMusicFiles.value.length === 0) return
   
-  // 这里调用上传音乐文件的逻辑，相当于在当前歌单目录下上传文件
-  console.log('上传音乐文件:', selectedMusicFiles.value.map(f => f.name))
+  // 获取当前播放列表的路径，如果没有则上传到音乐根目录
+  const currentPlaylist = musicStore.currentPlaylist
+  const targetPath = currentPlaylist ? `/音乐/${currentPlaylist.name}` : '/音乐'
+  
+  // 使用 TransferStore 处理上传
+  await transferStore.uploadFiles(selectedMusicFiles.value, targetPath)
   
   showUploadMusicDialog.value = false
   selectedMusicFiles.value = []
+  toast.success(`已开始上传 ${selectedMusicFiles.value.length} 个音乐文件`)
 }
 
 // 处理音乐文件选择

@@ -958,6 +958,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
+import { useTransferStore } from '../store/TransferStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
@@ -971,8 +972,9 @@ interface BreadcrumbPath {
   path: string
 }
 
-// 使用 DriveStore
+// 使用 DriveStore 和 TransferStore
 const driveStore = useDriveStore()
+const transferStore = useTransferStore()
 const router = useRouter()
 
 // 响应式数据
@@ -1345,7 +1347,7 @@ const cancelUpload = () => {
   selectedFiles.value = []
 }
 
-const confirmUpload = () => {
+const confirmUpload = async () => {
   if (selectedFiles.value.length === 0) return
 
   const level = getCurrentLevel()
@@ -1354,29 +1356,13 @@ const confirmUpload = () => {
     return
   }
 
-  // 模拟文件上传
-  const parent = currentFolder.value
-  if (parent?.children) {
-    selectedFiles.value.forEach((file: File) => {
-      const fileType = getFileType(file.name)
-      const newFile: DriveItem = {
-        id: Date.now().toString() + Math.random().toString(),
-        name: file.name,
-        type: fileType,
-        size: file.size,
-        modifiedAt: new Date(),
-        createdAt: new Date(),
-        path: `${driveStore.currentPath}/${file.name}`,
-        parentId: parent.id
-      }
-      parent.children!.push(newFile)
-    })
-    parent.itemCount = (parent.itemCount || 0) + selectedFiles.value.length
-  }
-
+  // 使用 TransferStore 处理上传
+  const targetPath = driveStore.currentPath
+  await transferStore.uploadFiles(selectedFiles.value, targetPath)
+  
   showUploadDialog.value = false
   selectedFiles.value = []
-  toast.success(`成功上传 ${selectedFiles.value.length} 个文件`)
+  toast.success(`已开始上传 ${selectedFiles.value.length} 个文件`)
 }
 
 const getFileType = (fileName: string): 'audio' | 'document' | 'other' => {
