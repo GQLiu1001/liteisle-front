@@ -539,14 +539,4 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ## 👥 贡献指南
 
-欢迎提交Issue和Pull Request，让我们一起完善这个项目！
-
-## 📞 联系我们
-
-- 项目主页：[GitHub Repository](#)
-- 问题反馈：[Issues](#)
-- 邮箱：liteisle@example.com
-
----
-
-*最后更新：2024年12月* 
+欢迎提交Issue和Pull Request，让我们一起完善这个项目！ 
