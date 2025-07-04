@@ -332,8 +332,9 @@ const closeWindow = () => {
 const handleLogin = async () => {
   try {
     await authStore.login({
-      username: loginForm.username,
+      email: loginForm.username, // 可以是邮箱或用户名
       password: loginForm.password,
+      username: loginForm.username,
       remember: loginForm.remember
     })
     

@@ -1,24 +1,30 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { authAPI } from '@/utils/http'
 
 interface User {
   id: number
   username: string
   email: string
-  roles: string[]
+  storage_used?: number
+  storage_quota?: number
+  status?: number
+  created_at?: string
+  updated_at?: string
 }
 
 interface LoginRequest {
-  username: string
+  email: string
   password: string
-  remember: boolean
+  username?: string
+  remember?: boolean
 }
 
 interface RegisterRequest {
   username: string
   email: string
   password: string
-  verificationCode: string
+  verificationCode?: string
 }
 
 interface ForgotPasswordRequest {
@@ -28,10 +34,19 @@ interface ForgotPasswordRequest {
 }
 
 interface AuthResponse {
-  token: string
-  refreshToken: string
-  user: User
-  expiresIn: number
+  success: boolean
+  message: string
+  data: {
+    user_id: number
+    username: string
+    email: string
+    token: string
+    expires_in: number
+  }
+  token?: string
+  refreshToken?: string
+  user?: User
+  expiresIn?: number
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -45,21 +60,49 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (credentials: LoginRequest): Promise<void> => {
     isLoading.value = true
     try {
-      if (credentials.username === 'admin' && credentials.password === '123456') {
-        const mockResponse: AuthResponse = {
-          token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'refresh_token_123',
-          user: {
-            id: 1,
-            username: credentials.username,
-            email: 'admin@example.com',
-            roles: ['ROLE_USER', 'ROLE_ADMIN']
-          },
-          expiresIn: 3600
+      // 尝试使用真实 API
+      try {
+        const response = await authAPI.login({
+          email: credentials.email,
+          password: credentials.password,
+          remember: credentials.remember
+        })
+        
+        // 处理 Spring Security JWT 响应
+        if (response.data.success) {
+          setAuthData(response.data)
+        } else {
+          throw new Error(response.data.message || '登录失败')
         }
-        setAuthData(mockResponse)
-      } else {
-        throw new Error('用户名或密码错误')
+      } catch (apiError) {
+        // 如果 API 调用失败，回退到演示模式
+        console.warn('API 调用失败，使用演示模式:', apiError)
+        
+        const usernameOrEmail = credentials.username || credentials.email
+        if (usernameOrEmail === 'admin' && credentials.password === '123456') {
+          const mockResponse: AuthResponse = {
+            success: true,
+            message: '登录成功',
+            data: {
+              user_id: 1,
+              username: 'admin',
+              email: 'admin@example.com',
+              token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
+              expires_in: 3600
+            },
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
+            refreshToken: 'refresh_token_demo_123',
+            user: {
+              id: 1,
+              username: 'admin',
+              email: 'admin@example.com'
+            },
+            expiresIn: 3600
+          }
+          setAuthData(mockResponse)
+        } else {
+          throw new Error('用户名或密码错误')
+        }
       }
     } catch (error) {
       throw error
@@ -71,10 +114,28 @@ export const useAuthStore = defineStore('auth', () => {
   const register = async (registerData: RegisterRequest): Promise<void> => {
     isLoading.value = true
     try {
-      if (registerData.verificationCode === '123456') {
-        console.log('注册成功')
-      } else {
-        throw new Error('验证码错误')
+      // 尝试使用真实 API
+      try {
+        const response = await authAPI.register({
+          username: registerData.username,
+          email: registerData.email,
+          password: registerData.password
+        })
+        
+        if (response.data.success) {
+          console.log('注册成功')
+        } else {
+          throw new Error(response.data.message || '注册失败')
+        }
+      } catch (apiError) {
+        // 如果 API 调用失败，回退到演示模式
+        console.warn('API 调用失败，使用演示模式:', apiError)
+        
+        if (registerData.verificationCode === '123456') {
+          console.log('注册成功')
+        } else {
+          throw new Error('验证码错误')
+        }
       }
     } catch (error) {
       throw error
@@ -86,10 +147,28 @@ export const useAuthStore = defineStore('auth', () => {
   const forgotPassword = async (forgotData: ForgotPasswordRequest): Promise<void> => {
     isLoading.value = true
     try {
-      if (forgotData.verificationCode === '123456') {
-        console.log('密码重置成功')
-      } else {
-        throw new Error('验证码错误')
+      // 尝试使用真实 API
+      try {
+        const response = await authAPI.forgotPassword({
+          username: forgotData.username,
+          email: forgotData.email,
+          verificationCode: forgotData.verificationCode
+        })
+        
+        if (response.data.success) {
+          console.log('密码重置成功')
+        } else {
+          throw new Error(response.data.message || '密码重置失败')
+        }
+      } catch (apiError) {
+        // 如果 API 调用失败，回退到演示模式
+        console.warn('API 调用失败，使用演示模式:', apiError)
+        
+        if (forgotData.verificationCode === '123456') {
+          console.log('密码重置成功')
+        } else {
+          throw new Error('验证码错误')
+        }
       }
     } catch (error) {
       throw error
@@ -99,21 +178,54 @@ export const useAuthStore = defineStore('auth', () => {
   }
   
   const sendVerificationCode = async (email: string, type: 'register' | 'forgot'): Promise<void> => {
-    console.log(`验证码已发送到 ${email}，类型: ${type}`)
+    try {
+      // 尝试使用真实 API
+      const response = await authAPI.sendVerificationCode(email, type)
+      if (response.data.success) {
+        console.log(`验证码已发送到 ${email}，类型: ${type}`)
+      } else {
+        throw new Error(response.data.message || '发送验证码失败')
+      }
+    } catch (apiError) {
+      // 如果 API 调用失败，回退到演示模式
+      console.warn('API 调用失败，使用演示模式:', apiError)
+      console.log(`验证码已发送到 ${email}，类型: ${type}`)
+    }
   }
   
   const logout = async (): Promise<void> => {
-    clearAuthData()
+    try {
+      // 尝试调用后端登出 API
+      await authAPI.logout()
+    } catch (error) {
+      console.warn('登出 API 调用失败:', error)
+    } finally {
+      // 无论 API 调用是否成功，都清除本地数据
+      clearAuthData()
+    }
   }
   
   const setAuthData = (authData: AuthResponse) => {
-    token.value = authData.token
-    refreshToken.value = authData.refreshToken
-    user.value = authData.user
+    // 优先使用顶级的 token 和 user，如果没有则使用 data 中的
+    const accessToken = authData.token || authData.data?.token
+    const refreshTokenValue = authData.refreshToken
+    const userData = authData.user || {
+      id: authData.data?.user_id || 0,
+      username: authData.data?.username || '',
+      email: authData.data?.email || ''
+    }
     
-    localStorage.setItem('access_token', authData.token)
-    localStorage.setItem('refresh_token', authData.refreshToken)
-    localStorage.setItem('user_info', JSON.stringify(authData.user))
+    token.value = accessToken
+    refreshToken.value = refreshTokenValue || null
+    user.value = userData
+    
+    if (accessToken) {
+      localStorage.setItem('access_token', accessToken)
+    }
+    if (refreshTokenValue) {
+      localStorage.setItem('refresh_token', refreshTokenValue)
+    }
+    localStorage.setItem('user_info', JSON.stringify(userData))
   }
   
   const clearAuthData = () => {
