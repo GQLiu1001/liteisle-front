@@ -150,7 +150,13 @@
               <button
                 v-if="!driveStore.isInRecycleBin"
                 @click="openRecycleBin"
-                class="flex items-center justify-center w-10 h-10 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
+                @dragover.prevent="handleTrashDragOver"
+                @dragleave="handleTrashDragLeave"
+                @drop="handleTrashDrop"
+                class="flex items-center justify-center w-10 h-10 rounded-lg border transition-all duration-200"
+                :class="[
+                  isDraggingOverTrash ? 'border-red-500 bg-red-50 text-red-600 scale-110' : 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400'
+                ]"
                 title="回收站"
               >
                 <Trash2 :size="20" />
@@ -172,9 +178,7 @@
                   title="一键删除"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
-                  <!-- <OctagonX :size="16" /> -->
                   <Shredder :size="16" />
-
                 </button>
               </div>
             </div>
@@ -197,7 +201,10 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
                 class="p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer"
-                :class="getDragOverClass(item)"
+                :class="[
+                  getDragOverClass(item),
+                  selectedItemId === item.id ? 'border-teal-500 bg-teal-50 shadow-sm' : ''
+                ]"
               >
                 <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
@@ -283,7 +290,10 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
                 class="flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer"
-                :class="getDragOverClass(item, true)"
+                :class="[
+                  getDragOverClass(item, true),
+                  selectedItemId === item.id ? 'border-teal-500 bg-teal-50 shadow-sm' : ''
+                ]"
               >
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3 pointer-events-none">
@@ -528,7 +538,6 @@
             @click="() => showItemDetails()"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
-            <FileText :size="16" />
             详细信息
           </button>
         </template>
@@ -1121,17 +1130,35 @@ const navigateToPath = (index: number) => {
     return
   }
   
+  selectedItemId.value = null // 清除选中状态
   driveStore.setCurrentPath(targetPath)
 }
 
+const selectedItemId = ref<string | null>(null)
+
 const handleItemClick = (item: DriveItem) => {
+  if (driveStore.isInRecycleBin) {
+    // 在回收站中单击不执行任何操作
+    return
+  }
+
+  // 只更新选中状态
+  selectedItemId.value = item.id
+}
+
+const handleItemDoubleClick = (item: DriveItem) => {
   const now = Date.now()
   if (now - lastFolderOpenTime.value < 300) {
     return
   }
   lastFolderOpenTime.value = now
+
   if (driveStore.isInRecycleBin) {
-    // 在回收站中单击不执行任何操作
+    // 在回收站中双击恢复文件
+    const itemName = item.name
+    driveStore.restoreItem(item.id)
+    selectedItemId.value = null
+    toast.success(`"${itemName}" 已恢复`)
     return
   }
 
@@ -1161,14 +1188,6 @@ const handleItemClick = (item: DriveItem) => {
   } else {
     // 文档或其他文件类型的点击逻辑 - 之后实现
     console.log('Clicked on file:', item)
-  }
-}
-
-const handleItemDoubleClick = (item: DriveItem) => {
-  if (driveStore.isInRecycleBin) {
-    restoreItem()
-  } else {
-    handleItemClick(item) // 在正常视图中，双击行为与单击相同（打开）
   }
 }
 
@@ -1580,12 +1599,15 @@ const deleteAllItems = () => {
   }
 };
 
-const deleteItem = () => {
-  if (!selectedItem.value) return;
-  const itemName = selectedItem.value!.name;
-  driveStore.deleteItem(selectedItem.value!.id);
+const deleteItem = (itemToDelete?: DriveItem) => {
+  const item = itemToDelete || selectedItem.value
+  if (!item) return;
+  
+  const itemName = item.name;
+  driveStore.deleteItem(item.id);
   showContextMenuState.value = false;
   selectedItem.value = null;
+  selectedItemId.value = null;
   toast.success(`"${itemName}" 已移至回收站`);
 };
 
@@ -1636,6 +1658,7 @@ const closeItemDetails = () => {
 // 刷新功能
 const refreshItems = async () => {
   isRefreshing.value = true
+  selectedItemId.value = null // 清除选中状态
   
   // 模拟网络请求延迟
   await new Promise(resolve => setTimeout(resolve, 1000))
@@ -1677,6 +1700,7 @@ const toggleSortMenu = () => {
 // 空白区域右键菜单
 const showEmptyContextMenu = (event: MouseEvent) => {
   selectedItem.value = null
+  selectedItemId.value = null // 清除选中状态
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
   showContextMenuState.value = true
   
@@ -2038,5 +2062,38 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
 
 // 当前悬停下拉条目
 const dragOverDropdownTargetId = ref<string | null>(null)
+
+// 添加新的响应式数据
+const isDraggingOverTrash = ref(false)
+
+// 添加回收站拖拽相关方法
+const handleTrashDragOver = () => {
+  isDraggingOverTrash.value = true
+}
+
+const handleTrashDragLeave = () => {
+  isDraggingOverTrash.value = false
+}
+
+const handleTrashDrop = (event: DragEvent) => {
+  isDraggingOverTrash.value = false
+  if (!event.dataTransfer) return
+
+  const draggedItemId = event.dataTransfer.getData('text/plain')
+  const itemToDelete = findItemInStore(draggedItemId)
+  
+  if (itemToDelete) {
+    // 如果是锁定的文件，不允许删除
+    if (itemToDelete.isLocked) {
+      toast.error('此文件已锁定，无法删除')
+      return
+    }
+
+    // 确认删除
+    if (confirm(`确定要将 "${itemToDelete.name}" 移至回收站吗？`)) {
+      deleteItem(itemToDelete)
+    }
+  }
+}
 
 </script> 
