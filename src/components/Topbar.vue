@@ -116,36 +116,43 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-// 检查是否在 Electron 环境中
-const isElectron = () => {
-  return typeof window !== 'undefined' && (window as any).process && (window as any).process.type
-}
-
-// 窗口控制函数 (Electron IPC 调用)
+// 窗口控制函数 (使用 preload 暴露的 electronAPI)
 const minimizeWindow = () => {
-  if (isElectron()) {
-    const { ipcRenderer } = (window as any).require('electron')
-    ipcRenderer.send('window-minimize')
-  } else {
-    console.log('最小化窗口')
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('最小化窗口...')
+      ;(window as any).electronAPI.minimizeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 最小化窗口')
+    }
+  } catch (error) {
+    console.error('最小化窗口失败:', error)
   }
 }
 
 const maximizeWindow = () => {
-  if (isElectron()) {
-    const { ipcRenderer } = (window as any).require('electron')
-    ipcRenderer.send('window-maximize')
-  } else {
-    console.log('最大化窗口')
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('最大化/还原窗口...')
+      ;(window as any).electronAPI.maximizeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 最大化窗口')
+    }
+  } catch (error) {
+    console.error('最大化窗口失败:', error)
   }
 }
 
 const closeWindow = () => {
-  if (isElectron()) {
-    const { ipcRenderer } = (window as any).require('electron')
-    ipcRenderer.send('window-close')
-  } else {
-    console.log('关闭窗口')
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('关闭窗口...')
+      ;(window as any).electronAPI.closeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 关闭窗口')
+    }
+  } catch (error) {
+    console.error('关闭窗口失败:', error)
   }
 }
 </script>

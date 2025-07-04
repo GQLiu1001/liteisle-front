@@ -47,6 +47,27 @@
                   class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500" 
                 />
               </div>
+              
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-medium text-morandi-900">下载目录</h4>
+                  <p class="text-sm text-morandi-600">文件下载的默认保存位置</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    v-model="settingsStore.settings.downloadDirectory" 
+                    class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
+                    placeholder="选择下载目录"
+                  />
+                  <button 
+                    @click="selectDownloadDirectory"
+                    class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                  >
+                    浏览
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -471,6 +492,71 @@ const handleScroll = (event: Event) => {
   // 当滚动到接近底部时触发加载更多（距离底部50px）
   if (scrollTop + clientHeight >= scrollHeight - 50 && hasMoreRecords.value && !isLoadingRecords.value) {
     loadMoreRecords();
+  }
+};
+
+// 选择下载目录
+const selectDownloadDirectory = async () => {
+  try {
+    console.log('开始选择下载目录...');
+    
+    // 检查是否在 Electron 环境中
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('检测到 Electron 环境，调用 electronAPI...');
+      
+      // 测试 Electron API
+      try {
+        const testResult = (window as any).electronAPI.test();
+        console.log('API 测试结果:', testResult);
+      } catch (testError) {
+        console.error('API 测试失败:', testError);
+      }
+      
+      try {
+        const result = await (window as any).electronAPI.selectDirectory();
+        console.log('selectDirectory 返回结果:', result);
+        
+        if (result && !result.canceled) {
+          if (result.filePaths && result.filePaths.length > 0) {
+            const selectedPath = result.filePaths[0];
+            console.log('选择的目录:', selectedPath);
+            
+            settingsStore.updateSetting('downloadDirectory', selectedPath);
+            settingsStore.saveSettings();
+            alert('下载目录已更新: ' + selectedPath);
+            return;
+          } else {
+            console.log('用户取消选择目录');
+            alert('未选择目录');
+            return;
+          }
+        } else if (result && result.canceled) {
+          console.log('用户取消选择');
+          return;
+        } else {
+          console.error('无效的返回结果:', result);
+          throw new Error('无效的返回结果');
+        }
+      } catch (electronError) {
+        console.error('Electron API 调用失败:', electronError);
+        alert(`选择目录失败: ${electronError instanceof Error ? electronError.message : '未知错误'}\n将使用手动输入方式`);
+        // 降级到手动输入
+      }
+    } else {
+      console.log('未检测到 Electron 环境');
+      alert('未检测到 Electron 环境，请检查应用配置');
+    }
+    
+    // 在浏览器环境中或 Electron API 失败时，使用手动输入
+    const newPath = prompt('请输入下载目录路径:', settingsStore.settings.downloadDirectory);
+    if (newPath && newPath.trim()) {
+      settingsStore.updateSetting('downloadDirectory', newPath.trim());
+      settingsStore.saveSettings();
+      alert('下载目录已更新');
+    }
+  } catch (error) {
+    console.error('选择目录失败:', error);
+    alert(`选择目录失败: ${error instanceof Error ? error.message : '未知错误'}`);
   }
 };
 

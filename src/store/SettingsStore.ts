@@ -6,6 +6,7 @@ import { Settings, User, FileText, Clock } from 'lucide-vue-next'
 interface AppSettings {
   // 通用设置
   launchAtStartup: boolean
+  downloadDirectory: string
   language: string
   defaultPage: string
   
@@ -41,6 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
   
   const settings = ref<AppSettings>({
     launchAtStartup: false,
+    downloadDirectory: 'C:\\Users\\Public\\Downloads',
     language: 'zh-CN',
     defaultPage: 'home',
     focusTime: 25,

@@ -65,6 +65,7 @@ declare module 'vue-router' {
 }
 
 declare module 'lucide-vue-next' {
+  export const CloudLightning: any
   const value: any
   export default value
   export const X: any
@@ -153,4 +154,5 @@ declare module 'lucide-vue-next' {
   export const CalendarCheck: any
   export const CalendarX: any
   export const CalendarCheck: any
+  export const CloudLightning: any
 } 

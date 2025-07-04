@@ -959,6 +959,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useTransferStore } from '../store/TransferStore'
+import { useSettingsStore } from '../store/SettingsStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
@@ -975,6 +976,7 @@ interface BreadcrumbPath {
 // 使用 DriveStore 和 TransferStore
 const driveStore = useDriveStore()
 const transferStore = useTransferStore()
+const settingsStore = useSettingsStore()
 const router = useRouter()
 
 // 响应式数据
@@ -1419,12 +1421,13 @@ const preventHide = () => {
 // 下载功能
 const downloadItem = () => {
   if (selectedItem.value) {
+    const downloadDir = settingsStore.settings.downloadDirectory || 'C:\\Users\\Public\\Downloads';
     if (selectedItem.value.type === 'folder') {
-      alert(`开始下载文件夹: ${selectedItem.value.name}`)
+      alert(`开始下载文件夹: ${selectedItem.value.name}\n保存至: ${downloadDir}`)
     } else {
-      alert(`开始下载文件: ${selectedItem.value.name}`)
+      alert(`开始下载文件: ${selectedItem.value.name}\n保存至: ${downloadDir}`)
     }
-    console.log('下载:', selectedItem.value.name)
+    console.log('下载:', selectedItem.value.name, '到:', downloadDir)
   }
   hideContextMenu()
 }

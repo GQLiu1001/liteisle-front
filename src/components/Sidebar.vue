@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Home, Cloud, Music, FileText, Settings, ArrowRightLeft } from 'lucide-vue-next'
+import { Home, Cloud, Music, FileText, Settings, CloudLightning } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 import { useTransferStore } from '../store/TransferStore'
 
@@ -63,7 +63,7 @@ const navItems = [
     name: 'transfer',
     path: '/transfer',
     label: '传输',
-    icon: ArrowRightLeft
+    icon: CloudLightning
   },
   {
     name: 'music',

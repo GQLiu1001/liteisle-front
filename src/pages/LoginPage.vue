@@ -1,5 +1,21 @@
 <template>
   <div class="min-h-screen bg-liteisle-bg flex items-center justify-center select-none">
+    <!-- 可拖拽的标题栏区域 - 登录页面 -->
+    <div class="fixed top-0 left-0 w-full h-16 flex items-center justify-end px-4 z-50 draggable-area">
+      <!-- 窗口控制按钮 -->
+      <div class="flex items-center gap-2">
+        <button @click="minimizeWindow" class="w-8 h-8 rounded-md flex items-center justify-center transition-all duration-200 hover:bg-black/10 cursor-pointer">
+          <Minus :size="16" />
+        </button>
+        <button @click="maximizeWindow" class="w-8 h-8 rounded-md flex items-center justify-center transition-all duration-200 hover:bg-black/10 cursor-pointer">
+          <Square :size="14" />
+        </button>
+        <button @click="closeWindow" class="w-8 h-8 rounded-md flex items-center justify-center transition-all duration-200 hover:bg-red-100 hover:text-red-600 cursor-pointer">
+          <X :size="16" />
+        </button>
+      </div>
+    </div>
+    
     <div class="w-full max-w-md">
       <!-- Logo区域 -->
       <div class="text-center mb-12">
@@ -73,7 +89,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, Minus, Square, X } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -85,6 +101,46 @@ const form = reactive({
 })
 
 const isLoading = ref(false)
+
+// 窗口控制函数
+const minimizeWindow = () => {
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('最小化窗口...')
+      ;(window as any).electronAPI.minimizeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 最小化窗口')
+    }
+  } catch (error) {
+    console.error('最小化窗口失败:', error)
+  }
+}
+
+const maximizeWindow = () => {
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('最大化/还原窗口...')
+      ;(window as any).electronAPI.maximizeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 最大化窗口')
+    }
+  } catch (error) {
+    console.error('最大化窗口失败:', error)
+  }
+}
+
+const closeWindow = () => {
+  try {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      console.log('关闭窗口...')
+      ;(window as any).electronAPI.closeWindow()
+    } else {
+      console.log('未检测到 Electron 环境 - 关闭窗口')
+    }
+  } catch (error) {
+    console.error('关闭窗口失败:', error)
+  }
+}
 
 // 处理登录
 const handleLogin = async () => {
@@ -113,3 +169,13 @@ const handleLogin = async () => {
   }
 }
 </script>
+
+<style scoped>
+.draggable-area {
+  -webkit-app-region: drag;
+}
+
+.draggable-area button {
+  -webkit-app-region: no-drag;
+}
+</style>
