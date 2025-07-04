@@ -1,42 +1,34 @@
 <template>
-  <node-view-wrapper class="code-block-wrapper relative" spellcheck="false">
+  <div class="code-block-wrapper relative" spellcheck="false">
     <div class="code-block-header absolute top-2 right-2 text-xs text-gray-500">
-      <div class="language-display px-2 py-1 rounded bg-gray-100/50">{{ selectedLanguage || 'text' }}</div>
+      <div class="language-display px-2 py-1 rounded bg-gray-100/50">{{ language || 'text' }}</div>
     </div>
-    <div :class="['language-selector absolute bottom-2 right-2 z-[1] transition-opacity', selectedLanguage ? 'opacity-50 hover:opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover:opacity-100']">
+    <div :class="['language-selector absolute bottom-2 right-2 z-[1] transition-opacity', language ? 'opacity-50 hover:opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover:opacity-100']">
       <input
         type="text"
-        v-model="selectedLanguage"
-        :placeholder="placeholder"
+        v-model="language"
+        placeholder="language"
         :style="{ width: `${inputSize}ch`, textAlign: 'center' }"
         class="bg-transparent text-gray-500 text-xs rounded-md py-1 px-2 border border-transparent hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400 hover:bg-[rgba(255,255,255,0.1)] focus:bg-[rgba(255,255,255,0.1)] transition-all duration-200"
         @focus="($event.target as HTMLInputElement)?.select()"
       />
     </div>
-    <pre><node-view-content as="code" class="group" /></pre>
-  </node-view-wrapper>
+    <pre><code class="group"><slot></slot></code></pre>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { NodeViewContent, nodeViewProps, NodeViewWrapper } from '@tiptap/vue-3';
+import { computed, ref } from 'vue';
 
-const props = defineProps(nodeViewProps);
+const props = defineProps<{
+  initialLanguage?: string;
+}>();
 
-const placeholder = 'language';
-
-const selectedLanguage = computed({
-  get() {
-    return props.node.attrs.language || '';
-  },
-  set(language) {
-    props.updateAttributes({ language: language || null });
-  },
-});
+const language = ref(props.initialLanguage || '');
 
 const inputSize = computed(() => {
-  const langLength = selectedLanguage.value.length;
-  const placeholderLength = placeholder.length;
+  const langLength = language.value.length;
+  const placeholderLength = 'language'.length;
   // Use the length of the content or placeholder, whichever is longer, and add a small buffer.
   return Math.max(langLength, placeholderLength) + 2;
 });

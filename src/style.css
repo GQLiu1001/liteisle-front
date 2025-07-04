@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 导入 Milkdown 主题样式 */
-@import '@milkdown/theme-nord/style.css';
-
 @layer base {
   * {
     box-sizing: border-box;
