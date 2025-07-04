@@ -1,7 +1,6 @@
-import { defineStore } from 'pinia'
+import {defineStore}   from 'pinia'
 import { ref, computed } from 'vue'
 import { useDriveStore, type DriveItem } from './DriveStore'
-import type { HardDrive } from 'lucide-vue-next';
 
 // 文档接口定义
 export interface Document {

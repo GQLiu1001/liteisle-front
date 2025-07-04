@@ -128,4 +128,21 @@ declare module 'lucide-vue-next' {
   export const FolderMinus: any
   export const FolderX: any
   export const FolderCheck: any
+  export const Maximize: any
+  export const Minimize: any
+  export const ChevronDown: any
+  export const ChevronUp: any
+  export const ChevronLeft: any
+  export const ChevronRight: any
+  export const ChevronDown: any
+  export const ChevronUp: any
+  export const ChevronLeft: any
+  export const Plus: any
+  export const Minus: any
+  export const X: any
+  export const Check: any
+  export const ArrowLeft: any
+  export const ArrowRight: any
+  export const ArrowUp: any
+  export const ArrowDown: any
 } 

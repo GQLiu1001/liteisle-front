@@ -955,7 +955,7 @@ const sortOptions = [
 ] as const
 
 // 预设的第一级大类目录
-const predefinedCategories = [
+const predefinedCategories = [  
   { id: 'music', name: '音乐', icon: 'Music' },
   { id: 'document', name: '文档', icon: 'FileText' },
   { id: 'video', name: '视频', icon: 'Video' },
@@ -1600,9 +1600,9 @@ const restoreItem = () => {
 
 const renameItem = () => {
   if (!selectedItem.value) return;
-  const oldName = selectedItem.value.name;
-  driveStore.renameItem(selectedItem.value.id, renameValue.value);
-  showRenameDialog.value = false;
+  const oldName = selectedItem.value!.name;
+  driveStore.renameItem(selectedItem.value!.id, renameValue.value);
+  showRenameDialogState.value = false;
   showContextMenuState.value = false;
   toast.success(`"${oldName}" 已重命名为 "${renameValue.value}"`);
 };
@@ -1751,14 +1751,20 @@ const pasteItem = () => {
       }
     }
     
+    hideContextMenu()
+    toast.success('移动成功')
+    
     // 清空剪贴板
     clipboard.value = null
     clipboardAction.value = null
+  } else {
+    hideContextMenu()
+    toast.success('复制成功')
+    
+    // 清空剪贴板（如果需要的话）
+    clipboard.value = null
+    clipboardAction.value = null
   }
-
-  hideContextMenu()
-  // sonnerToast.success(`${clipboardAction.value === 'cut' ? '移动' : '复制'}成功`)
-  sonnerToast.success(`${isCut ? '移动' : '复制'}成功`)
 }
 
 // 格式化日期
@@ -1814,7 +1820,7 @@ const generateShareLink = () => {
   shareLink.value = link
   
   // 显示成功提示
-  sonnerToast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
+  toast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
 }
 
 const copyShareLink = async () => {
@@ -1825,7 +1831,7 @@ const copyShareLink = async () => {
 
   try {
     await navigator.clipboard.writeText(shareLink.value)
-    sonnerToast.success('分享链接已复制到剪贴板')
+    toast.success('分享链接已复制到剪贴板')
   } catch (err) {
     // 降级方案
     const textArea = document.createElement('textarea')
@@ -1834,7 +1840,7 @@ const copyShareLink = async () => {
     textArea.select()
     document.execCommand('copy')
     document.body.removeChild(textArea)
-    sonnerToast.success('分享链接已复制到剪贴板')
+    toast.success('分享链接已复制到剪贴板')
   }
 }
 
@@ -1902,7 +1908,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     selectedItem.value = itemToMove
     moveTargetPath.value = targetItem.path
     confirmMove()
-    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
+    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetItem.name}"`)
   }
 }
 
@@ -1973,7 +1979,7 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
     selectedItem.value = itemToMove
     moveTargetPath.value = path.path
     confirmMove()
-    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
+    toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
   }
 }
 
@@ -2026,7 +2032,7 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
     selectedItem.value = itemToMove
     moveTargetPath.value = targetFolder.path
     confirmMove()
-    sonnerToast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
+    toast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
   }
 }
 
