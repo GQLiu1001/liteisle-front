@@ -78,9 +78,9 @@
               <User :size="40" class="text-teal-600" />
             </div>
             
-            <!-- 用户名 -->
+            <!-- 用户名和邮箱 -->
             <h3 class="text-xl font-bold text-morandi-900 mb-2">{{ settingsStore.settings.username }}</h3>
-            <p class="text-sm text-morandi-600 mb-6">用户账户</p>
+            <p class="text-sm text-morandi-500 mb-6">{{ authStore.user?.email || 'admin@example.com' }}</p>
             
             <!-- 云盘容量信息 -->
             <div class="mb-6 w-full max-w-sm">
@@ -306,11 +306,13 @@
 <script setup lang="ts">
 import { useSettingsStore } from '@/store/SettingsStore';
 import { useFocusStore } from '@/store/FocusStore';
+import { useAuthStore } from '@/store/AuthStore';
 import { ref, computed, onMounted } from 'vue';
 import { User, HardDrive, FileText } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
 const focusStore = useFocusStore();
+const authStore = useAuthStore();
 
 // 修改密码对话框状态
 const showChangePasswordDialog = ref(false);
