@@ -13,9 +13,21 @@
                 <h2 class="text-2xl lg:text-3xl font-bold text-morandi-900 mb-4">{{ greeting }}！{{ userName }}</h2>
                 <!-- 励志语区域 -->
                 <div class="flex justify-start">
-                  <div class="bg-transparent text-gray-900 text-2xl lg:text-3xl font-bold">
+                  <div class="bg-transparent text-gray-900 text-2xl lg:text-3xl font-bold min-h-[120px] flex flex-col justify-center">
                     <div class="text-left leading-relaxed">
-                      "{{ currentMotivationalQuotes[0] }}"
+                      <div 
+                        class="transition-opacity duration-1000 ease-in-out"
+                        :class="{ 'opacity-0': isTransitioning, 'opacity-100': !isTransitioning }"
+                      >
+                        "{{ currentQuote.text }}"
+                      </div>
+                      <div 
+                        class="text-right text-lg lg:text-xl font-medium text-gray-700 mt-2 transition-opacity duration-1000 ease-in-out"
+                        :class="{ 'opacity-0': isTransitioning, 'opacity-100': !isTransitioning }"
+                        v-if="currentQuote.author"
+                      >
+                        —— {{ currentQuote.author }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -56,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import StudyCard from '@/components/cards/StudyCard.vue'
 import IsleCard from '@/components/cards/IsleCard.vue'
 import ActivityGrid from '@/components/cards/ActivityGrid.vue'
@@ -65,32 +77,76 @@ import { useAuthStore } from '@/store/AuthStore'
 // 使用认证存储
 const authStore = useAuthStore()
 
-// 励志语数组
-const motivationalQuotes = [
-  '今天的努力，是明天的收获',
-  '专注当下，成就未来',
-  '每一次坚持，都是成长的印记',
-  '静心致远，专注致胜',
-  '小步前进，终达千里',
-  '专注是最好的投资',
-  '今日事，今日毕',
-  '心无旁骛，方能致远',
-  '持之以恒，水滴石穿',
-  '专注的力量，无可限量',
-  '每一分专注，都值得珍惜',
-  '静下心来，世界更清晰',
-  '专注是通往成功的捷径',
-  '用心做事，必有收获',
-  '专注当下，拥抱未来',
-  '坚持不懈，梦想成真',
-  '专注让平凡变得不凡',
-  '一心一意，事半功倍',
-  '专注是最美的姿态',
-  '今天的专注，明天的骄傲'
+// 励志语和名言数组
+interface Quote {
+  text: string
+  author?: string
+}
+
+const quotes: Quote[] = [
+  // 原有励志语
+  { text: '今天的努力，是明天的收获' },
+  { text: '专注当下，成就未来' },
+  { text: '每一次坚持，都是成长的印记' },
+  { text: '静心致远，专注致胜' },
+  { text: '小步前进，终达千里' },
+  { text: '专注是最好的投资' },
+  { text: '今日事，今日毕' },
+  { text: '心无旁骛，方能致远' },
+  { text: '持之以恒，水滴石穿' },
+  { text: '专注的力量，无可限量' },
+  { text: '每一分专注，都值得珍惜' },
+  { text: '静下心来，世界更清晰' },
+  { text: '专注是通往成功的捷径' },
+  { text: '用心做事，必有收获' },
+  { text: '专注当下，拥抱未来' },
+  { text: '坚持不懈，梦想成真' },
+  { text: '专注让平凡变得不凡' },
+  { text: '一心一意，事半功倍' },
+  { text: '专注是最美的姿态' },
+  { text: '今天的专注，明天的骄傲' },
+  
+  // 名人名言
+  { text: '成功不是终点，失败也不是末日，重要的是继续前进的勇气', author: '温斯顿·丘吉尔' },
+  { text: '生活就像骑自行车，想保持平衡就得往前走', author: '爱因斯坦' },
+  { text: '不是因为有了希望才坚持，而是因为坚持才有了希望', author: '拿破仑' },
+  { text: '你的时间有限，不要浪费在重复别人的生活上', author: '史蒂夫·乔布斯' },
+  { text: '成功的秘诀在于坚持自己的目标和信念', author: '本杰明·迪斯雷利' },
+  { text: '教育的根本目的是培养人格', author: '赫伯特·斯宾塞' },
+  { text: '机会只偏爱那些有准备的头脑', author: '巴斯德' },
+  { text: '天才是百分之一的灵感加上百分之九十九的汗水', author: '爱迪生' },
+  { text: '读书破万卷，下笔如有神', author: '杜甫' },
+  { text: '学而时习之，不亦说乎', author: '孔子' },
+  { text: '路漫漫其修远兮，吾将上下而求索', author: '屈原' },
+  { text: '博学之，审问之，慎思之，明辨之，笃行之', author: '《礼记》' },
+  { text: '知之者不如好之者，好之者不如乐之者', author: '孔子' },
+  { text: '三人行，必有我师焉', author: '孔子' },
+  { text: '书山有路勤为径，学海无涯苦作舟', author: '韩愈' },
+  
+  // 谚语和格言
+  { text: '宝剑锋从磨砺出，梅花香自苦寒来' },
+  { text: '千里之行，始于足下' },
+  { text: '滴水穿石，非一日之功' },
+  { text: '冰冻三尺，非一日之寒' },
+  { text: '不积跬步，无以至千里' },
+  { text: '学如逆水行舟，不进则退' },
+  { text: '一分耕耘，一分收获' },
+  { text: '熟能生巧，勤能补拙' },
+  { text: '世上无难事，只怕有心人' },
+  { text: '功夫不负有心人' },
+  { text: '山重水复疑无路，柳暗花明又一村' },
+  { text: '海纳百川，有容乃大' },
+  { text: '静以修身，俭以养德' },
+  { text: '非学无以广才，非志无以成学' },
+  { text: '学而不思则罔，思而不学则殆' }
 ]
 
-// 当前显示的励志语
-const currentMotivationalQuotes = ref<string[]>([])
+// 当前显示的名言
+const currentQuote = ref<Quote>({ text: '', author: '' })
+const isTransitioning = ref(false)
+
+// 切换间隔定时器
+let quoteInterval: number | null = null
 
 // 根据时间获取问候语
 const getGreeting = () => {
@@ -115,17 +171,34 @@ const userName = computed(() => {
   return authStore.user?.username || 'Zen'
 })
 
-// 随机选择一句励志语
-const selectRandomQuotes = () => {
-  const randomIndex = Math.floor(Math.random() * motivationalQuotes.length)
-  currentMotivationalQuotes.value = [motivationalQuotes[randomIndex]]
+// 随机选择一句名言
+const selectRandomQuote = () => {
+  const randomIndex = Math.floor(Math.random() * quotes.length)
+  return quotes[randomIndex]
 }
 
-// 组件挂载时选择励志语
-onMounted(() => {
-  selectRandomQuotes()
+// 切换名言的函数
+const changeQuote = () => {
+  isTransitioning.value = true
   
-  // 每30秒更换一次励志语
-  setInterval(selectRandomQuotes, 30000)
+  setTimeout(() => {
+    currentQuote.value = selectRandomQuote()
+    isTransitioning.value = false
+  }, 500) // 淡出完成后切换内容
+}
+
+// 组件挂载时选择名言
+onMounted(() => {
+  currentQuote.value = selectRandomQuote()
+  
+  // 每30秒更换一次名言
+  quoteInterval = setInterval(changeQuote, 30000)
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (quoteInterval) {
+    clearInterval(quoteInterval)
+  }
 })
 </script> 
