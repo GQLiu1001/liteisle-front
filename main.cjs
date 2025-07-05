@@ -13,7 +13,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     minWidth: 1200,  // 增加最小宽度，避免与 lg 断点(1024px)冲突
-    minHeight: 700,  // 适当增加最小高度
+    minHeight: 800,  // 适当增加最小高度
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

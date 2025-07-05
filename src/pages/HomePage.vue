@@ -3,28 +3,37 @@
     <!-- 使用与网盘页面相同的高度计算方式 -->
     <div class="flex-1 flex flex-col p-2 sm:p-4 lg:p-6 min-h-0">
       <div class="max-w-7xl mx-auto w-full h-[calc(100vh-12rem)] flex flex-col min-h-0">
-        <!-- 顶部区域 - 问候语和学习卡片响应式布局 -->
-        <div class="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6 mb-4 lg:mb-6 flex-shrink-0">
-          <!-- 左侧 - 问候语和搜索栏 -->
-          <div class="flex-1 min-w-0 flex flex-col justify-center">
-            <h2 class="text-2xl lg:text-3xl font-bold text-morandi-900 mb-4">下午好！Zen</h2>
-            <!-- 搜索栏 -->
-            <div class="relative">
-              <input 
-                type="text" 
-                placeholder="搜索网络资源/听说专注有概率会净化某片岛屿/专注达30分钟视为一次签到"
-                class="w-full px-4 lg:px-6 py-3 lg:py-4 bg-white rounded-full border border-morandi-300 text-morandi-800 placeholder-morandi-500 focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm lg:text-base select-text"
-                style="user-select: text !important;"
-              />
-              <button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 lg:w-10 lg:h-10 bg-morandi-100 rounded-full flex items-center justify-center hover:bg-morandi-200 transition-colors">
-                <X :size="14" class="lg:hidden" />
-                <X :size="16" class="hidden lg:block" />
-              </button>
+        <!-- 顶部区域 - 问候语卡片和学习卡片响应式布局 -->
+        <div class="flex flex-col lg:flex-row lg:items-stretch gap-4 lg:gap-6 mb-4 lg:mb-6 flex-shrink-0">
+          <!-- 左侧 - 问候语卡片 -->
+          <div class="flex-1 min-w-0 flex">
+            <div class="card w-full flex flex-col justify-center relative overflow-hidden">
+              <!-- 问候语和励志语 -->
+              <div class="flex flex-col justify-center z-10 relative">
+                <h2 class="text-2xl lg:text-3xl font-bold text-morandi-900 mb-4">下午好！Zen</h2>
+                <!-- 励志语区域 -->
+                <div class="flex justify-start">
+                  <div class="bg-transparent text-gray-900 text-2xl lg:text-3xl font-bold">
+                    <div class="text-left leading-relaxed">
+                      "{{ currentMotivationalQuotes[0] }}"
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 右下角图片 -->
+              <div class="absolute bottom-4 right-4 w-24 h-24 lg:w-32 lg:h-32 opacity-80">
+                <img 
+                  src="/cardpic/cardpic.png" 
+                  alt="Card decoration" 
+                  class="w-full h-full object-contain"
+                />
+              </div>
             </div>
           </div>
           
           <!-- 右侧 - 学习卡片 响应式宽度 -->
-          <div class="w-full lg:w-[320px] flex-shrink-0">
+          <div class="w-full lg:w-[320px] flex-shrink-0 flex">
             <StudyCard />
           </div>
         </div>
@@ -47,8 +56,49 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
 import StudyCard from '@/components/cards/StudyCard.vue'
 import IsleCard from '@/components/cards/IsleCard.vue'
 import ActivityGrid from '@/components/cards/ActivityGrid.vue'
+
+// 励志语数组
+const motivationalQuotes = [
+  '今天的努力，是明天的收获',
+  '专注当下，成就未来',
+  '每一次坚持，都是成长的印记',
+  '静心致远，专注致胜',
+  '小步前进，终达千里',
+  '专注是最好的投资',
+  '今日事，今日毕',
+  '心无旁骛，方能致远',
+  '持之以恒，水滴石穿',
+  '专注的力量，无可限量',
+  '每一分专注，都值得珍惜',
+  '静下心来，世界更清晰',
+  '专注是通往成功的捷径',
+  '用心做事，必有收获',
+  '专注当下，拥抱未来',
+  '坚持不懈，梦想成真',
+  '专注让平凡变得不凡',
+  '一心一意，事半功倍',
+  '专注是最美的姿态',
+  '今天的专注，明天的骄傲'
+]
+
+// 当前显示的励志语
+const currentMotivationalQuotes = ref<string[]>([])
+
+// 随机选择一句励志语
+const selectRandomQuotes = () => {
+  const randomIndex = Math.floor(Math.random() * motivationalQuotes.length)
+  currentMotivationalQuotes.value = [motivationalQuotes[randomIndex]]
+}
+
+// 组件挂载时选择励志语
+onMounted(() => {
+  selectRandomQuotes()
+  
+  // 每30秒更换一次励志语
+  setInterval(selectRandomQuotes, 30000)
+})
 </script> 

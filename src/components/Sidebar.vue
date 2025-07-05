@@ -1,32 +1,35 @@
 <template>
   <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col z-50 select-none">
     <!-- Logo -->
-    <div class="pt-6 pb-6 px-4 flex justify-center">
+    <div class="pt-4 pb-2 px-4 flex justify-center flex-shrink-0">
       <div class="relative">
         <img 
           src="/titlepic.png" 
           alt="Liteisle" 
-          class="w-20 h-20 object-contain drop-shadow-md hover:drop-shadow-lg transition-all duration-300 hover:scale-105" 
+          class="w-16 h-16 lg:w-20 lg:h-20 object-contain drop-shadow-md hover:drop-shadow-lg transition-all duration-300 hover:scale-105" 
         />
         <!-- 可选：添加背景光环效果 -->
         <div class="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-blue-400/20 rounded-2xl -z-10 blur-xl"></div>
       </div>
     </div>
     
-    <!-- Navigation Items - Centered vertically -->
-    <div class="flex flex-col gap-3 px-4 flex-1 justify-center">
-      <div v-for="item in navItems" :key="item.name" class="relative">
-        <router-link
-          :to="item.path"
-          class="sidebar-item"
-          :class="{ 
-            active: route.name === item.name,
-            'has-active-tasks': item.name === 'transfer' && hasActiveTasks
-          }"
-        >
-          <component :is="item.icon" :size="28" />
-          <span class="text-sm font-medium">{{ item.label }}</span>
-        </router-link>
+    <!-- Navigation Items Container - 智能居中布局，确保不被截断 -->
+    <div class="flex-1 flex flex-col justify-center min-h-0 py-4 lg:py-6">
+      <!-- Navigation Items - 自适应居中布局 -->
+      <div class="flex flex-col gap-3 lg:gap-4 px-4">
+        <div v-for="item in navItems" :key="item.name" class="relative flex-shrink-0">
+          <router-link
+            :to="item.path"
+            class="sidebar-item"
+            :class="{ 
+              active: route.name === item.name,
+              'has-active-tasks': item.name === 'transfer' && hasActiveTasks
+            }"
+          >
+            <component :is="item.icon" class="sidebar-icon" />
+            <span class="sidebar-text">{{ item.label }}</span>
+          </router-link>
+        </div>
       </div>
     </div>
   </aside>

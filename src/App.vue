@@ -24,6 +24,9 @@
     
     <!-- 底部音乐栏 - 独立浮动 -->
     <MusicBar />
+    
+    <!-- 全局右键菜单 -->
+    <GlobalContextMenu />
   </div>
 </template>
 
@@ -33,6 +36,7 @@ import { onMounted } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import Topbar from '@/components/Topbar.vue'
 import MusicBar from '@/components/MusicBar.vue'
+import GlobalContextMenu from '@/components/GlobalContextMenu.vue'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
 

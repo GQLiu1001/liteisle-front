@@ -439,33 +439,7 @@
         </div>
       </div>
 
-      <!-- 右键菜单 -->
-      <div 
-        v-if="showContextMenu" 
-        :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
-        class="fixed z-50 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
-        @click.stop
-      >
-        <button 
-          @click="openDocument"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          打开
-        </button>
-        <button 
-          @click="showRenameDocumentDialog"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          重命名
-        </button>
-        <hr class="my-1 border-morandi-200">
-        <button 
-          @click="deleteDocument"
-          class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-        >
-          删除
-        </button>
-      </div>
+
 
       <!-- 重命名文档对话框 -->
       <div v-if="showRenameDocDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameDocument">
@@ -506,33 +480,7 @@
     </div>
   </div>
 
-  <!-- 分类右键菜单 -->
-  <div 
-    v-if="showCategoryContextMenu" 
-    :style="{ top: categoryContextMenuPosition.y + 'px', left: categoryContextMenuPosition.x + 'px' }"
-    class="fixed z-50 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
-    @click.stop
-  >
-    <button 
-      @click="openCategory"
-      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-    >
-      打开
-    </button>
-    <button 
-      @click="showRenameCategoryDialogFn"
-      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-    >
-      重命名
-    </button>
-    <hr class="my-1 border-morandi-200">
-    <button 
-      @click="deleteCategory"
-      class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-    >
-      删除
-    </button>
-  </div>
+
 
   <!-- 重命名分类对话框 -->
   <div v-if="showRenameCategoryDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameCategory">
@@ -577,6 +525,7 @@ import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
 import { useDocsStore, type Document, type DocumentCategory } from '../store/DocsStore';
 import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
+import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore';
 import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import { 
@@ -597,6 +546,7 @@ import MarkdownViewer from '@/components/MarkdownViewer.vue';
 const docsStore = useDocsStore();
 const transferStore = useTransferStore();
 const uiStore = useUIStore();
+const contextMenuStore = useContextMenuStore();
 const toast = useToast();
 const route = useRoute();
 const showAddDocumentDialog = ref(false);
@@ -612,13 +562,7 @@ const documentFileInput = ref<HTMLInputElement | null>(null);
 const draggedItemId = ref<string | null>(null);
 
 // 右键菜单相关
-const showContextMenu = ref(false);
-const contextMenuPosition = ref({ x: 0, y: 0 });
 const selectedDocument = ref<Document | null>(null);
-
-// 分类右键菜单相关
-const showCategoryContextMenu = ref(false);
-const categoryContextMenuPosition = ref({ x: 0, y: 0 });
 const selectedCategory = ref<DocumentCategory | null>(null);
 
 // 重命名相关
@@ -845,23 +789,37 @@ const handleDocumentFileSelect = (event: Event) => {
 // 右键菜单相关方法
 const showDocumentContextMenu = (event: MouseEvent, doc: Document) => {
   selectedDocument.value = doc
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-  showContextMenu.value = true
   
-  // 点击其他地方关闭菜单
-  window.document.addEventListener('click', hideContextMenu, { once: true })
-}
-
-const hideContextMenu = () => {
-  showContextMenu.value = false
-  selectedDocument.value = null
+  const menuItems: ContextMenuItem[] = [
+    {
+      id: 'open',
+      label: '打开',
+      action: () => openDocument()
+    },
+    {
+      id: 'rename',
+      label: '重命名',
+      action: () => showRenameDocumentDialog()
+    },
+    {
+      id: 'separator1',
+      separator: true
+    },
+    {
+      id: 'delete',
+      label: '删除',
+      type: 'danger',
+      action: () => deleteDocument()
+    }
+  ]
+  
+  contextMenuStore.showContextMenu(event, menuItems, doc)
 }
 
 const openDocument = () => {
   if (selectedDocument.value) {
     docsStore.setCurrentDocument(selectedDocument.value)
   }
-  hideContextMenu()
 }
 
 const showRenameDocumentDialog = () => {
@@ -877,7 +835,6 @@ const showRenameDocumentDialog = () => {
       }
     })
   }
-  hideContextMenu()
 }
 
 const confirmRenameDocument = () => {
@@ -921,29 +878,42 @@ const deleteDocument = () => {
       toast.success(`文档 "${docName}" 已删除`)
     }
   }
-  hideContextMenu()
 }
 
 // 分类右键菜单相关方法
 const handleCategoryContextMenu = (event: MouseEvent, category: DocumentCategory) => {
   selectedCategory.value = category
-  categoryContextMenuPosition.value = { x: event.clientX, y: event.clientY }
-  showCategoryContextMenu.value = true
   
-  // 点击其他地方关闭菜单
-  window.document.addEventListener('click', hideCategoryContextMenu, { once: true })
-}
-
-const hideCategoryContextMenu = () => {
-  showCategoryContextMenu.value = false
-  selectedCategory.value = null
+  const menuItems: ContextMenuItem[] = [
+    {
+      id: 'open',
+      label: '打开',
+      action: () => openCategory()
+    },
+    {
+      id: 'rename',
+      label: '重命名',
+      action: () => showRenameCategoryDialogFn()
+    },
+    {
+      id: 'separator1',
+      separator: true
+    },
+    {
+      id: 'delete',
+      label: '删除',
+      type: 'danger',
+      action: () => deleteCategory()
+    }
+  ]
+  
+  contextMenuStore.showContextMenu(event, menuItems, category)
 }
 
 const openCategory = () => {
   if (selectedCategory.value) {
     docsStore.setCurrentCategory(selectedCategory.value.id)
   }
-  hideCategoryContextMenu()
 }
 
 const showRenameCategoryDialogFn = () => {
@@ -959,7 +929,6 @@ const showRenameCategoryDialogFn = () => {
       }
     })
   }
-  hideCategoryContextMenu()
 }
 
 const confirmRenameCategory = () => {
@@ -1003,7 +972,6 @@ const deleteCategory = () => {
       toast.success(`分类 "${categoryName}" 已删除`)
     }
   }
-  hideCategoryContextMenu()
 }
 </script>
 

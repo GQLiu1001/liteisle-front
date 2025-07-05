@@ -86,11 +86,63 @@
   }
   
   .sidebar-item {
-    @apply flex flex-col items-center gap-2 px-4 py-4 rounded-2xl transition-all duration-200 hover:bg-white/20 cursor-pointer text-morandi-800;
+    @apply flex flex-col items-center gap-1.5 lg:gap-2 px-3 py-3 lg:py-4 rounded-2xl transition-all duration-200 hover:bg-white/20 cursor-pointer text-morandi-800;
   }
   
   .sidebar-item.active {
     @apply bg-white/30 text-morandi-900;
+  }
+  
+  .sidebar-icon {
+    @apply w-6 h-6 lg:w-7 lg:h-7;
+  }
+  
+  .sidebar-text {
+    @apply text-xs lg:text-sm font-medium;
+  }
+  
+  /* 小屏幕下的侧边栏优化 */
+  @media screen and (max-height: 600px) {
+    .sidebar-item {
+      @apply px-2 py-2 gap-0.5;
+    }
+    
+    .sidebar-item span {
+      @apply text-[10px];
+    }
+    
+    /* logo 缩小 */
+    aside img {
+      @apply w-12 h-12;
+    }
+    
+    aside .pt-4 {
+      @apply pt-2;
+    }
+  }
+  
+  /* 极小屏幕下的侧边栏优化 */
+  @media screen and (max-height: 400px) {
+    .sidebar-item {
+      @apply px-2 py-1;
+    }
+    
+    .sidebar-item span {
+      @apply hidden;
+    }
+    
+    /* logo 进一步缩小 */
+    aside img {
+      @apply w-8 h-8;
+    }
+    
+    aside .pt-4 {
+      @apply pt-1;
+    }
+    
+    aside .pb-2 {
+      @apply pb-1;
+    }
   }
   
   .topbar-control {
