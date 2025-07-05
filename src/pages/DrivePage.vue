@@ -1708,7 +1708,13 @@ const deleteItem = (itemToDelete?: DriveItem) => {
   showContextMenuState.value = false;
   selectedItem.value = null;
   selectedItemId.value = null;
-  toast.success(`"${itemName}" 已移至回收站`);
+  
+  // 根据当前模式显示不同的消息
+  if (driveStore.isInRecycleBin) {
+    toast.success(`"${itemName}" 已永久删除`);
+  } else {
+    toast.success(`"${itemName}" 已移至回收站`);
+  }
 };
 
 const restoreItem = () => {
@@ -2569,20 +2575,15 @@ const deleteMultipleItems = () => {
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   
+  // 统一使用 driveStore.deleteItem 方法
+  selectedItems.forEach((item: DriveItem) => {
+    driveStore.deleteItem(item.id)
+  })
+  
+  // 根据当前模式显示不同的消息
   if (driveStore.isInRecycleBin) {
-    // 在回收站中是永久删除
-    selectedItems.forEach((item: DriveItem) => {
-      const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
-      if (index > -1) {
-        driveStore.recycleBinItems.splice(index, 1)
-      }
-    })
     toast.success(`已永久删除 ${selectedItems.length} 个项目`)
   } else {
-    // 正常模式下是移至回收站
-    selectedItems.forEach((item: DriveItem) => {
-      deleteItem(item)
-    })
     toast.success(`已将 ${selectedItems.length} 个项目移至回收站`)
   }
   

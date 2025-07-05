@@ -485,6 +485,54 @@ export const useDriveStore = defineStore('drive', () => {
     return uploadedFiles
   }
 
+  // 删除项目
+  const deleteItem = (itemId: string): boolean => {
+    const findAndDeleteItem = (items: DriveItem[], isRecycleBin: boolean = false): boolean => {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item.id === itemId) {
+          if (isRecycleBin) {
+            // 在回收站中，永久删除
+            items.splice(i, 1)
+          } else {
+            // 正常模式，移动到回收站
+            items.splice(i, 1)
+            item.deletedAt = new Date()
+            recycleBinItems.value.push(item)
+            
+            // 更新父文件夹的项目计数
+            const parentPath = item.path.split('/').slice(0, -1).join('/') || '/'
+            const parent = findFolderByPath(parentPath)
+            if (parent) {
+              parent.itemCount = (parent.itemCount || 1) - 1
+              parent.modifiedAt = new Date()
+            }
+          }
+          return true
+        }
+        
+        // 递归搜索子项
+        if (item.children && findAndDeleteItem(item.children, isRecycleBin)) {
+          // 更新父文件夹的项目计数
+          if (!isRecycleBin) {
+            item.itemCount = (item.itemCount || 1) - 1
+            item.modifiedAt = new Date()
+          }
+          return true
+        }
+      }
+      return false
+    }
+    
+    if (isInRecycleBin.value) {
+      // 在回收站中，永久删除
+      return findAndDeleteItem(recycleBinItems.value, true)
+    } else {
+      // 正常模式，移动到回收站
+      return findAndDeleteItem(driveItems.value, false)
+    }
+  }
+
   // 重命名项目
   const renameItem = (itemId: string, newName: string): boolean => {
     const findAndRenameItem = (items: DriveItem[]): boolean => {
@@ -554,6 +602,7 @@ export const useDriveStore = defineStore('drive', () => {
     openRecycleBin,
     exitRecycleBin,
     restoreItem,
+    deleteItem,
     
     // 新增方法
     createFolder,
