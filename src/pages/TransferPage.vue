@@ -114,7 +114,8 @@
             v-model="linkUrl"
             type="text"
             placeholder="请输入分享链接"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 pr-20 select-text"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 pr-20 select-text"
+              style="user-select: text !important;"
           />
           <button @click="pasteFromClipboard" class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded">
             粘贴

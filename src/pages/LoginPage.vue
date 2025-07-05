@@ -77,6 +77,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入用户名"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -90,6 +91,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入密码"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -134,6 +136,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入用户名"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -147,6 +150,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入邮箱地址"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -160,6 +164,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入密码"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -174,6 +179,7 @@
                 required
                 class="flex-1 px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
                 placeholder="请输入验证码"
+                style="user-select: text !important;"
               />
               <button
                 type="button"
@@ -209,6 +215,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入用户名"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -222,6 +229,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入邮箱地址"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -236,6 +244,7 @@
                 required
                 class="flex-1 px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
                 placeholder="请输入验证码"
+                style="user-select: text !important;"
               />
               <button
                 type="button"
@@ -258,6 +267,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入新密码"
+              style="user-select: text !important;"
             />
           </div>
 
@@ -271,6 +281,7 @@
               required
               class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请再次输入新密码"
+              style="user-select: text !important;"
             />
           </div>
 

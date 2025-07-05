@@ -14,6 +14,7 @@
                 type="text" 
                 placeholder="搜索网络资源/听说专注有概率会净化某片岛屿/专注达30分钟视为一次签到"
                 class="w-full px-4 lg:px-6 py-3 lg:py-4 bg-white rounded-full border border-morandi-300 text-morandi-800 placeholder-morandi-500 focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm lg:text-base select-text"
+                style="user-select: text !important;"
               />
               <button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 lg:w-10 lg:h-10 bg-morandi-100 rounded-full flex items-center justify-center hover:bg-morandi-200 transition-colors">
                 <X :size="14" class="lg:hidden" />

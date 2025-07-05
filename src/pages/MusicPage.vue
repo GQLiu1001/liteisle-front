@@ -83,6 +83,7 @@
                 v-model="musicStore.searchQuery"
                 placeholder="搜索音乐..."
                 class="w-full px-3 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm select-text"
+                style="user-select: text !important;"
               />
             </div>
 
@@ -127,6 +128,7 @@
                 v-model="musicStore.searchQuery"
                 placeholder="搜索音乐..."
                 class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
+                style="user-select: text !important;"
               />
             </div>
 
@@ -143,25 +145,34 @@
                   添加列表
                 </button>
               </div>
-              <div
-                v-for="playlist in musicStore.playlists"
-                :key="playlist.id"
-                @click="selectPlaylist(playlist)"
-                :class="[
-                  'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
-                  musicStore.currentPlaylist?.id === playlist.id 
-                    ? 'bg-teal-100 text-teal-800 border border-teal-300' 
-                    : 'hover:bg-morandi-100'
-                ]"
+              <draggable
+                v-model="currentPlaylistsList"
+                item-key="id"
+                class="space-y-2"
+                ghost-class="ghost"
+                @end="onPlaylistDragEnd"
               >
-                <DiscAlbum :size="20" class="text-blue-500" />
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate">{{ playlist.name }}</p>
-                  <p class="text-sm text-morandi-500">
-                    {{ getPlaylistDisplayCount(playlist) }} 首歌曲
-                  </p>
-                </div>
-              </div>
+                <template #item="{ element: playlist }">
+                  <div
+                    @click="selectPlaylist(playlist)"
+                    @contextmenu.prevent="handlePlaylistContextMenu($event, playlist)"
+                    :class="[
+                      'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
+                      musicStore.currentPlaylist?.id === playlist.id 
+                        ? 'bg-teal-100 text-teal-800 border border-teal-300' 
+                        : 'hover:bg-morandi-100'
+                    ]"
+                  >
+                    <DiscAlbum :size="20" class="text-blue-500" />
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium truncate">{{ playlist.name }}</p>
+                      <p class="text-sm text-morandi-500">
+                        {{ getPlaylistDisplayCount(playlist) }} 首歌曲
+                      </p>
+                    </div>
+                  </div>
+                                 </template>
+               </draggable>
 
               <!-- 空状态 -->
               <div v-if="musicStore.playlists.length === 0" class="text-center py-8">
@@ -236,20 +247,27 @@
                   ghost-class="ghost"
                   chosen-class="chosen"
                   drag-class="drag"
+                  :delay="200"
+                  :force-fallback="false"
+                  :disabled="false"
+                  handle=".drag-handle"
+                  :prevent-on-filter="false"
+                  filter=".no-drag"
                 >
                   <template #item="{ element: track, index }">
                     <div
                       @click="playTrack(index)"
                       @dblclick="playTrackImmediately(index)"
+                      @contextmenu.prevent="showTrackContextMenu($event, track)"
                       :class="[
-                        'flex items-center gap-4 p-3 rounded-lg cursor-move transition-all duration-200 group border-2',
+                        'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
                         musicStore.currentTrack?.id === track.id 
                           ? 'bg-teal-50 border-solid border-teal-500' 
                           : 'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
                       ]"
                     >
                       <!-- 拖动图标 -->
-                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
+                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity drag-handle cursor-move">
                         <div class="w-1 h-4 bg-morandi-400 rounded-full flex-shrink-0"></div>
                       </div>
 
@@ -274,7 +292,7 @@
                       </div>
 
                       <!-- 歌曲信息 -->
-                      <div class="flex-1 min-w-0">
+                      <div class="flex-1 min-w-0 no-drag" @contextmenu.prevent="showTrackContextMenu($event, track)">
                         <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
                         <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
                       </div>
@@ -294,6 +312,7 @@
                     :key="track.id"
                     @click="playTrack(index)"
                     @dblclick="playTrackImmediately(index)"
+                    @contextmenu.prevent="showTrackContextMenu($event, track)"
                     :class="[
                       'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
                       musicStore.currentTrack?.id === track.id 
@@ -322,7 +341,7 @@
                     </div>
 
                     <!-- 歌曲信息 -->
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1 min-w-0" @contextmenu.prevent="showTrackContextMenu($event, track)">
                       <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
                       <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
                     </div>
@@ -411,6 +430,7 @@
               placeholder="请输入播放列表名称"
               class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="createNewPlaylist"
+              style="user-select: text !important;"
             />
           </div>
         </div>
@@ -488,12 +508,144 @@
           </button>
         </div>
       </div>
+
+
+
+      <!-- 重命名音乐对话框 -->
+      <div v-if="showRenameTrackDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameTrack">
+        <div class="bg-white rounded-lg p-6 w-96" @click.stop>
+          <h3 class="text-lg font-bold mb-4">重命名音乐</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
+              <input
+                ref="renameTrackInput"
+                v-model="renameTrackValue"
+                type="text"
+                placeholder="请输入新名称"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+                @keydown.enter="confirmRenameTrack"
+                @keydown.esc="cancelRenameTrack"
+                style="user-select: text !important;"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              @click="cancelRenameTrack"
+              class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="confirmRenameTrack"
+              :disabled="!renameTrackValue.trim()"
+              class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              确认
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div 
+    v-if="showContextMenu" 
+    :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
+    class="fixed z-[9999] bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
+    @click.stop
+  >
+    <button 
+      @click="openTrack"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      打开
+    </button>
+    <button 
+      @click="showRenameTrackDialogFn"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      重命名
+    </button>
+    <hr class="my-1 border-morandi-200">
+    <button 
+      @click="deleteTrack"
+      class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+    >
+      删除
+    </button>
+  </div>
+
+  <!-- 播放列表右键菜单 -->
+  <div 
+    v-if="showPlaylistContextMenu" 
+    :style="{ top: playlistContextMenuPosition.y + 'px', left: playlistContextMenuPosition.x + 'px' }"
+    class="fixed z-[9999] bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
+    @click.stop
+  >
+    <button 
+      @click="openPlaylist"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      打开
+    </button>
+    <button 
+      @click="showRenamePlaylistDialogFn"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      重命名
+    </button>
+    <hr class="my-1 border-morandi-200">
+    <button 
+      @click="deletePlaylist"
+      class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+    >
+      删除
+    </button>
+  </div>
+
+  <!-- 重命名播放列表对话框 -->
+  <div v-if="showRenamePlaylistDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenamePlaylist">
+    <div class="bg-white rounded-lg p-6 w-96" @click.stop>
+      <h3 class="text-lg font-bold mb-4">重命名播放列表</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
+          <input
+            ref="renamePlaylistInput"
+            v-model="renamePlaylistValue"
+            type="text"
+            placeholder="请输入新名称"
+            class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+            @keydown.enter="confirmRenamePlaylist"
+            @keydown.esc="cancelRenamePlaylist"
+            style="user-select: text !important;"
+          />
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-6">
+        <button
+          @click="cancelRenamePlaylist"
+          class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+        >
+          取消
+        </button>
+        <button
+          @click="confirmRenamePlaylist"
+          :disabled="!renamePlaylistValue.trim()"
+          class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          确认
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
 import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
@@ -517,6 +669,26 @@ const newPlaylistName = ref('')
 const selectedMusicFiles = ref<File[]>([])
 const musicFileInput = ref<HTMLInputElement | null>(null)
 
+// 右键菜单相关
+const showContextMenu = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const selectedTrack = ref<TrackType | null>(null)
+
+// 播放列表右键菜单相关
+const showPlaylistContextMenu = ref(false)
+const playlistContextMenuPosition = ref({ x: 0, y: 0 })
+const selectedPlaylist = ref<Playlist | null>(null)
+
+// 重命名相关
+const showRenameTrackDialog = ref(false)
+const renameTrackValue = ref('')
+const renameTrackInput = ref<HTMLInputElement | null>(null)
+
+// 播放列表重命名相关
+const showRenamePlaylistDialog = ref(false)
+const renamePlaylistValue = ref('')
+const renamePlaylistInput = ref<HTMLInputElement | null>(null)
+
 // 计算属性
 const filteredTracks = computed(() => {
   return musicStore.filteredTracks
@@ -532,10 +704,25 @@ const currentTracksList = computed({
   }
 })
 
+// 可拖动的播放列表
+const currentPlaylistsList = computed({
+  get: () => musicStore.playlists || [],
+  set: (value: Playlist[]) => {
+    musicStore.playlists = value
+  }
+})
+
 // 拖动结束事件
 const onDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
     musicStore.reorderTracks(event.oldIndex, event.newIndex)
+  }
+}
+
+// 播放列表拖动结束事件
+const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
+  if (event.oldIndex !== event.newIndex) {
+    musicStore.reorderPlaylists(event.oldIndex, event.newIndex)
   }
 }
 
@@ -646,6 +833,174 @@ const handleMusicFileSelect = (event: Event) => {
     return ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(ext || '')
   })
   selectedMusicFiles.value = files
+}
+
+// 右键菜单相关方法
+const showTrackContextMenu = (event: MouseEvent, track: TrackType) => {
+  selectedTrack.value = track
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showContextMenu.value = true
+  
+  // 点击其他地方关闭菜单
+  window.document.addEventListener('click', hideContextMenu, { once: true })
+}
+
+const hideContextMenu = () => {
+  showContextMenu.value = false
+  selectedTrack.value = null
+}
+
+const openTrack = () => {
+  if (selectedTrack.value) {
+    // 找到当前播放列表中的索引
+    const index = musicStore.currentPlaylist?.tracks.findIndex((t: TrackType) => t.id === selectedTrack.value?.id) ?? -1
+    if (index !== -1) {
+      playTrackImmediately(index)
+    }
+  }
+  hideContextMenu()
+}
+
+const showRenameTrackDialogFn = () => {
+  if (selectedTrack.value) {
+    renameTrackValue.value = selectedTrack.value.name
+    showRenameTrackDialog.value = true
+    
+    // 在下一个tick自动聚焦并选中文本
+    nextTick(() => {
+      if (renameTrackInput.value) {
+        renameTrackInput.value.focus()
+        renameTrackInput.value.select()
+      }
+    })
+  }
+  hideContextMenu()
+}
+
+const confirmRenameTrack = () => {
+  const newName = renameTrackValue.value.trim()
+  if (!newName || !selectedTrack.value) return
+
+  // 检查名称是否与原名称相同
+  if (newName === selectedTrack.value.name) {
+    cancelRenameTrack()
+    return
+  }
+
+  // 检查名称是否包含非法字符
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(newName)) {
+    toast.error('文件名不能包含以下字符：< > : " / \\ | ? *')
+    return
+  }
+
+  const oldName = selectedTrack.value.name
+  
+  // 调用MusicStore的重命名方法（如果有的话，或者直接修改）
+  selectedTrack.value.name = newName
+  
+  showRenameTrackDialog.value = false
+  renameTrackValue.value = ''
+  toast.success(`"${oldName}" 已重命名为 "${newName}"`)
+}
+
+const cancelRenameTrack = () => {
+  showRenameTrackDialog.value = false
+  renameTrackValue.value = ''
+}
+
+const deleteTrack = () => {
+  if (selectedTrack.value) {
+    const trackName = selectedTrack.value.name
+    if (confirm(`确定要删除音乐 "${trackName}" 吗？`)) {
+      // 调用MusicStore的删除方法
+      musicStore.deleteTrack(selectedTrack.value.id)
+      toast.success(`音乐 "${trackName}" 已删除`)
+    }
+  }
+  hideContextMenu()
+}
+
+// 播放列表右键菜单相关方法
+const handlePlaylistContextMenu = (event: MouseEvent, playlist: Playlist) => {
+  selectedPlaylist.value = playlist
+  playlistContextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showPlaylistContextMenu.value = true
+  
+  // 点击其他地方关闭菜单
+  window.document.addEventListener('click', hidePlaylistContextMenu, { once: true })
+}
+
+const hidePlaylistContextMenu = () => {
+  showPlaylistContextMenu.value = false
+  selectedPlaylist.value = null
+}
+
+const openPlaylist = () => {
+  if (selectedPlaylist.value) {
+    selectPlaylist(selectedPlaylist.value)
+  }
+  hidePlaylistContextMenu()
+}
+
+const showRenamePlaylistDialogFn = () => {
+  if (selectedPlaylist.value) {
+    renamePlaylistValue.value = selectedPlaylist.value.name
+    showRenamePlaylistDialog.value = true
+    
+    // 在下一个tick自动聚焦并选中文本
+    nextTick(() => {
+      if (renamePlaylistInput.value) {
+        renamePlaylistInput.value.focus()
+        renamePlaylistInput.value.select()
+      }
+    })
+  }
+  hidePlaylistContextMenu()
+}
+
+const confirmRenamePlaylist = () => {
+  const newName = renamePlaylistValue.value.trim()
+  if (!newName || !selectedPlaylist.value) return
+
+  // 检查名称是否与原名称相同
+  if (newName === selectedPlaylist.value.name) {
+    cancelRenamePlaylist()
+    return
+  }
+
+  // 检查名称是否包含非法字符
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(newName)) {
+    toast.error('文件名不能包含以下字符：< > : " / \\ | ? *')
+    return
+  }
+
+  const oldName = selectedPlaylist.value.name
+  
+  // 调用MusicStore的重命名方法（如果有的话，或者直接修改）
+  selectedPlaylist.value.name = newName
+  
+  showRenamePlaylistDialog.value = false
+  renamePlaylistValue.value = ''
+  toast.success(`播放列表 "${oldName}" 已重命名为 "${newName}"`)
+}
+
+const cancelRenamePlaylist = () => {
+  showRenamePlaylistDialog.value = false
+  renamePlaylistValue.value = ''
+}
+
+const deletePlaylist = () => {
+  if (selectedPlaylist.value) {
+    const playlistName = selectedPlaylist.value.name
+    if (confirm(`确定要删除播放列表 "${playlistName}" 吗？`)) {
+      // 调用MusicStore的删除方法
+      musicStore.deletePlaylist(selectedPlaylist.value.id)
+      toast.success(`播放列表 "${playlistName}" 已删除`)
+    }
+  }
+  hidePlaylistContextMenu()
 }
 </script>
 

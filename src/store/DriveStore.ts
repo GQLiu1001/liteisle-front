@@ -485,6 +485,58 @@ export const useDriveStore = defineStore('drive', () => {
     return uploadedFiles
   }
 
+  // 重命名项目
+  const renameItem = (itemId: string, newName: string): boolean => {
+    const findAndRenameItem = (items: DriveItem[]): boolean => {
+      for (const item of items) {
+        if (item.id === itemId) {
+          const oldName = item.name
+          const pathParts = item.path.split('/')
+          pathParts[pathParts.length - 1] = newName
+          const newPath = pathParts.join('/')
+          
+          // 更新项目信息
+          item.name = newName
+          item.path = newPath
+          item.modifiedAt = new Date()
+          
+          // 如果是文件夹，需要递归更新所有子项的路径
+          if (item.type === 'folder' && item.children) {
+            const updateChildrenPaths = (children: DriveItem[], oldBasePath: string, newBasePath: string) => {
+              children.forEach(child => {
+                child.path = child.path.replace(oldBasePath, newBasePath)
+                if (child.type === 'folder' && child.children) {
+                  updateChildrenPaths(child.children, oldBasePath, newBasePath)
+                }
+              })
+            }
+            updateChildrenPaths(item.children, `${pathParts.slice(0, -1).join('/')}/${oldName}`, newPath)
+          }
+          
+          return true
+        }
+        
+        // 递归搜索子项
+        if (item.children && findAndRenameItem(item.children)) {
+          return true
+        }
+      }
+      return false
+    }
+    
+    // 先在主列表中查找
+    if (findAndRenameItem(driveItems.value)) {
+      return true
+    }
+    
+    // 再在回收站中查找
+    if (findAndRenameItem(recycleBinItems.value)) {
+      return true
+    }
+    
+    return false
+  }
+
   return {
     // 状态
     driveItems,
@@ -511,6 +563,7 @@ export const useDriveStore = defineStore('drive', () => {
     uploadMusicToPlaylist,
     uploadDocumentToCategory,
     findFolderByPath,
-    getFileType
+    getFileType,
+    renameItem
   }
 })

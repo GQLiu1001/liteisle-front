@@ -8,7 +8,6 @@
           <PDFViewer 
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
-            :file-description="docsStore.currentDocument.summary"
             @close="docsStore.setCurrentDocument(null)"
           />
         </div>
@@ -18,7 +17,6 @@
           <WordViewer 
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
-            :file-description="docsStore.currentDocument.summary"
             @close="docsStore.setCurrentDocument(null)"
           />
         </div>
@@ -28,7 +26,6 @@
           <PowerPointViewer 
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
-            :file-description="docsStore.currentDocument.summary"
             @close="docsStore.setCurrentDocument(null)"
           />
         </div>
@@ -38,7 +35,6 @@
           <ExcelViewer 
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
-            :file-description="docsStore.currentDocument.summary"
             @close="docsStore.setCurrentDocument(null)"
           />
         </div>
@@ -49,7 +45,6 @@
             :key="docsStore.currentDocument.path"
             :file-path="docsStore.currentDocument.path || ''"
             :file-name="docsStore.currentDocument.name"
-            :file-description="docsStore.currentDocument.summary"
             v-model:content="docsStore.currentDocument.content"
             @close="docsStore.setCurrentDocument(null)"
             @save="docsStore.saveDocumentContent"
@@ -72,7 +67,6 @@
               <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
                 <div>
                   <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
-                  <p class="text-sm text-morandi-500 mt-1">{{ docsStore.currentDocument.summary }}</p>
                 </div>
               </div>
               <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
@@ -98,6 +92,7 @@
                 v-model="docsStore.searchQuery"
                 placeholder="搜索所有文档..."
                 class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
+                style="user-select: text !important;"
               />
             </div>
             <div class="flex items-center justify-between mb-4">
@@ -115,23 +110,32 @@
               </button>
             </div>
             <nav class="space-y-2 flex-1 overflow-y-auto">
-              <button
-                v-for="category in docsStore.categoriesWithFilteredCounts"
-                :key="category.id"
-                @click="docsStore.setCurrentCategory(category.id)"
-                :class="[
-                  'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200',
-                  docsStore.currentCategory === category.id
-                    ? 'bg-teal-100 text-teal-800 border border-teal-300' 
-                    : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
-                ]"
+              <draggable
+                v-model="currentCategoriesList"
+                item-key="id"
+                class="space-y-2"
+                ghost-class="ghost"
+                @end="onCategoryDragEnd"
               >
-                <BookImage :size="20" />
-                <div class="flex-1">
-                  <div class="font-medium">{{ category.name }}</div>
-                  <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
-                </div>
-              </button>
+                <template #item="{ element: category }">
+                  <button
+                    @click="docsStore.setCurrentCategory(category.id)"
+                    @contextmenu.prevent="handleCategoryContextMenu($event, category)"
+                    :class="[
+                      'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 cursor-pointer',
+                      docsStore.currentCategory === category.id
+                        ? 'bg-teal-100 text-teal-800 border border-teal-300' 
+                        : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
+                    ]"
+                  >
+                    <BookImage :size="20" />
+                    <div class="flex-1">
+                      <div class="font-medium">{{ category.name }}</div>
+                      <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
+                    </div>
+                  </button>
+                </template>
+              </draggable>
             </nav>
           </div>
         </div>
@@ -178,6 +182,7 @@
                 <template #item="{ element: document }">
                   <div
                     @dblclick="docsStore.setCurrentDocument(document)"
+                    @contextmenu.prevent="showDocumentContextMenu($event, document)"
                     :data-id="document.id"
                     :class="[
                         'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
@@ -194,7 +199,6 @@
                       
                       <div class="flex-1 min-w-0">
                         <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
-                        <p class="text-sm text-morandi-600 mt-1 line-clamp-2">{{ document.summary }}</p>
                       </div>
                   </div>
                 </template>
@@ -205,6 +209,7 @@
                   v-for="document in docsStore.filteredDocuments"
                   :key="document.id"
                   @dblclick="docsStore.setCurrentDocument(document)"
+                  @contextmenu.prevent="showDocumentContextMenu($event, document)"
                   :class="[
                     'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
                     'border-transparent hover:bg-morandi-50'
@@ -218,7 +223,6 @@
                   </div>
                   <div class="flex-1 min-w-0">
                     <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
-                    <p class="text-sm text-morandi-600 mt-1 line-clamp-2">{{ document.summary }}</p>
                   </div>
                 </div>
               </div>
@@ -238,6 +242,7 @@
                 v-model="newDocumentName"
                 placeholder="请输入文档名称"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+                style="user-select: text !important;"
               />
             </div>
             <div>
@@ -264,6 +269,7 @@
                 placeholder="简要描述文档内容"
                 rows="3"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+                style="user-select: text !important;"
               />
             </div>
           </div>
@@ -297,6 +303,7 @@
                 placeholder="请输入分类名称"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
                 @keydown.enter="createNewCategory"
+                style="user-select: text !important;"
               />
             </div>
           </div>
@@ -374,6 +381,7 @@
                 placeholder="请输入文档名称"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
                 @keydown.enter="createMarkdownDocument"
+                style="user-select: text !important;"
               />
             </div>
             <div>
@@ -383,6 +391,7 @@
                 placeholder="简要描述文档内容（可选）"
                 rows="3"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
+                style="user-select: text !important;"
               />
             </div>
           </div>
@@ -422,19 +431,149 @@
             <X :size="16" class="text-morandi-500" />
           </button>
         </div>
-        <div class="text-sm text-morandi-600 mb-2 select-text">
+                  <div class="text-sm text-morandi-600 mb-2 select-text">
           原文：{{ docsStore.selectedText }}
         </div>
         <div class="text-sm text-morandi-900 select-text">
           {{ docsStore.translationResult }}
         </div>
       </div>
+
+      <!-- 右键菜单 -->
+      <div 
+        v-if="showContextMenu" 
+        :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
+        class="fixed z-50 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
+        @click.stop
+      >
+        <button 
+          @click="openDocument"
+          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+        >
+          打开
+        </button>
+        <button 
+          @click="showRenameDocumentDialog"
+          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+        >
+          重命名
+        </button>
+        <hr class="my-1 border-morandi-200">
+        <button 
+          @click="deleteDocument"
+          class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+        >
+          删除
+        </button>
+      </div>
+
+      <!-- 重命名文档对话框 -->
+      <div v-if="showRenameDocDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameDocument">
+        <div class="bg-white rounded-lg p-6 w-96" @click.stop>
+          <h3 class="text-lg font-bold mb-4">重命名文档</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
+              <input
+                ref="renameDocInput"
+                v-model="renameDocValue"
+                type="text"
+                placeholder="请输入新名称"
+                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+                @keydown.enter="confirmRenameDocument"
+                @keydown.esc="cancelRenameDocument"
+                style="user-select: text !important;"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              @click="cancelRenameDocument"
+              class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="confirmRenameDocument"
+              :disabled="!renameDocValue.trim()"
+              class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              确认
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分类右键菜单 -->
+  <div 
+    v-if="showCategoryContextMenu" 
+    :style="{ top: categoryContextMenuPosition.y + 'px', left: categoryContextMenuPosition.x + 'px' }"
+    class="fixed z-50 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
+    @click.stop
+  >
+    <button 
+      @click="openCategory"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      打开
+    </button>
+    <button 
+      @click="showRenameCategoryDialogFn"
+      class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+    >
+      重命名
+    </button>
+    <hr class="my-1 border-morandi-200">
+    <button 
+      @click="deleteCategory"
+      class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+    >
+      删除
+    </button>
+  </div>
+
+  <!-- 重命名分类对话框 -->
+  <div v-if="showRenameCategoryDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameCategory">
+    <div class="bg-white rounded-lg p-6 w-96" @click.stop>
+      <h3 class="text-lg font-bold mb-4">重命名分类</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
+          <input
+            ref="renameCategoryInput"
+            v-model="renameCategoryValue"
+            type="text"
+            placeholder="请输入新名称"
+            class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+            @keydown.enter="confirmRenameCategory"
+            @keydown.esc="cancelRenameCategory"
+            style="user-select: text !important;"
+          />
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-6">
+        <button
+          @click="cancelRenameCategory"
+          class="px-4 py-2 text-morandi-600 hover:bg-morandi-100 rounded-lg transition-colors"
+        >
+          取消
+        </button>
+        <button
+          @click="confirmRenameCategory"
+          :disabled="!renameCategoryValue.trim()"
+          class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          确认
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted, onMounted } from 'vue';
+import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
 import { useDocsStore, type Document, type DocumentCategory } from '../store/DocsStore';
 import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
@@ -472,6 +611,26 @@ const selectedDocumentFiles = ref<File[]>([]);
 const documentFileInput = ref<HTMLInputElement | null>(null);
 const draggedItemId = ref<string | null>(null);
 
+// 右键菜单相关
+const showContextMenu = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const selectedDocument = ref<Document | null>(null);
+
+// 分类右键菜单相关
+const showCategoryContextMenu = ref(false);
+const categoryContextMenuPosition = ref({ x: 0, y: 0 });
+const selectedCategory = ref<DocumentCategory | null>(null);
+
+// 重命名相关
+const showRenameDocDialog = ref(false);
+const renameDocValue = ref('');
+const renameDocInput = ref<HTMLInputElement | null>(null);
+
+// 分类重命名相关
+const showRenameCategoryDialog = ref(false);
+const renameCategoryValue = ref('');
+const renameCategoryInput = ref<HTMLInputElement | null>(null);
+
 watch(() => docsStore.currentDocument, (newDoc) => {
   if (newDoc) {
     uiStore.setSidebarVisible(false);
@@ -501,6 +660,13 @@ const onDragStart = (event: any) => {
   }
 };
 
+// 分类拖动结束事件
+const onCategoryDragEnd = (event: {oldIndex: number, newIndex: number}) => {
+  if (event.oldIndex !== event.newIndex) {
+    docsStore.reorderCategories(event.oldIndex, event.newIndex);
+  }
+};
+
 const currentDocsList = computed({
   get() {
     return docsStore.filteredDocuments;
@@ -516,6 +682,16 @@ const currentDocsList = computed({
     }
     
     draggedItemId.value = null;
+  }
+});
+
+// 可拖动的分类列表
+const currentCategoriesList = computed({
+  get() {
+    return docsStore.categoriesWithFilteredCounts;
+  },
+  set(newCategories: DocumentCategory[]) {
+    docsStore.reorderCategories(newCategories);
   }
 });
 
@@ -664,6 +840,170 @@ const handleDocumentFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = Array.from(target.files || [])
   selectedDocumentFiles.value = files
+}
+
+// 右键菜单相关方法
+const showDocumentContextMenu = (event: MouseEvent, doc: Document) => {
+  selectedDocument.value = doc
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showContextMenu.value = true
+  
+  // 点击其他地方关闭菜单
+  window.document.addEventListener('click', hideContextMenu, { once: true })
+}
+
+const hideContextMenu = () => {
+  showContextMenu.value = false
+  selectedDocument.value = null
+}
+
+const openDocument = () => {
+  if (selectedDocument.value) {
+    docsStore.setCurrentDocument(selectedDocument.value)
+  }
+  hideContextMenu()
+}
+
+const showRenameDocumentDialog = () => {
+  if (selectedDocument.value) {
+    renameDocValue.value = selectedDocument.value.name
+    showRenameDocDialog.value = true
+    
+    // 在下一个tick自动聚焦并选中文本
+    nextTick(() => {
+      if (renameDocInput.value) {
+        renameDocInput.value.focus()
+        renameDocInput.value.select()
+      }
+    })
+  }
+  hideContextMenu()
+}
+
+const confirmRenameDocument = () => {
+  const newName = renameDocValue.value.trim()
+  if (!newName || !selectedDocument.value) return
+
+  // 检查名称是否与原名称相同
+  if (newName === selectedDocument.value.name) {
+    cancelRenameDocument()
+    return
+  }
+
+  // 检查名称是否包含非法字符
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(newName)) {
+    toast.error('文件名不能包含以下字符：< > : " / \\ | ? *')
+    return
+  }
+
+  const oldName = selectedDocument.value.name
+  
+  // 调用DocsStore的重命名方法（如果有的话，或者直接修改）
+  selectedDocument.value.name = newName
+  
+  showRenameDocDialog.value = false
+  renameDocValue.value = ''
+  toast.success(`"${oldName}" 已重命名为 "${newName}"`)
+}
+
+const cancelRenameDocument = () => {
+  showRenameDocDialog.value = false
+  renameDocValue.value = ''
+}
+
+const deleteDocument = () => {
+  if (selectedDocument.value) {
+    const docName = selectedDocument.value.name
+    if (confirm(`确定要删除文档 "${docName}" 吗？`)) {
+      // 调用DocsStore的删除方法
+      docsStore.deleteDocument(selectedDocument.value.id)
+      toast.success(`文档 "${docName}" 已删除`)
+    }
+  }
+  hideContextMenu()
+}
+
+// 分类右键菜单相关方法
+const handleCategoryContextMenu = (event: MouseEvent, category: DocumentCategory) => {
+  selectedCategory.value = category
+  categoryContextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showCategoryContextMenu.value = true
+  
+  // 点击其他地方关闭菜单
+  window.document.addEventListener('click', hideCategoryContextMenu, { once: true })
+}
+
+const hideCategoryContextMenu = () => {
+  showCategoryContextMenu.value = false
+  selectedCategory.value = null
+}
+
+const openCategory = () => {
+  if (selectedCategory.value) {
+    docsStore.setCurrentCategory(selectedCategory.value.id)
+  }
+  hideCategoryContextMenu()
+}
+
+const showRenameCategoryDialogFn = () => {
+  if (selectedCategory.value) {
+    renameCategoryValue.value = selectedCategory.value.name
+    showRenameCategoryDialog.value = true
+    
+    // 在下一个tick自动聚焦并选中文本
+    nextTick(() => {
+      if (renameCategoryInput.value) {
+        renameCategoryInput.value.focus()
+        renameCategoryInput.value.select()
+      }
+    })
+  }
+  hideCategoryContextMenu()
+}
+
+const confirmRenameCategory = () => {
+  const newName = renameCategoryValue.value.trim()
+  if (!newName || !selectedCategory.value) return
+
+  // 检查名称是否与原名称相同
+  if (newName === selectedCategory.value.name) {
+    cancelRenameCategory()
+    return
+  }
+
+  // 检查名称是否包含非法字符
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(newName)) {
+    toast.error('文件名不能包含以下字符：< > : " / \\ | ? *')
+    return
+  }
+
+  const oldName = selectedCategory.value.name
+  
+  // 调用DocsStore的重命名方法（如果有的话，或者直接修改）
+  selectedCategory.value.name = newName
+  
+  showRenameCategoryDialog.value = false
+  renameCategoryValue.value = ''
+  toast.success(`分类 "${oldName}" 已重命名为 "${newName}"`)
+}
+
+const cancelRenameCategory = () => {
+  showRenameCategoryDialog.value = false
+  renameCategoryValue.value = ''
+}
+
+const deleteCategory = () => {
+  if (selectedCategory.value) {
+    const categoryName = selectedCategory.value.name
+    if (confirm(`确定要删除分类 "${categoryName}" 吗？`)) {
+      // 调用DocsStore的删除方法
+      docsStore.deleteCategory(selectedCategory.value.id)
+      toast.success(`分类 "${categoryName}" 已删除`)
+    }
+  }
+  hideCategoryContextMenu()
 }
 </script>
 

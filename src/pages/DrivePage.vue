@@ -78,6 +78,7 @@
                 v-model="driveStore.searchQuery"
                 :placeholder="driveStore.isInRecycleBin ? '搜索回收站...' : '搜索文件...'"
                 class="px-4 py-2 w-80 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
+                style="user-select: text !important;"
               />
               
               <!-- 排序按钮 -->
@@ -418,6 +419,7 @@
               placeholder="请输入文件夹名称"
               class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="confirmCreateFolder"
+              style="user-select: text !important;"
             />
           </div>
         </div>
@@ -697,18 +699,21 @@
     </div>
 
     <!-- 重命名对话框 -->
-    <div v-if="showRenameDialogState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showRenameDialogState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRename">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4">重命名</h3>
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
-            <input
+                          <input
+              ref="renameInput"
               v-model="renameValue"
               type="text"
               placeholder="请输入新名称"
               class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="confirmRename"
+              @keydown.esc="cancelRename"
+              style="user-select: text !important;"
             />
           </div>
         </div>
@@ -887,6 +892,7 @@
                 type="text"
                 readonly
                 class="flex-1 px-4 py-2 border border-morandi-300 rounded-lg bg-morandi-50 text-morandi-700 select-text"
+                style="user-select: text !important;"
               />
               <button
                 @click="copyShareLink"
@@ -929,6 +935,7 @@
                 type="text"
                 placeholder="请输入访问密码"
                 class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
+                style="user-select: text !important;"
               />
             </div>
           </div>
@@ -998,6 +1005,7 @@ const selectedItem = ref<DriveItem | null>(null)
 // 重命名相关
 const showRenameDialogState = ref(false)
 const renameValue = ref('')
+const renameInput = ref<HTMLInputElement | null>(null)
 
 // 移动相关
 const showMoveDialogState = ref(false)
@@ -1457,6 +1465,14 @@ const showRenameDialog = () => {
   if (selectedItem.value) {
     renameValue.value = selectedItem.value.name
     showRenameDialogState.value = true
+    
+    // 在下一个tick自动聚焦并选中文本
+    nextTick(() => {
+      if (renameInput.value) {
+        renameInput.value.focus()
+        renameInput.value.select()
+      }
+    })
   }
   showContextMenuState.value = false;
 }
@@ -1465,42 +1481,37 @@ const confirmRename = () => {
   const newName = renameValue.value.trim()
   if (!newName || !selectedItem.value) return
 
-  const item = selectedItem.value
-  const oldPath = item.path
-  const pathParts = oldPath.split('/')
-  pathParts[pathParts.length - 1] = newName
-  const newPath = pathParts.join('/')
-
-  // 更新item信息
-  item.name = newName
-  item.path = newPath
-
-  // 如果是文件夹，需要更新所有子项的路径
-  const updateChildrenPaths = (folder: DriveItem, oldBasePath: string, newBasePath: string) => {
-    if (folder.children) {
-      folder.children.forEach((child: DriveItem) => {
-        child.path = child.path.replace(oldBasePath, newBasePath)
-        if (child.type === 'folder') {
-          updateChildrenPaths(child, oldBasePath, newBasePath)
-        }
-      })
-    }
+  // 检查名称是否与原名称相同
+  if (newName === selectedItem.value.name) {
+    cancelRename()
+    return
   }
 
-  if (item.type === 'folder') {
-    updateChildrenPaths(item, oldPath, newPath)
+  // 检查名称是否包含非法字符
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(newName)) {
+    toast.error('文件名不能包含以下字符：< > : " / \\ | ? *')
+    return
   }
 
-  showRenameDialogState.value = false
-  renameValue.value = ''
-  selectedItem.value = null
-  toast.success(`重命名成功`)
+  const itemId = selectedItem.value.id
+  const oldName = selectedItem.value.name
+  
+  // 调用DriveStore的重命名方法
+  const success = driveStore.renameItem(itemId, newName)
+  
+  if (success) {
+    showRenameDialogState.value = false
+    renameValue.value = ''
+    toast.success(`"${oldName}" 已重命名为 "${newName}"`)
+  } else {
+    toast.error('重命名失败，请重试')
+  }
 }
 
 const cancelRename = () => {
   showRenameDialogState.value = false
   renameValue.value = ''
-  selectedItem.value = null
 }
 
 // 移动功能
@@ -1709,14 +1720,7 @@ const restoreItem = () => {
   toast.success(`"${itemName}" 已恢复`);
 };
 
-const renameItem = () => {
-  if (!selectedItem.value) return;
-  const oldName = selectedItem.value!.name;
-  driveStore.renameItem(selectedItem.value!.id, renameValue.value);
-  showRenameDialogState.value = false;
-  showContextMenuState.value = false;
-  toast.success(`"${oldName}" 已重命名为 "${renameValue.value}"`);
-};
+
 
 // 打开功能
 const openItem = () => {

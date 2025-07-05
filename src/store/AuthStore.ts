@@ -8,9 +8,6 @@ interface User {
   email: string
   storageUsed?: number
   storageQuota?: number
-  status?: number
-  createdAt?: string
-  updatedAt?: string
 }
 
 interface LoginRequest {

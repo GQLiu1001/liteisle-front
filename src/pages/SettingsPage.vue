@@ -59,6 +59,7 @@
                     v-model="settingsStore.settings.downloadDirectory" 
                     class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
                     placeholder="选择下载目录"
+                    style="user-select: text !important;"
                   />
                   <button 
                     @click="selectDownloadDirectory"
@@ -128,42 +129,24 @@
           </div>
 
           <!-- 专注记录 -->
-          <div v-else-if="settingsStore.currentCategoryId === 'focus'">
-            <h3 class="text-xl font-bold text-morandi-900 mb-6">专注记录</h3>
+          <div v-else-if="settingsStore.currentCategoryId === 'focus'" class="h-full flex flex-col">
+            <h3 class="text-xl font-bold text-morandi-900 mb-6 flex-shrink-0">专注记录</h3>
             
-            <!-- 统计概览 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200 text-center">
-                <div class="text-sm text-blue-600 mb-1">累计专注时长</div>
-                <div class="text-2xl font-bold text-blue-800">{{ formatTotalTime(focusStats.totalMinutes) }}</div>
-              </div>
-              <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200 text-center">
-                <div class="text-sm text-green-600 mb-1">专注天数</div>
-                <div class="text-2xl font-bold text-green-800">{{ focusStats.totalDays }} 天</div>
-              </div>
-              <div class="bg-gradient-to-r from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200 text-center">
-                <div class="text-sm text-orange-600 mb-1">连续签到</div>
-                <div class="text-2xl font-bold text-orange-800">{{ focusStats.streakDays }} 天</div>
-              </div>
-            </div>
-
-            <!-- 最近专注记录 -->
-            <div class="space-y-4">
-              <h4 class="text-lg font-semibold text-morandi-900">最近专注记录</h4>
-              
+            <!-- 原始专注记录 -->
+            <div class="space-y-4 flex-1">
               <!-- 记录列表 -->
               <div 
-                class="bg-morandi-50 rounded-lg border border-morandi-200 max-h-96 overflow-y-auto"
+                class="bg-transparent rounded-lg h-full overflow-y-auto"
                 @scroll="handleScroll"
               >
                 <div v-if="focusRecords.length === 0" class="p-8 text-center text-morandi-500">
                   暂无专注记录
                 </div>
-                <div v-else class="divide-y divide-morandi-200">
+                <div v-else class="space-y-3">
                   <div 
                     v-for="record in focusRecords" 
                     :key="record.date"
-                    class="p-4 hover:bg-white transition-colors"
+                    class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
                   >
                     <div class="flex items-center justify-between">
                       <div class="flex-1">
@@ -171,8 +154,8 @@
                           <div class="text-sm font-medium text-morandi-900">
                             {{ formatDate(record.date) }}
                           </div>
-                          <div v-if="record.hasCheckin" class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            已签到
+                          <div class="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
+                            专注
                           </div>
                         </div>
                         <div class="text-sm text-morandi-600 space-y-1">
@@ -259,6 +242,7 @@
                 v-model="passwordForm.currentPassword"
                 class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
+                style="user-select: text !important;"
               />
             </div>
             <div>
@@ -268,6 +252,7 @@
                 v-model="passwordForm.newPassword"
                 class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
+                style="user-select: text !important;"
               />
             </div>
             <div>
@@ -277,6 +262,7 @@
                 v-model="passwordForm.confirmPassword"
                 class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
                 required
+                style="user-select: text !important;"
               />
             </div>
           </div>
@@ -436,6 +422,33 @@ const formatDate = (dateStr: string): string => {
       weekday: 'short'
     });
   }
+};
+
+const formatSessionDate = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (date.toDateString() === today.toDateString()) {
+    return '今天';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return '昨天';
+  } else {
+    return date.toLocaleDateString('zh-CN', { 
+      month: 'long', 
+      day: 'numeric',
+      weekday: 'short'
+    });
+  }
+};
+
+const formatSessionTime = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('zh-CN', { 
+    hour: '2-digit', 
+    minute: '2-digit'
+  });
 };
 
 // 加载专注记录
