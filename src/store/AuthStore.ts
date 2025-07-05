@@ -6,11 +6,11 @@ interface User {
   id: number
   username: string
   email: string
-  storage_used?: number
-  storage_quota?: number
+  storageUsed?: number
+  storageQuota?: number
   status?: number
-  created_at?: string
-  updated_at?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface LoginRequest {
@@ -31,17 +31,19 @@ interface ForgotPasswordRequest {
   username: string
   email: string
   verificationCode: string
+  newPassword: string
+  confirmPassword: string
 }
 
 interface AuthResponse {
   success: boolean
   message: string
   data: {
-    user_id: number
+    userId: number
     username: string
     email: string
     token: string
-    expires_in: number
+    expiresIn: number
   }
   token?: string
   refreshToken?: string
@@ -57,22 +59,54 @@ export const useAuthStore = defineStore('auth', () => {
   
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   
+  const convertSnakeToCamel = (obj: any): any => {
+    if (Array.isArray(obj)) {
+      return obj.map(convertSnakeToCamel)
+    } else if (obj !== null && typeof obj === 'object') {
+      const converted: any = {}
+      for (const key in obj) {
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+        converted[camelKey] = convertSnakeToCamel(obj[key])
+      }
+      return converted
+    }
+    return obj
+  }
+
+  const convertCamelToSnake = (obj: any): any => {
+    if (Array.isArray(obj)) {
+      return obj.map(convertCamelToSnake)
+    } else if (obj !== null && typeof obj === 'object') {
+      const converted: any = {}
+      for (const key in obj) {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+        converted[snakeKey] = convertCamelToSnake(obj[key])
+      }
+      return converted
+    }
+    return obj
+  }
+  
   const login = async (credentials: LoginRequest): Promise<void> => {
     isLoading.value = true
     try {
       // 尝试使用真实 API
       try {
-        const response = await authAPI.login({
+        const apiCredentials = convertCamelToSnake({
           email: credentials.email,
           password: credentials.password,
           remember: credentials.remember
         })
         
+        const response = await authAPI.login(apiCredentials)
+        
+        const convertedResponse = convertSnakeToCamel(response.data)
+        
         // 处理 Spring Security JWT 响应
-        if (response.data.success) {
-          setAuthData(response.data)
+        if (convertedResponse.success || convertedResponse.code === 200) {
+          setAuthData(convertedResponse)
         } else {
-          throw new Error(response.data.message || '登录失败')
+          throw new Error(convertedResponse.message || '登录失败')
         }
       } catch (apiError) {
         // 如果 API 调用失败，回退到演示模式
@@ -84,11 +118,11 @@ export const useAuthStore = defineStore('auth', () => {
             success: true,
             message: '登录成功',
             data: {
-              user_id: 1,
+              userId: 1,
               username: 'admin',
               email: 'admin@example.com',
               token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
-              expires_in: 3600
+              expiresIn: 3600
             },
             token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
             refreshToken: 'refresh_token_demo_123',
@@ -116,16 +150,19 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // 尝试使用真实 API
       try {
-        const response = await authAPI.register({
+        const apiData = convertCamelToSnake({
           username: registerData.username,
           email: registerData.email,
           password: registerData.password
         })
         
-        if (response.data.success) {
+        const response = await authAPI.register(apiData)
+        const convertedResponse = convertSnakeToCamel(response.data)
+        
+        if (convertedResponse.success || convertedResponse.code === 200) {
           console.log('注册成功')
         } else {
-          throw new Error(response.data.message || '注册失败')
+          throw new Error(convertedResponse.message || '注册失败')
         }
       } catch (apiError) {
         // 如果 API 调用失败，回退到演示模式
@@ -149,16 +186,21 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // 尝试使用真实 API
       try {
-        const response = await authAPI.forgotPassword({
+        const apiData = convertCamelToSnake({
           username: forgotData.username,
           email: forgotData.email,
-          verificationCode: forgotData.verificationCode
+          verificationCode: forgotData.verificationCode,
+          newPassword: forgotData.newPassword,
+          confirmPassword: forgotData.confirmPassword
         })
         
-        if (response.data.success) {
+        const response = await authAPI.forgotPassword(apiData)
+        const convertedResponse = convertSnakeToCamel(response.data)
+        
+        if (convertedResponse.success || convertedResponse.code === 200) {
           console.log('密码重置成功')
         } else {
-          throw new Error(response.data.message || '密码重置失败')
+          throw new Error(convertedResponse.message || '密码重置失败')
         }
       } catch (apiError) {
         // 如果 API 调用失败，回退到演示模式
@@ -181,10 +223,12 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // 尝试使用真实 API
       const response = await authAPI.sendVerificationCode(email, type)
-      if (response.data.success) {
+      const convertedResponse = convertSnakeToCamel(response.data)
+      
+      if (convertedResponse.success || convertedResponse.code === 200) {
         console.log(`验证码已发送到 ${email}，类型: ${type}`)
       } else {
-        throw new Error(response.data.message || '发送验证码失败')
+        throw new Error(convertedResponse.message || '发送验证码失败')
       }
     } catch (apiError) {
       // 如果 API 调用失败，回退到演示模式
@@ -210,7 +254,7 @@ export const useAuthStore = defineStore('auth', () => {
     const accessToken = authData.token || authData.data?.token
     const refreshTokenValue = authData.refreshToken
     const userData = authData.user || {
-      id: authData.data?.user_id || 0,
+      id: authData.data?.userId || 0,
       username: authData.data?.username || '',
       email: authData.data?.email || ''
     }

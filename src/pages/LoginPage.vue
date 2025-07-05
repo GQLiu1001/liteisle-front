@@ -248,6 +248,32 @@
             </div>
           </div>
 
+          <!-- 新密码输入框 -->
+          <div>
+            <label for="forgot-new-password" class="block text-sm font-medium text-morandi-700 mb-2">新密码</label>
+            <input
+              id="forgot-new-password"
+              v-model="forgotForm.newPassword"
+              type="password"
+              required
+              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              placeholder="请输入新密码"
+            />
+          </div>
+
+          <!-- 确认密码输入框 -->
+          <div>
+            <label for="forgot-confirm-password" class="block text-sm font-medium text-morandi-700 mb-2">确认密码</label>
+            <input
+              id="forgot-confirm-password"
+              v-model="forgotForm.confirmPassword"
+              type="password"
+              required
+              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              placeholder="请再次输入新密码"
+            />
+          </div>
+
           <!-- 重置密码按钮 -->
           <button
             type="submit"
@@ -299,7 +325,9 @@ const registerForm = reactive({
 const forgotForm = reactive({
   username: '',
   email: '',
-  verificationCode: ''
+  verificationCode: '',
+  newPassword: '',
+  confirmPassword: ''
 })
 
 // 加载状态
@@ -375,14 +403,27 @@ const handleRegister = async () => {
 
 // 处理忘记密码
 const handleForgotPassword = async () => {
+  // 验证密码确认
+  if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+    alert('两次输入的密码不一致，请重新输入')
+    return
+  }
+  
+  if (forgotForm.newPassword.length < 6) {
+    alert('密码长度不能少于6位')
+    return
+  }
+  
   try {
     await authStore.forgotPassword({
       username: forgotForm.username,
       email: forgotForm.email,
-      verificationCode: forgotForm.verificationCode
+      verificationCode: forgotForm.verificationCode,
+      newPassword: forgotForm.newPassword,
+      confirmPassword: forgotForm.confirmPassword
     })
     
-    alert(`密码重置成功！\n新密码已发送到：${forgotForm.email}\n演示新密码：newpass123`)
+    alert(`密码重置成功！\n用户名：${forgotForm.username}\n请使用新密码登录`)
     
     // 重置成功后切换到登录页面
     activeTab.value = 'login'
@@ -392,7 +433,9 @@ const handleForgotPassword = async () => {
     Object.assign(forgotForm, {
       username: '',
       email: '',
-      verificationCode: ''
+      verificationCode: '',
+      newPassword: '',
+      confirmPassword: ''
     })
   } catch (error) {
     alert(`重置密码失败：${error instanceof Error ? error.message : '未知错误'}\n演示验证码：123456`)

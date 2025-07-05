@@ -40,7 +40,7 @@ http.interceptors.response.use(
       if (refreshToken) {
         try {
           // 尝试刷新 token
-          const response = await axios.post('/api/auth/refresh', {
+          const response = await axios.post('/api/v1/auth/refresh', {
             refresh_token: refreshToken
           })
           
@@ -110,39 +110,151 @@ export const patch = (url: string, data?: any, config?: AxiosRequestConfig) => {
 
 // 认证相关 API
 export const authAPI = {
-  // 登录
+  // 登录 - 参数使用蛇形命名传递给API
   login: (credentials: { email: string; password: string; remember?: boolean }) => {
-    return post('/auth/login', credentials)
+    return post('/v1/auth/login', credentials)
   },
   
-  // 注册
+  // 注册 - 参数使用蛇形命名传递给API
   register: (userData: { username: string; email: string; password: string }) => {
-    return post('/auth/register', userData)
+    return post('/v1/auth/register', userData)
   },
   
-  // 刷新 token
+  // 刷新 token - 参数使用蛇形命名传递给API
   refreshToken: (refreshToken: string) => {
-    return post('/auth/refresh', { refresh_token: refreshToken })
+    return post('/v1/auth/refresh', { refresh_token: refreshToken })
   },
   
   // 登出
   logout: () => {
-    return post('/auth/logout')
+    return post('/v1/auth/logout')
   },
   
-  // 发送验证码
+  // 发送验证码 - 参数使用蛇形命名传递给API
   sendVerificationCode: (email: string, type: 'register' | 'forgot') => {
-    return post('/auth/send-verification-code', { email, type })
+    return post('/v1/auth/send-verification-code', { email, type })
   },
   
-  // 忘记密码
-  forgotPassword: (data: { username: string; email: string; verificationCode: string }) => {
-    return post('/auth/forgot-password', data)
+  // 忘记密码 - 参数使用蛇形命名传递给API
+  forgotPassword: (data: { username: string; email: string; verification_code: string; new_password: string; confirm_password: string }) => {
+    return post('/v1/auth/forgot-password', data)
   },
   
   // 获取当前用户信息
   getCurrentUser: () => {
-    return get('/auth/me')
+    return get('/v1/auth/me')
+  }
+}
+
+// 文件夹管理 API
+export const folderAPI = {
+  // 获取文件夹列表
+  getFolders: (parentId?: number) => {
+    const params = parentId ? { parent_id: parentId } : {}
+    return get('/v1/folders', { params })
+  },
+  
+  // 创建文件夹
+  createFolder: (data: { name: string; parent_id?: number }) => {
+    return post('/v1/folders', data)
+  },
+  
+  // 重命名文件夹
+  renameFolder: (folderId: number, data: { name: string }) => {
+    return put(`/v1/folders/${folderId}`, data)
+  },
+  
+  // 删除文件夹
+  deleteFolder: (folderId: number) => {
+    return del(`/v1/folders/${folderId}`)
+  }
+}
+
+// 文件管理 API
+export const fileAPI = {
+  // 获取文件列表
+  getFiles: (folderId?: number, fileType?: string) => {
+    const params: any = {}
+    if (folderId) params.folder_id = folderId
+    if (fileType) params.file_type = fileType
+    return get('/v1/files', { params })
+  },
+  
+  // 获取文件详情
+  getFileDetail: (fileId: number) => {
+    return get(`/v1/files/${fileId}`)
+  },
+  
+  // 下载文件
+  downloadFile: (fileId: number) => {
+    return get(`/v1/files/${fileId}/download`, { responseType: 'blob' })
+  },
+  
+  // 重命名文件
+  renameFile: (fileId: number, data: { name: string }) => {
+    return put(`/v1/files/${fileId}`, data)
+  },
+  
+  // 移动文件
+  moveFile: (fileId: number, data: { folder_id?: number }) => {
+    return put(`/v1/files/${fileId}/move`, data)
+  },
+  
+  // 删除文件
+  deleteFile: (fileId: number) => {
+    return del(`/v1/files/${fileId}`)
+  }
+}
+
+// 回收站 API
+export const recycleAPI = {
+  // 获取回收站内容
+  getRecycleItems: () => {
+    return get('/v1/recycle')
+  },
+  
+  // 还原文件/文件夹
+  restoreItem: (itemId: number) => {
+    return post(`/v1/recycle/${itemId}/restore`)
+  },
+  
+  // 彻底删除
+  permanentDelete: (itemId: number) => {
+    return del(`/v1/recycle/${itemId}`)
+  },
+  
+  // 清空回收站
+  clearRecycle: () => {
+    return del('/v1/recycle')
+  }
+}
+
+// 专注功能 API
+export const focusAPI = {
+  // 获取专注统计信息
+  getFocusStats: () => {
+    return get('/v1/users/me/focus-stats')
+  },
+  
+  // 记录专注时长
+  recordFocus: (data: { focus_minutes: number; session_longest_minutes: number }) => {
+    return post('/v1/users/me/focus', data)
+  },
+  
+  // 获取专注日历数据
+  getFocusCalendar: (year?: number, month?: number) => {
+    const params: any = {}
+    if (year) params.year = year
+    if (month) params.month = month
+    return get('/v1/users/me/focus-calendar', { params })
+  }
+}
+
+// 岛屿功能 API
+export const islandAPI = {
+  // 获取用户岛屿收集情况
+  getUserIslands: () => {
+    return get('/v1/users/me/islands')
   }
 }
 
@@ -151,7 +263,7 @@ export const uploadFile = (file: File, onProgress?: (progress: number) => void) 
   const formData = new FormData()
   formData.append('file', file)
   
-  return http.post('/upload', formData, {
+  return http.post('/v1/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     },
@@ -162,4 +274,15 @@ export const uploadFile = (file: File, onProgress?: (progress: number) => void) 
       }
     }
   })
+}
+
+// 导出所有 API
+export const API = {
+  auth: authAPI,
+  folder: folderAPI,
+  file: fileAPI,
+  recycle: recycleAPI,
+  focus: focusAPI,
+  island: islandAPI,
+  upload: uploadFile
 } 
