@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-full bg-liteisle-bg p-4 lg:p-6 select-none">
-    <div class="mx-auto h-full">
+    <div class="max-w-7xl mx-auto h-full">
       <!-- 详情视图 -->
       <div v-if="docsStore.currentDocument" class="h-full rounded-2xl overflow-hidden">
         <!-- PDF 展示 -->

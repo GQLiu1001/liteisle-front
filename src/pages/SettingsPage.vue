@@ -1,318 +1,303 @@
 <template>
-  <div class="flex flex-col h-full p-6 pb-24 select-none">
-    <div class="flex flex-1 gap-6 min-h-0">
-      <!-- 第一栏：设置分类导航 -->
-      <div class="card w-64 flex-shrink-0">
-        <div class="h-full flex flex-col p-4">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-morandi-900">系统设置</h2>
+  <div class="min-h-full bg-liteisle-bg p-6 select-none">
+    <div class="max-w-7xl mx-auto">
+      <div class="h-[calc(100vh-12rem)] flex gap-6">
+        <!-- 第一栏：设置分类导航 -->
+        <div class="card w-64 flex-shrink-0">
+          <div class="h-full flex flex-col p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold text-morandi-900">系统设置</h2>
+            </div>
+            <nav class="space-y-2 flex-1 overflow-y-auto">
+              <button
+                v-for="category in settingsStore.categories"
+                :key="category.id"
+                @click="settingsStore.setCurrentCategoryId(category.id)"
+                :class="[
+                  'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200',
+                  settingsStore.currentCategoryId === category.id
+                    ? 'bg-teal-100 text-teal-800 border border-teal-300'
+                    : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
+                ]"
+              >
+                <component :is="category.icon" :size="20" class="flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium truncate">{{ category.name }}</div>
+                  <div class="text-xs text-morandi-500 truncate">{{ category.description }}</div>
+                </div>
+              </button>
+            </nav>
           </div>
-          <nav class="space-y-2 flex-1 overflow-y-auto">
-            <button
-              v-for="category in settingsStore.categories"
-              :key="category.id"
-              @click="settingsStore.setCurrentCategoryId(category.id)"
-              :class="[
-                'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200',
-                settingsStore.currentCategoryId === category.id
-                  ? 'bg-teal-100 text-teal-800 border border-teal-300'
-                  : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
-              ]"
-            >
-              <component :is="category.icon" :size="20" class="flex-shrink-0" />
-              <div class="flex-1 min-w-0">
-                <div class="font-medium truncate">{{ category.name }}</div>
-                <div class="text-xs text-morandi-500 truncate">{{ category.description }}</div>
-              </div>
-            </button>
-          </nav>
         </div>
-      </div>
 
-      <!-- 第二栏：设置项 -->
-      <div class="card flex-1 min-w-0">
-        <div class="h-full p-6 overflow-y-auto">
-          <!-- 通用设置 -->
-          <div v-if="settingsStore.currentCategoryId === 'general'">
-            <h3 class="text-xl font-bold text-morandi-900 mb-6">通用设置</h3>
-            <div class="space-y-6">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-medium text-morandi-900">开机自启</h4>
-                  <p class="text-sm text-morandi-600">应用在电脑开机时自动运行</p>
-                </div>
-                <input 
-                  type="checkbox" 
-                  v-model="settingsStore.settings.launchAtStartup" 
-                  class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500" 
-                />
-              </div>
-              
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-medium text-morandi-900">下载目录</h4>
-                  <p class="text-sm text-morandi-600">文件下载的默认保存位置</p>
-                </div>
-                <div class="flex items-center gap-2">
+        <!-- 第二栏：设置项 -->
+        <div class="card flex-1 min-w-0">
+          <div class="h-full p-6 overflow-y-auto">
+            <!-- 通用设置 -->
+            <div v-if="settingsStore.currentCategoryId === 'general'">
+              <h3 class="text-xl font-bold text-morandi-900 mb-6">通用设置</h3>
+              <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-medium text-morandi-900">开机自启</h4>
+                    <p class="text-sm text-morandi-600">应用在电脑开机时自动运行</p>
+                  </div>
                   <input 
-                    type="text" 
-                    v-model="settingsStore.settings.downloadDirectory" 
-                    class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
-                    placeholder="选择下载目录"
-                    style="user-select: text !important;"
+                    type="checkbox" 
+                    v-model="settingsStore.settings.launchAtStartup" 
+                    class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500" 
                   />
-                  <button 
-                    @click="selectDownloadDirectory"
-                    class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                  >
-                    浏览
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 账户与云盘设置 -->
-          <div v-else-if="settingsStore.currentCategoryId === 'account'" class="h-full flex flex-col items-center justify-center text-center">
-            <!-- 用户头像 -->
-            <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center">
-              <User :size="40" class="text-teal-600" />
-            </div>
-            
-            <!-- 用户名和邮箱 -->
-            <h3 class="text-xl font-bold text-morandi-900 mb-2">{{ settingsStore.settings.username }}</h3>
-            <p class="text-sm text-morandi-500 mb-6">{{ authStore.user?.email || 'admin@example.com' }}</p>
-            
-            <!-- 云盘容量信息 -->
-            <div class="mb-6 w-full max-w-sm">
-              <div class="flex items-center justify-center gap-2 mb-3">
-                <HardDrive :size="20" class="text-morandi-600" />
-                <h4 class="font-medium text-morandi-900">云盘容量</h4>
-              </div>
-              
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-morandi-600">{{ settingsStore.storageInfo.text }}</span>
-                  <span class="font-medium text-morandi-900">{{ settingsStore.storageInfo.percentage.toFixed(1) }}%</span>
                 </div>
                 
-                <!-- 进度条 -->
-                <div class="w-full bg-morandi-200 rounded-full h-2.5">
-                  <div 
-                    class="bg-gradient-to-r from-teal-400 to-teal-600 h-2.5 rounded-full transition-all duration-300"
-                    :style="{ width: settingsStore.storageInfo.percentage + '%' }"
-                  ></div>
-                </div>
-                
-                <div class="flex justify-between text-xs text-morandi-500">
-                  <span>0 GB</span>
-                  <span>{{ settingsStore.cloudStorage.total }} GB</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 登录会话信息 -->
-            <div class="mb-6 w-full max-w-sm">
-              <div class="flex items-center justify-center gap-2 mb-3">
-                <Clock :size="20" class="text-morandi-600" />
-                <h4 class="font-medium text-morandi-900">登录会话</h4>
-              </div>
-              
-              <div class="space-y-3">
-                <!-- Token 信息 -->
-                <div class="bg-teal-50 rounded-lg p-3">
-                  <div class="flex justify-between text-sm mb-1">
-                    <span class="text-teal-700">会话剩余时间</span>
-                    <span class="font-medium text-teal-900">{{ authStore.tokenRemainingText }}</span>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-medium text-morandi-900">下载目录</h4>
+                    <p class="text-sm text-morandi-600">文件下载的默认保存位置</p>
                   </div>
-                  <div class="text-xs text-teal-600">
-                    桌面端应用 (30天有效期)
+                  <div class="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      v-model="settingsStore.settings.downloadDirectory" 
+                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
+                      placeholder="选择下载目录"
+                      style="user-select: text !important;"
+                    />
+                    <button 
+                      @click="selectDownloadDirectory"
+                      class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                    >
+                      浏览
+                    </button>
                   </div>
                 </div>
-                
-                <!-- 会话说明 -->
-                <div class="text-xs text-morandi-500 text-center bg-morandi-100 rounded-lg p-2">
-                  <div class="font-medium mb-1">🔐 会话管理</div>
-                  <div>桌面端应用自动保持30天登录状态</div>
-                  <div>会话过期后需要重新登录</div>
-                </div>
               </div>
             </div>
-            
-            <!-- 操作按钮 -->
-            <div class="flex gap-3">
-              <button 
-                @click="showChangePasswordDialog = true"
-                class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
-              >
-                修改密码
-              </button>
-              <button 
-                @click="handleLogout"
-                class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-              >
-                退出登录
-              </button>
-            </div>
-          </div>
 
-          <!-- 专注记录 -->
-          <div v-else-if="settingsStore.currentCategoryId === 'focus'" class="h-full flex flex-col">
-            <h3 class="text-xl font-bold text-morandi-900 mb-6 flex-shrink-0">专注记录</h3>
-            
-            <!-- 原始专注记录 -->
-            <div class="space-y-4 flex-1">
-              <!-- 记录列表 -->
-              <div 
-                class="bg-transparent rounded-lg h-full overflow-y-auto"
-                @scroll="handleScroll"
-              >
-                <div v-if="focusRecords.length === 0" class="p-8 text-center text-morandi-500">
-                  暂无专注记录
+            <!-- 账户与云盘设置 -->
+            <div v-else-if="settingsStore.currentCategoryId === 'account'" class="h-full flex flex-col items-center justify-center text-center">
+              <!-- 用户头像 -->
+              <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center">
+                <User :size="40" class="text-teal-600" />
+              </div>
+              
+              <!-- 用户名和邮箱 -->
+              <h3 class="text-xl font-bold text-morandi-900 mb-2">{{ settingsStore.settings.username }}</h3>
+              <p class="text-sm text-morandi-500 mb-6">{{ authStore.user?.email || 'admin@example.com' }}</p>
+              
+              <!-- 云盘容量信息 -->
+              <div class="mb-6 w-full max-w-sm">
+                <div class="flex items-center justify-center gap-2 mb-3">
+                  <HardDrive :size="20" class="text-morandi-600" />
+                  <h4 class="font-medium text-morandi-900">云盘容量</h4>
                 </div>
-                <div v-else class="space-y-3">
-                  <div 
-                    v-for="record in focusRecords" 
-                    :key="record.date"
-                    class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
-                  >
-                    <div class="flex items-center justify-between">
-                      <div class="flex-1">
-                        <div class="flex items-center gap-3 mb-2">
-                          <div class="text-sm font-medium text-morandi-900">
-                            {{ formatDate(record.date) }}
+                
+                <div class="space-y-2">
+                  <div class="flex justify-between text-sm">
+                    <span class="text-morandi-600">{{ settingsStore.storageInfo.text }}</span>
+                    <span class="font-medium text-morandi-900">{{ settingsStore.storageInfo.percentage.toFixed(1) }}%</span>
+                  </div>
+                  
+                  <!-- 进度条 -->
+                  <div class="w-full bg-morandi-200 rounded-full h-2.5">
+                    <div 
+                      class="bg-gradient-to-r from-teal-400 to-teal-600 h-2.5 rounded-full transition-all duration-300"
+                      :style="{ width: settingsStore.storageInfo.percentage + '%' }"
+                    ></div>
+                  </div>
+                  
+                  <div class="flex justify-between text-xs text-morandi-500">
+                    <span>0 GB</span>
+                    <span>{{ settingsStore.cloudStorage.total }} GB</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 登录会话信息 -->
+              <div class="mb-6 w-full max-w-sm">
+                <div class="flex items-center justify-center gap-2 mb-3">
+                  <Clock :size="20" class="text-morandi-600" />
+                  <h4 class="font-medium text-morandi-900">登录会话</h4>
+                </div>
+                
+                <div class="space-y-3">
+                  <!-- Token 信息 -->
+                  <div class="bg-teal-50 rounded-lg p-3">
+                    <div class="flex justify-between text-sm mb-1">
+                      <span class="text-teal-700">会话剩余时间</span>
+                      <span class="font-medium text-teal-900">{{ authStore.tokenRemainingText }}</span>
+                    </div>
+                    <div class="text-xs text-teal-600">
+                      桌面端应用 (30天有效期)
+                    </div>
+                  </div>
+                  
+                  <!-- 会话说明 -->
+                  <div class="text-xs text-morandi-500 text-center bg-morandi-100 rounded-lg p-2">
+                    <div class="font-medium mb-1">🔐 会话管理</div>
+                    <div>桌面端应用自动保持30天登录状态</div>
+                    <div>会话过期后需要重新登录</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div class="flex gap-3">
+                <button 
+                  @click="showChangePasswordDialog = true"
+                  class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                >
+                  修改密码
+                </button>
+                <button 
+                  @click="handleLogout"
+                  class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                >
+                  退出登录
+                </button>
+              </div>
+            </div>
+
+            <!-- 专注记录 -->
+            <div v-else-if="settingsStore.currentCategoryId === 'focus'" class="h-full flex flex-col">
+              <h3 class="text-xl font-bold text-morandi-900 mb-6 flex-shrink-0">专注记录</h3>
+              
+              <!-- 原始专注记录 -->
+              <div class="space-y-4 flex-1">
+                <!-- 记录列表 -->
+                <div 
+                  class="bg-transparent rounded-lg h-full overflow-y-auto"
+                  @scroll="handleScroll"
+                >
+                  <div v-if="focusRecords.length === 0" class="p-8 text-center text-morandi-500">
+                    暂无专注记录
+                  </div>
+                  <div v-else class="space-y-3">
+                    <div 
+                      v-for="record in focusRecords" 
+                      :key="record.date"
+                      class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
+                    >
+                      <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                          <div class="flex items-center gap-3 mb-2">
+                            <div class="text-sm font-medium text-morandi-900">
+                              {{ formatDate(record.date) }}
+                            </div>
+                            <div class="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
+                              专注
+                            </div>
                           </div>
-                          <div class="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
-                            专注
+                          <div class="text-sm text-morandi-600 space-y-1">
+                            <div>专注时长: {{ formatMinutes(record.focusMinutes) }}</div>
+                            <div>专注次数: {{ record.focusSessions }} 次</div>
+                            <div v-if="record.longestSession">最长单次: {{ formatMinutes(record.longestSession) }}</div>
                           </div>
                         </div>
-                        <div class="text-sm text-morandi-600 space-y-1">
-                          <div>专注时长: {{ formatMinutes(record.focusMinutes) }}</div>
-                          <div>专注次数: {{ record.focusSessions }} 次</div>
-                          <div v-if="record.longestSession">最长单次: {{ formatMinutes(record.longestSession) }}</div>
-                        </div>
-                      </div>
-                      <div class="text-right">
-                        <div class="text-lg font-bold text-morandi-900">
-                          {{ formatMinutes(record.focusMinutes) }}
+                        <div class="text-right">
+                          <div class="text-lg font-bold text-morandi-900">
+                            {{ formatMinutes(record.focusMinutes) }}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   
-                  <!-- 加载指示器 -->
-                  <div v-if="isLoadingRecords" class="p-4 text-center text-morandi-500">
-                    <div class="inline-flex items-center gap-2">
-                      <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                      <span class="text-sm">加载中...</span>
-                    </div>
+                  <!-- 加载更多指示器 -->
+                  <div v-if="isLoadingRecords" class="flex justify-center py-4">
+                    <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- 关于 -->
-          <div v-else-if="settingsStore.currentCategoryId === 'about'" class="h-full flex flex-col items-center justify-center text-center">
-            <!-- 应用图标 -->
-            <div class="w-20 h-20 mb-4 bg-gradient-to-br from-teal-400 to-teal-600 rounded-3xl flex items-center justify-center">
-              <FileText :size="40" class="text-white" />
+            <!-- 关于 -->
+            <div v-else-if="settingsStore.currentCategoryId === 'about'" class="h-full flex flex-col items-center justify-center text-center">
+              <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center">
+                <FileText :size="40" class="text-teal-600" />
+              </div>
+              
+              <h3 class="text-xl font-bold text-morandi-900 mb-2">轻屿记 LiteIsle</h3>
+              <p class="text-sm text-morandi-500 mb-6">版本 {{ settingsStore.settings.version }}</p>
+              
+              <div class="space-y-3">
+                <button 
+                  @click="checkForUpdates"
+                  :disabled="isCheckingUpdates"
+                  class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm disabled:opacity-50"
+                >
+                  {{ isCheckingUpdates ? '检查中...' : '检查更新' }}
+                </button>
+              </div>
             </div>
-            
-            <!-- 应用名称 -->
-            <h3 class="text-2xl font-bold text-morandi-900 mb-2">轻屿记</h3>
-            <p class="text-lg text-morandi-600 mb-4">LiteIsle</p>
-            
-            <!-- 版本号 -->
-            <div class="inline-flex items-center px-4 py-2 bg-teal-100 text-teal-800 rounded-full text-sm font-medium mb-6">
-              版本 1.0.0
-            </div>
-            
-            <!-- 应用描述 -->
-            <div class="mb-8">
-              <p class="text-sm text-morandi-600 mb-2">一个轻量级的桌面应用</p>
-              <p class="text-xs text-morandi-500">专注于简洁高效的用户体验</p>
-            </div>
-            
-            <!-- 检查更新按钮 -->
-            <button 
-              @click="checkForUpdates"
-              :disabled="isCheckingUpdates"
-              class="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 text-sm"
-            >
-              {{ isCheckingUpdates ? '检查中...' : '检查更新' }}
-            </button>
-          </div>
-          
-          <!-- 其他分类的占位符 -->
-          <div v-else-if="settingsStore.currentCategory">
-            <h3 class="text-xl font-bold text-morandi-900 mb-6">{{ settingsStore.currentCategory.name }}</h3>
-            <p>此处的设置项待实现。</p>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- 修改密码弹窗 -->
+  <!-- 修改密码对话框 -->
+  <div 
+    v-if="showChangePasswordDialog" 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    @click="showChangePasswordDialog = false"
+  >
     <div 
-      v-if="showChangePasswordDialog" 
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click.self="showChangePasswordDialog = false"
+      class="bg-white rounded-lg p-6 w-96 max-w-[90vw]"
+      @click.stop
     >
-      <div class="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
-        <h3 class="text-lg font-bold text-morandi-900 mb-4">修改密码</h3>
-        <form @submit.prevent="submitPasswordChange">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-1">当前密码</label>
-              <input 
-                type="password" 
-                v-model="passwordForm.currentPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
-                required
-                style="user-select: text !important;"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-1">新密码</label>
-              <input 
-                type="password" 
-                v-model="passwordForm.newPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
-                required
-                style="user-select: text !important;"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-1">确认新密码</label>
-              <input 
-                type="password" 
-                v-model="passwordForm.confirmPassword"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
-                required
-                style="user-select: text !important;"
-              />
-            </div>
+      <h3 class="text-lg font-bold text-morandi-900 mb-4">修改密码</h3>
+      <form @submit.prevent="submitPasswordChange">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-morandi-700 mb-1">当前密码</label>
+            <input
+              type="password"
+              v-model="passwordForm.currentPassword"
+              required
+              class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
+              style="user-select: text !important;"
+            />
           </div>
-          
-          <div class="flex justify-end gap-3 mt-6">
-            <button 
-              type="button"
-              @click="showChangePasswordDialog = false"
-              class="px-4 py-2 text-morandi-700 border border-morandi-300 rounded-lg hover:bg-morandi-50 transition-colors"
-            >
-              取消
-            </button>
-            <button 
-              type="submit"
-              :disabled="isChangingPassword"
-              class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
-            >
-              {{ isChangingPassword ? '修改中...' : '确认修改' }}
-            </button>
+          <div>
+            <label class="block text-sm font-medium text-morandi-700 mb-1">新密码</label>
+            <input
+              type="password"
+              v-model="passwordForm.newPassword"
+              required
+              minlength="6"
+              class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
+              style="user-select: text !important;"
+            />
           </div>
-        </form>
-      </div>
+          <div>
+            <label class="block text-sm font-medium text-morandi-700 mb-1">确认新密码</label>
+            <input
+              type="password"
+              v-model="passwordForm.confirmPassword"
+              required
+              minlength="6"
+              class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
+              style="user-select: text !important;"
+            />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button 
+            type="button"
+            @click="showChangePasswordDialog = false"
+            class="px-4 py-2 text-morandi-700 border border-morandi-300 rounded-lg hover:bg-morandi-50 transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            type="submit"
+            :disabled="isChangingPassword"
+            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+          >
+            {{ isChangingPassword ? '修改中...' : '确认修改' }}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
