@@ -11,7 +11,6 @@
         <!-- 文档信息 -->
         <div class="flex-1 min-w-0 ml-4 border-l border-gray-300 pl-4">
           <h3 class="font-medium text-gray-900 truncate">{{ fileName }}</h3>
-          <p class="text-sm text-gray-500 truncate">{{ fileDescription || 'Excel表格' }}</p>
         </div>
       </div>
       
