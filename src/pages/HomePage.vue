@@ -10,7 +10,7 @@
             <div class="card w-full flex flex-col justify-center relative overflow-hidden">
               <!-- 问候语和励志语 -->
               <div class="flex flex-col justify-center z-10 relative">
-                <h2 class="text-2xl lg:text-3xl font-bold text-morandi-900 mb-4">下午好！Zen</h2>
+                <h2 class="text-2xl lg:text-3xl font-bold text-morandi-900 mb-4">{{ greeting }}！{{ userName }}</h2>
                 <!-- 励志语区域 -->
                 <div class="flex justify-start">
                   <div class="bg-transparent text-gray-900 text-2xl lg:text-3xl font-bold">
@@ -56,10 +56,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import StudyCard from '@/components/cards/StudyCard.vue'
 import IsleCard from '@/components/cards/IsleCard.vue'
 import ActivityGrid from '@/components/cards/ActivityGrid.vue'
+import { useAuthStore } from '@/store/AuthStore'
+
+// 使用认证存储
+const authStore = useAuthStore()
 
 // 励志语数组
 const motivationalQuotes = [
@@ -87,6 +91,29 @@ const motivationalQuotes = [
 
 // 当前显示的励志语
 const currentMotivationalQuotes = ref<string[]>([])
+
+// 根据时间获取问候语
+const getGreeting = () => {
+  const hour = new Date().getHours()
+  
+  if (hour >= 5 && hour < 9) {
+    return '早上好'
+  } else if (hour >= 9 && hour < 12) {
+    return '上午好'
+  } else if (hour >= 12 && hour < 18) {
+    return '下午好'
+  } else {
+    return '晚上好'
+  }
+}
+
+// 问候语计算属性
+const greeting = computed(() => getGreeting())
+
+// 用户名计算属性
+const userName = computed(() => {
+  return authStore.user?.username || 'Zen'
+})
 
 // 随机选择一句励志语
 const selectRandomQuotes = () => {
