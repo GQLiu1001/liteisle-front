@@ -37,11 +37,11 @@ export interface SettingCategory {
 }
 
 export interface ShareItem {
-  id: string
+  id: number
   name: string
   type: 'file' | 'folder'
-  shareLink: string
-  password: string
+  shareToken: string // 分享令牌，而非完整URL
+  sharePassword: string // 访问密码
   expiryDate: string
   status: 'active' | 'expired' | 'disabled'
   createdAt: string
@@ -80,33 +80,33 @@ export const useSettingsStore = defineStore('settings', () => {
   // 分享数据
   const shareItems = ref<ShareItem[]>([
     {
-      id: 'share-1',
+      id: 1,
       name: '4coding',
       type: 'folder',
-      shareLink: 'https://liteisle.com/share/abc123',
-      password: 'xyz789',
+      shareToken: 'abc123def456ghi789',
+      sharePassword: 'xyz789',
       expiryDate: '2025/04/25',
       status: 'active',
       createdAt: '2025/04/25 11:22',
       accessCount: 17
     },
     {
-      id: 'share-2', 
+      id: 2, 
       name: '4coding',
       type: 'folder',
-      shareLink: 'https://liteisle.com/share/def456',
-      password: 'abc123',
+      shareToken: 'def456ghi789jkl012',
+      sharePassword: 'abc123',
       expiryDate: '2025/03/19',
       status: 'active',
       createdAt: '2025/03/19 15:08',
       accessCount: 0
     },
     {
-      id: 'share-3',
+      id: 3,
       name: '4coding',
       type: 'folder', 
-      shareLink: 'https://liteisle.com/share/ghi789',
-      password: 'def456',
+      shareToken: 'ghi789jkl012mno345',
+      sharePassword: 'def456',
       expiryDate: '2025/03/11',
       status: 'active',
       createdAt: '2025/03/11 21:41',
@@ -210,13 +210,43 @@ export const useSettingsStore = defineStore('settings', () => {
     })
   }
 
-  const cancelShare = (shareId: string) => {
+  const cancelShare = (shareId: number) => {
     const index = shareItems.value.findIndex(item => item.id === shareId)
     if (index > -1) {
       shareItems.value.splice(index, 1)
       return true
     }
     return false
+  }
+
+  // 生成分享链接的方法
+  const generateShareLink = (shareToken: string) => {
+    return `https://liteisle.com/share/${shareToken}`
+  }
+
+  // 复制分享信息（链接+密码）
+  const copyShareInfo = async (shareToken: string, sharePassword: string) => {
+    const shareLink = generateShareLink(shareToken)
+    const shareInfo = `分享链接: ${shareLink}\n访问密码: ${sharePassword}`
+    
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareInfo)
+        return true
+      } else {
+        // 降级方案
+        const textArea = document.createElement('textarea')
+        textArea.value = shareInfo
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        return true
+      }
+    } catch (error) {
+      console.error('复制失败:', error)
+      return false
+    }
   }
 
   return {
@@ -238,6 +268,8 @@ export const useSettingsStore = defineStore('settings', () => {
     logout,
     checkForUpdates,
     changePassword,
-    cancelShare
+    cancelShare,
+    generateShareLink,
+    copyShareInfo
   }
 }) 

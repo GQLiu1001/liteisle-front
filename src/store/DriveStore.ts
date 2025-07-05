@@ -2,14 +2,15 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface DriveItem {
-  id: string
+  id: number
   name: string
   type: 'folder' | 'audio' | 'document' | 'other'
   size: number
   modifiedAt: Date
   createdAt: Date
   path: string
-  parentId: string | null
+  parentId: number | null // 0表示根目录
+  storageId?: number // 关联的存储记录ID（用于文件去重）
   itemCount?: number
   children?: DriveItem[]
   level?: number
@@ -26,25 +27,26 @@ export const useDriveStore = defineStore('drive', () => {
   // 回收站数据
   const recycleBinItems = ref<DriveItem[]>([
     {
-      id: 'recycle-1',
+      id: 1001,
       name: '已删除的照片.jpg',
       type: 'other',
       size: 2048576,
       modifiedAt: new Date('2024-01-10'),
       createdAt: new Date('2024-01-08'),
       path: '/图片/已删除的照片.jpg',
-      parentId: '4',
+      parentId: 4,
+      storageId: 101,
       deletedAt: new Date('2024-01-12')
     },
     {
-      id: 'recycle-2',
+      id: 1002,
       name: '旧文档',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-08'),
       createdAt: new Date('2024-01-06'),
       path: '/文档/旧文档',
-      parentId: '2',
+      parentId: 2,
       itemCount: 3,
       deletedAt: new Date('2024-01-11')
     }
@@ -53,249 +55,402 @@ export const useDriveStore = defineStore('drive', () => {
   // 主要网盘数据
   const driveItems = ref<DriveItem[]>([
     {
-      id: '1',
+      id: 1,
       name: '音乐',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-15'),
       createdAt: new Date('2024-01-01'),
       path: '/音乐',
-      parentId: null,
+      parentId: 0, // 根目录
       level: 1,
       isLocked: true,
       itemCount: 3,
       children: [
         {
-          id: '1-1',
+          id: 11,
           name: '我喜欢的',
           type: 'folder',
           size: 0,
           modifiedAt: new Date('2024-01-14'),
           createdAt: new Date('2024-01-02'),
           path: '/音乐/我喜欢的',
-          parentId: '1',
+          parentId: 1,
           level: 2,
           itemCount: 2,
           children: [
             {
-              id: '1-1-1',
+              id: 111,
               name: '夜曲.mp3',
               type: 'audio',
               size: 5242880,
               modifiedAt: new Date('2024-01-12'),
               createdAt: new Date('2024-01-05'),
               path: '/音乐/我喜欢的/夜曲.mp3',
-              parentId: '1-1'
+              parentId: 11,
+              storageId: 201
             },
             {
-              id: '1-1-2',
+              id: 112,
               name: '蓝莲花.mp3',
               type: 'audio',
               size: 4536320,
               modifiedAt: new Date('2024-01-11'),
               createdAt: new Date('2024-01-06'),
               path: '/音乐/我喜欢的/蓝莲花.mp3',
-              parentId: '1-1'
+              parentId: 11,
+              storageId: 202
             }
           ]
         },
         {
-          id: '1-2',
+          id: 12,
           name: '古典音乐',
           type: 'folder',
           size: 0,
           modifiedAt: new Date('2024-01-13'),
           createdAt: new Date('2024-01-03'),
           path: '/音乐/古典音乐',
-          parentId: '1',
+          parentId: 1,
           level: 2,
           itemCount: 1,
           children: [
             {
-              id: '1-2-1',
+              id: 121,
               name: '贝多芬第九交响曲.mp3',
               type: 'audio',
               size: 8912345,
               modifiedAt: new Date('2024-01-10'),
               createdAt: new Date('2024-01-07'),
               path: '/音乐/古典音乐/贝多芬第九交响曲.mp3',
-              parentId: '1-2'
+              parentId: 12,
+              storageId: 203
             }
           ]
         },
         {
-          id: '1-3',
+          id: 13,
           name: '摇滚音乐',
           type: 'folder',
           size: 0,
           modifiedAt: new Date('2024-01-16'),
           createdAt: new Date('2024-01-04'),
           path: '/音乐/摇滚音乐',
-          parentId: '1',
+          parentId: 1,
           level: 2,
           itemCount: 2,
           children: [
             {
-              id: '1-3-1',
+              id: 131,
               name: '光辉岁月.mp3',
               type: 'audio',
               size: 6234567,
               modifiedAt: new Date('2024-01-09'),
               createdAt: new Date('2024-01-08'),
               path: '/音乐/摇滚音乐/光辉岁月.mp3',
-              parentId: '1-3'
+              parentId: 13,
+              storageId: 204
             },
             {
-              id: '1-3-2',
+              id: 132,
               name: '海阔天空.mp3',
               type: 'audio',
               size: 7345678,
               modifiedAt: new Date('2024-01-08'),
               createdAt: new Date('2024-01-09'),
               path: '/音乐/摇滚音乐/海阔天空.mp3',
-              parentId: '1-3'
+              parentId: 13,
+              storageId: 205
             }
           ]
         }
       ]
     },
     {
-      id: '2',
+      id: 2,
       name: '文档',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-10'),
       createdAt: new Date('2023-12-15'),
       path: '/文档',
-      parentId: null,
+      parentId: 0, // 根目录
       level: 1,
       isLocked: true,
       itemCount: 2,
       children: [
         {
-          id: '2-1',
+          id: 21,
           name: '图书',
           type: 'folder',
           size: 0,
           modifiedAt: new Date('2024-01-20'),
           createdAt: new Date('2024-01-18'),
           path: '/文档/图书',
-          parentId: '2',
+          parentId: 2,
           level: 2,
           itemCount: 3,
           children: [
             {
-              id: 'doc-pdf-1',
+              id: 211,
               name: 'Vue 3 开发指南.pdf',
               type: 'document',
               size: 15728640,
               modifiedAt: new Date('2024-01-20'),
               createdAt: new Date('2024-01-19'),
               path: '/文档/图书/Vue 3 开发指南.pdf',
-              parentId: '2-1'
+              parentId: 21,
+              storageId: 301
             },
             {
-              id: 'doc-md-1',
+              id: 212,
               name: '设计模式.md',
               type: 'document',
-              size: 1048576,
-              modifiedAt: new Date('2024-01-15'),
-              createdAt: new Date('2024-01-14'),
+              size: 2048576,
+              modifiedAt: new Date('2024-01-19'),
+              createdAt: new Date('2024-01-18'),
               path: '/文档/图书/设计模式.md',
-              parentId: '2-1'
+              parentId: 21,
+              storageId: 302
             },
             {
-              id: 'doc-docx-1',
-              name: 'Node.js开发实战.docx',
+              id: 213,
+              name: 'JavaScript高级程序设计.pdf',
               type: 'document',
-              size: 12582912,
-              modifiedAt: new Date('2024-01-23'),
-              createdAt: new Date('2024-01-22'),
-              path: '/文档/图书/Node.js开发实战.docx',
-              parentId: '2-1'
+              size: 25165824,
+              modifiedAt: new Date('2024-01-18'),
+              createdAt: new Date('2024-01-17'),
+              path: '/文档/图书/JavaScript高级程序设计.pdf',
+              parentId: 21,
+              storageId: 303
             }
           ]
         },
         {
-          id: '2-2',
-          name: '笔记',
+          id: 22,
+          name: '工作文档',
           type: 'folder',
           size: 0,
-          modifiedAt: new Date('2024-01-22'),
-          createdAt: new Date('2024-01-21'),
-          path: '/文档/笔记',
-          parentId: '2',
+          modifiedAt: new Date('2024-01-15'),
+          createdAt: new Date('2024-01-10'),
+          path: '/文档/工作文档',
+          parentId: 2,
           level: 2,
-          itemCount: 1,
+          itemCount: 3,
           children: [
             {
-              id: 'doc-md-2',
-              name: '学习计划.md',
+              id: 221,
+              name: '项目计划.docx',
               type: 'document',
-              size: 2048,
-              modifiedAt: new Date('2024-01-22'),
-              createdAt: new Date('2024-01-21'),
-              path: '/文档/笔记/学习计划.md',
-              parentId: '2-2'
+              size: 1048576,
+              modifiedAt: new Date('2024-01-15'),
+              createdAt: new Date('2024-01-12'),
+              path: '/文档/工作文档/项目计划.docx',
+              parentId: 22,
+              storageId: 304
+            },
+            {
+              id: 222,
+              name: '会议记录.md',
+              type: 'document',
+              size: 512000,
+              modifiedAt: new Date('2024-01-14'),
+              createdAt: new Date('2024-01-13'),
+              path: '/文档/工作文档/会议记录.md',
+              parentId: 22,
+              storageId: 305
+            },
+            {
+              id: 223,
+              name: '需求文档.pdf',
+              type: 'document',
+              size: 3145728,
+              modifiedAt: new Date('2024-01-13'),
+              createdAt: new Date('2024-01-11'),
+              path: '/文档/工作文档/需求文档.pdf',
+              parentId: 22,
+              storageId: 306
             }
           ]
         }
       ]
     },
     {
-      id: '5',
-      name: '上传',
+      id: 3,
+      name: '学习资料',
       type: 'folder',
       size: 0,
-      modifiedAt: new Date(),
-      createdAt: new Date(),
-      path: '/上传',
-      parentId: null,
+      modifiedAt: new Date('2024-01-12'),
+      createdAt: new Date('2023-11-20'),
+      path: '/学习资料',
+      parentId: 0, // 根目录
       level: 1,
-      isLocked: true,
-      itemCount: 0,
-      children: []
+      itemCount: 5,
+      children: [
+        {
+          id: 31,
+          name: '前端开发',
+          type: 'folder',
+          size: 0,
+          modifiedAt: new Date('2024-01-12'),
+          createdAt: new Date('2023-12-01'),
+          path: '/学习资料/前端开发',
+          parentId: 3,
+          level: 2,
+          itemCount: 2,
+          children: [
+            {
+              id: 311,
+              name: 'React学习笔记.md',
+              type: 'document',
+              size: 1024000,
+              modifiedAt: new Date('2024-01-12'),
+              createdAt: new Date('2023-12-05'),
+              path: '/学习资料/前端开发/React学习笔记.md',
+              parentId: 31,
+              storageId: 401
+            },
+            {
+              id: 312,
+              name: 'TypeScript入门.pdf',
+              type: 'document',
+              size: 8388608,
+              modifiedAt: new Date('2024-01-10'),
+              createdAt: new Date('2023-12-08'),
+              path: '/学习资料/前端开发/TypeScript入门.pdf',
+              parentId: 31,
+              storageId: 402
+            }
+          ]
+        },
+        {
+          id: 32,
+          name: '视频教程.mp4',
+          type: 'other',
+          size: 104857600,
+          modifiedAt: new Date('2024-01-08'),
+          createdAt: new Date('2023-12-15'),
+          path: '/学习资料/视频教程.mp4',
+          parentId: 3,
+          storageId: 403
+        },
+        {
+          id: 33,
+          name: '编程练习.zip',
+          type: 'other',
+          size: 2097152,
+          modifiedAt: new Date('2024-01-05'),
+          createdAt: new Date('2023-12-20'),
+          path: '/学习资料/编程练习.zip',
+          parentId: 3,
+          storageId: 404
+        },
+        {
+          id: 34,
+          name: '算法题解.md',
+          type: 'document',
+          size: 1536000,
+          modifiedAt: new Date('2024-01-03'),
+          createdAt: new Date('2023-12-25'),
+          path: '/学习资料/算法题解.md',
+          parentId: 3,
+          storageId: 405
+        },
+        {
+          id: 35,
+          name: '面试准备.docx',
+          type: 'document',
+          size: 2048000,
+          modifiedAt: new Date('2024-01-01'),
+          createdAt: new Date('2023-12-30'),
+          path: '/学习资料/面试准备.docx',
+          parentId: 3,
+          storageId: 406
+        }
+      ]
     },
     {
-      id: '6',
-      name: '分享',
+      id: 4,
+      name: '图片',
       type: 'folder',
       size: 0,
-      modifiedAt: new Date(),
-      createdAt: new Date(),
-      path: '/分享',
-      parentId: null,
+      modifiedAt: new Date('2024-01-05'),
+      createdAt: new Date('2023-10-15'),
+      path: '/图片',
+      parentId: 0, // 根目录
       level: 1,
-      isLocked: true,
-      itemCount: 0,
-      children: []
+      itemCount: 3,
+      children: [
+        {
+          id: 41,
+          name: '风景照.jpg',
+          type: 'other',
+          size: 3145728,
+          modifiedAt: new Date('2024-01-05'),
+          createdAt: new Date('2023-11-01'),
+          path: '/图片/风景照.jpg',
+          parentId: 4,
+          storageId: 501
+        },
+        {
+          id: 42,
+          name: '头像.png',
+          type: 'other',
+          size: 512000,
+          modifiedAt: new Date('2024-01-03'),
+          createdAt: new Date('2023-11-05'),
+          path: '/图片/头像.png',
+          parentId: 4,
+          storageId: 502
+        },
+        {
+          id: 43,
+          name: '截图.png',
+          type: 'other',
+          size: 1048576,
+          modifiedAt: new Date('2024-01-01'),
+          createdAt: new Date('2023-11-10'),
+          path: '/图片/截图.png',
+          parentId: 4,
+          storageId: 503
+        }
+      ]
     }
   ])
 
-  // Computed property to get items based on the current path
-  const currentLevelItems = computed(() => {
+  // 计算属性
+  const currentItems = computed(() => {
+    if (isInRecycleBin.value) {
+      return recycleBinItems.value.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      )
+    }
+    
+    const filterItems = (items: DriveItem[]): DriveItem[] => {
+      return items.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        if (item.children) {
+          item.children = filterItems(item.children)
+        }
+        return matchesSearch || (item.children && item.children.length > 0)
+      })
+    }
+    
+    if (searchQuery.value) {
+      return filterItems([...driveItems.value])
+    }
+    
     if (currentPath.value === '/') {
       return driveItems.value
     }
-
-    const pathParts = currentPath.value.split('/').filter(p => p)
-    let currentItems = driveItems.value
-
-    for (const part of pathParts) {
-      const folder = currentItems.find(item => item.type === 'folder' && item.name === part)
-      if (folder && folder.children) {
-        currentItems = folder.children
-      } else {
-        return [] // Path not found
-      }
-    }
-    return currentItems
+    
+    const folder = findFolderByPath(currentPath.value)
+    return folder?.children || []
   })
 
-  // 基本操作方法
+  // 方法
   const setCurrentPath = (path: string) => {
     currentPath.value = path
-    isInRecycleBin.value = false
   }
 
   const setSearchQuery = (query: string) => {
@@ -310,214 +465,203 @@ export const useDriveStore = defineStore('drive', () => {
     isInRecycleBin.value = false
   }
 
-  // 恢复项目
-  const restoreItem = (itemId: string) => {
-    const itemIndex = recycleBinItems.value.findIndex(i => i.id === itemId)
-    if (itemIndex === -1) return
-
-    const itemToRestore = recycleBinItems.value[itemIndex]
-    recycleBinItems.value.splice(itemIndex, 1)
-
-    // 尝试在 driveItems 中递归查找父项
-    const findParent = (items: DriveItem[], parentId: string | null): DriveItem | null => {
-      if (!parentId) return null
-      for (const item of items) {
-        if (item.id === parentId) {
-          return item
+  const restoreItem = (itemId: number) => {
+    const index = recycleBinItems.value.findIndex(item => item.id === itemId)
+    if (index > -1) {
+      const item = recycleBinItems.value[index]
+      recycleBinItems.value.splice(index, 1)
+      
+      // 将项目恢复到原位置
+      const findParent = (items: DriveItem[], parentId: number | null): DriveItem | null => {
+        for (const item of items) {
+          if (item.id === parentId) {
+            return item
+          }
+          if (item.children) {
+            const found = findParent(item.children, parentId)
+            if (found) return found
+          }
         }
-        if (item.children) {
-          const found = findParent(item.children, parentId)
-          if (found) return found
-        }
+        return null
       }
-      return null
+      
+      delete item.deletedAt
+      const parent = findParent(driveItems.value, item.parentId)
+      if (parent && parent.children) {
+        parent.children.push(item)
+        parent.itemCount = (parent.itemCount || 0) + 1
+      } else if (item.parentId === 0) {
+        driveItems.value.push(item)
+      }
+      
+      return true
     }
-
-    const parent = findParent(driveItems.value, itemToRestore.parentId)
-
-    if (parent && parent.children) {
-      // 恢复到原父级
-      parent.children.push(itemToRestore)
-      parent.itemCount = (parent.itemCount || 0) + 1
-    } else {
-      // 如果找不到父级，恢复到根目录
-      driveItems.value.push(itemToRestore)
-    }
+    return false
   }
 
-  // 获取文件类型
   const getFileType = (fileName: string): DriveItem['type'] => {
     const ext = fileName.split('.').pop()?.toLowerCase()
-    if (['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(ext || '')) return 'audio'
+    if (['mp3', 'wav', 'flac', 'aac', 'm4a'].includes(ext || '')) return 'audio'
     if (['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext || '')) return 'document'
     return 'other'
   }
 
-  // 递归查找文件夹
   const findFolderByPath = (path: string): DriveItem | null => {
     if (path === '/') return null
-
-    const pathParts = path.split('/').filter(p => p)
-    let current = driveItems.value
-
+    
+    const pathParts = path.split('/').filter(part => part !== '')
+    let current: DriveItem[] = driveItems.value
+    
     for (const part of pathParts) {
-      const folder = current.find(item => item.type === 'folder' && item.name === part)
-      if (!folder) return null
-      if (folder.children) {
-        current = folder.children
-      }
-      if (pathParts[pathParts.length - 1] === part) {
-        return folder
+      const found = current.find(item => item.name === part && item.type === 'folder')
+      if (!found || !found.children) return null
+      current = found.children
+      if (pathParts.indexOf(part) === pathParts.length - 1) {
+        return found
       }
     }
+    
     return null
   }
 
-  // 创建文件夹
   const createFolder = (parentPath: string, folderName: string): DriveItem | null => {
-    // 验证文件夹名称
-    if (!folderName.trim()) return null
-
-    // 生成新ID
-    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-    const now = new Date()
-    const fullPath = parentPath === '/' ? `/${folderName}` : `${parentPath}/${folderName}`
-
+    const newId = Math.max(...driveItems.value.map(item => item.id), 0) + 1
     const newFolder: DriveItem = {
       id: newId,
       name: folderName,
       type: 'folder',
       size: 0,
-      modifiedAt: now,
-      createdAt: now,
-      path: fullPath,
-      parentId: null,
+      modifiedAt: new Date(),
+      createdAt: new Date(),
+      path: parentPath === '/' ? `/${folderName}` : `${parentPath}/${folderName}`,
+      parentId: parentPath === '/' ? 0 : null,
+      level: parentPath === '/' ? 1 : 2,
       itemCount: 0,
       children: []
     }
-
+    
     if (parentPath === '/') {
-      // 添加到根目录
-      newFolder.level = 1
       driveItems.value.push(newFolder)
     } else {
-      // 添加到指定路径的文件夹
-      const parentFolder = findFolderByPath(parentPath)
-      if (!parentFolder) return null
-
-      newFolder.parentId = parentFolder.id
-      newFolder.level = (parentFolder.level || 1) + 1
-      
-      if (!parentFolder.children) parentFolder.children = []
-      parentFolder.children.push(newFolder)
-      parentFolder.itemCount = (parentFolder.itemCount || 0) + 1
-      parentFolder.modifiedAt = now
+      const parent = findFolderByPath(parentPath)
+      if (parent && parent.children) {
+        // 设置正确的parentId
+        newFolder.parentId = parent.id
+        newFolder.level = (parent.level || 1) + 1
+        
+        parent.children.push(newFolder)
+        parent.itemCount = (parent.itemCount || 0) + 1
+      } else {
+        return null
+      }
     }
-
+    
     return newFolder
   }
 
-  // 添加文件到指定路径
   const addFileToPath = (targetPath: string, file: File): DriveItem | null => {
-    const folder = findFolderByPath(targetPath)
-    if (!folder) return null
-
-    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-    const now = new Date()
-    const filePath = `${targetPath}/${file.name}`
-
+    const newId = Math.max(...driveItems.value.map(item => item.id), 0) + 1
+    const storageId = Math.floor(Math.random() * 1000) + 1000 // 模拟storageId
+    
     const newFile: DriveItem = {
       id: newId,
       name: file.name,
       type: getFileType(file.name),
       size: file.size,
-      modifiedAt: now,
-      createdAt: now,
-      path: filePath,
-      parentId: folder.id
+      modifiedAt: new Date(),
+      createdAt: new Date(),
+      path: targetPath === '/' ? `/${file.name}` : `${targetPath}/${file.name}`,
+      parentId: targetPath === '/' ? 0 : null,
+      storageId: storageId
     }
-
-    if (!folder.children) folder.children = []
-    folder.children.push(newFile)
-    folder.itemCount = (folder.itemCount || 0) + 1
-    folder.modifiedAt = now
-
+    
+    if (targetPath === '/') {
+      driveItems.value.push(newFile)
+    } else {
+      const parent = findFolderByPath(targetPath)
+      if (parent && parent.children) {
+        newFile.parentId = parent.id
+        parent.children.push(newFile)
+        parent.itemCount = (parent.itemCount || 0) + 1
+      } else {
+        return null
+      }
+    }
+    
     return newFile
   }
 
-  // 在音乐文件夹下创建播放列表文件夹
   const createMusicPlaylist = (playlistName: string): DriveItem | null => {
     return createFolder('/音乐', playlistName)
   }
 
-  // 在文档文件夹下创建分类文件夹
   const createDocumentCategory = (categoryName: string): DriveItem | null => {
     return createFolder('/文档', categoryName)
   }
 
-  // 上传音乐文件到指定播放列表
   const uploadMusicToPlaylist = (playlistName: string, files: File[]): DriveItem[] => {
+    const uploadedFiles: DriveItem[] = []
     const targetPath = `/音乐/${playlistName}`
-    const uploadedFiles: DriveItem[] = []
-
+    
     for (const file of files) {
       const uploadedFile = addFileToPath(targetPath, file)
       if (uploadedFile) {
         uploadedFiles.push(uploadedFile)
       }
     }
-
+    
     return uploadedFiles
   }
 
-  // 上传文档文件到指定分类
   const uploadDocumentToCategory = (categoryName: string, files: File[]): DriveItem[] => {
-    const targetPath = `/文档/${categoryName}`
     const uploadedFiles: DriveItem[] = []
-
+    const targetPath = `/文档/${categoryName}`
+    
     for (const file of files) {
       const uploadedFile = addFileToPath(targetPath, file)
       if (uploadedFile) {
         uploadedFiles.push(uploadedFile)
       }
     }
-
+    
     return uploadedFiles
   }
 
-  // 删除项目
-  const deleteItem = (itemId: string): boolean => {
+  const deleteItem = (itemId: number): boolean => {
     const findAndDeleteItem = (items: DriveItem[], isRecycleBin: boolean = false): boolean => {
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
+        
         if (item.id === itemId) {
           if (isRecycleBin) {
-            // 在回收站中，永久删除
+            // 回收站中永久删除
             items.splice(i, 1)
           } else {
-            // 正常模式，移动到回收站
+            // 移动到回收站
+            const deletedItem = { ...item, deletedAt: new Date() }
             items.splice(i, 1)
-            item.deletedAt = new Date()
-            recycleBinItems.value.push(item)
+            recycleBinItems.value.push(deletedItem)
             
-            // 更新父文件夹的项目计数
-            const parentPath = item.path.split('/').slice(0, -1).join('/') || '/'
-            const parent = findFolderByPath(parentPath)
-            if (parent) {
-              parent.itemCount = (parent.itemCount || 1) - 1
-              parent.modifiedAt = new Date()
+            // 更新父文件夹的itemCount
+            if (item.parentId !== 0) {
+              const findParent = (parentItems: DriveItem[], targetParentId: number | null): void => {
+                for (const parentItem of parentItems) {
+                  if (parentItem.id === targetParentId) {
+                    parentItem.itemCount = Math.max((parentItem.itemCount || 1) - 1, 0)
+                    return
+                  }
+                  if (parentItem.children) {
+                    findParent(parentItem.children, targetParentId)
+                  }
+                }
+              }
+              findParent(driveItems.value, item.parentId)
             }
           }
           return true
         }
         
-        // 递归搜索子项
         if (item.children && findAndDeleteItem(item.children, isRecycleBin)) {
-          // 更新父文件夹的项目计数
-          if (!isRecycleBin) {
-            item.itemCount = (item.itemCount || 1) - 1
-            item.modifiedAt = new Date()
-          }
           return true
         }
       }
@@ -525,46 +669,41 @@ export const useDriveStore = defineStore('drive', () => {
     }
     
     if (isInRecycleBin.value) {
-      // 在回收站中，永久删除
       return findAndDeleteItem(recycleBinItems.value, true)
     } else {
-      // 正常模式，移动到回收站
       return findAndDeleteItem(driveItems.value, false)
     }
   }
 
-  // 重命名项目
-  const renameItem = (itemId: string, newName: string): boolean => {
+  const renameItem = (itemId: number, newName: string): boolean => {
     const findAndRenameItem = (items: DriveItem[]): boolean => {
       for (const item of items) {
         if (item.id === itemId) {
-          const oldName = item.name
-          const pathParts = item.path.split('/')
+          const oldPath = item.path
+          const pathParts = oldPath.split('/')
           pathParts[pathParts.length - 1] = newName
           const newPath = pathParts.join('/')
           
-          // 更新项目信息
           item.name = newName
           item.path = newPath
           item.modifiedAt = new Date()
           
-          // 如果是文件夹，需要递归更新所有子项的路径
+          // 如果是文件夹，更新所有子项的路径
           if (item.type === 'folder' && item.children) {
             const updateChildrenPaths = (children: DriveItem[], oldBasePath: string, newBasePath: string) => {
-              children.forEach(child => {
+              for (const child of children) {
                 child.path = child.path.replace(oldBasePath, newBasePath)
-                if (child.type === 'folder' && child.children) {
+                if (child.children) {
                   updateChildrenPaths(child.children, oldBasePath, newBasePath)
                 }
-              })
+              }
             }
-            updateChildrenPaths(item.children, `${pathParts.slice(0, -1).join('/')}/${oldName}`, newPath)
+            updateChildrenPaths(item.children, oldPath, newPath)
           }
           
           return true
         }
         
-        // 递归搜索子项
         if (item.children && findAndRenameItem(item.children)) {
           return true
         }
@@ -572,47 +711,39 @@ export const useDriveStore = defineStore('drive', () => {
       return false
     }
     
-    // 先在主列表中查找
-    if (findAndRenameItem(driveItems.value)) {
-      return true
+    if (isInRecycleBin.value) {
+      return findAndRenameItem(recycleBinItems.value)
+    } else {
+      return findAndRenameItem(driveItems.value)
     }
-    
-    // 再在回收站中查找
-    if (findAndRenameItem(recycleBinItems.value)) {
-      return true
-    }
-    
-    return false
   }
 
   return {
     // 状态
-    driveItems,
-    recycleBinItems,
     searchQuery,
     currentPath,
     isInRecycleBin,
+    driveItems,
+    recycleBinItems,
     
-    // Computed
-    currentLevelItems,
-
-    // 方法  
+    // 计算属性
+    currentItems,
+    
+    // 方法
     setCurrentPath,
     setSearchQuery,
     openRecycleBin,
     exitRecycleBin,
     restoreItem,
-    deleteItem,
-    
-    // 新增方法
+    getFileType,
+    findFolderByPath,
     createFolder,
     addFileToPath,
     createMusicPlaylist,
     createDocumentCategory,
     uploadMusicToPlaylist,
     uploadDocumentToCategory,
-    findFolderByPath,
-    getFileType,
+    deleteItem,
     renameItem
   }
 })

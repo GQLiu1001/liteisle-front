@@ -1084,7 +1084,7 @@ const currentItems = computed(() => {
 const filteredItems = computed(() => {
   let itemsToDisplay: DriveItem[] = driveStore.isInRecycleBin
     ? [...driveStore.recycleBinItems]
-    : [...driveStore.currentLevelItems]
+    : [...driveStore.currentItems]
 
   // 搜索过滤
   if (driveStore.searchQuery && !driveStore.isInRecycleBin) {
@@ -1210,7 +1210,7 @@ const navigateToPath = (index: number) => {
   driveStore.setCurrentPath(targetPath)
 }
 
-const selectedItemId = ref<string | null>(null)
+const selectedItemId = ref<number | null>(null)
 
 const handleItemClick = (item: DriveItem, event: MouseEvent) => {
   if (driveStore.isInRecycleBin) {
@@ -1302,7 +1302,7 @@ const confirmCreateFolder = () => {
   }
 
   // 生成新文件夹ID
-  const newId = Date.now().toString()
+  const newId = Date.now()
   const newPath = driveStore.currentPath === '/' ? `/${folderName}` : `${driveStore.currentPath}/${folderName}`
   
   const newFolder: DriveItem = {
@@ -2427,8 +2427,8 @@ const handleTrashDrop = (event: DragEvent) => {
 const isSelecting = ref(false)
 const selectionStart = ref({ x: 0, y: 0 })
 const selectionEnd = ref({ x: 0, y: 0 })
-const selectedItemIds = ref<Set<string>>(new Set())
-const initialSelectedIds = ref<Set<string>>(new Set())
+const selectedItemIds = ref<Set<number>>(new Set())
+const initialSelectedIds = ref<Set<number>>(new Set())
 
 // 多选框相关方法
 const startSelection = (event: MouseEvent) => {

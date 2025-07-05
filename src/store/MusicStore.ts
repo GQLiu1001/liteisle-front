@@ -384,6 +384,59 @@ export const useMusicStore = defineStore('music', () => {
     }
   }
 
+  const reorderPlaylists = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+    
+    const playlistsArray = [...playlists.value]
+    const [movedPlaylist] = playlistsArray.splice(fromIndex, 1)
+    playlistsArray.splice(toIndex, 0, movedPlaylist)
+    
+    playlists.value = playlistsArray
+  }
+
+  const deleteTrack = (trackId: string) => {
+    if (!currentPlaylist.value) return
+    
+    const trackIndex = currentPlaylist.value.tracks.findIndex(track => track.id === trackId)
+    if (trackIndex === -1) return
+    
+    // 如果删除的是当前播放的歌曲，停止播放
+    if (currentTrackIndex.value === trackIndex) {
+      stop()
+      // 如果还有其他歌曲，切换到下一首或上一首
+      if (currentPlaylist.value.tracks.length > 1) {
+        if (trackIndex < currentPlaylist.value.tracks.length - 1) {
+          // 切换到下一首
+          setCurrentTrack(trackIndex)
+        } else {
+          // 切换到上一首
+          setCurrentTrack(trackIndex - 1)
+        }
+      }
+    } else if (currentTrackIndex.value > trackIndex) {
+      // 如果删除的歌曲在当前播放歌曲之前，需要调整索引
+      currentTrackIndex.value--
+    }
+    
+    // 删除歌曲
+    currentPlaylist.value.tracks.splice(trackIndex, 1)
+  }
+
+  const deletePlaylist = (playlistId: string) => {
+    const playlistIndex = playlists.value.findIndex(playlist => playlist.id === playlistId)
+    if (playlistIndex === -1) return
+    
+    // 如果删除的是当前播放列表，停止播放并清除当前播放列表
+    if (currentPlaylist.value?.id === playlistId) {
+      stop()
+      currentPlaylist.value = null
+      currentTrackIndex.value = 0
+    }
+    
+    // 删除播放列表
+    playlists.value.splice(playlistIndex, 1)
+  }
+
   // 初始化Mock数据
   const initializeMockData = () => {
     const mockPlaylists: Playlist[] = [
@@ -754,6 +807,9 @@ export const useMusicStore = defineStore('music', () => {
     setSearchQuery,
     formatTime,
     reorderTracks,
+    reorderPlaylists,
+    deleteTrack,
+    deletePlaylist,
     initializeMockData,
     cleanup,
     

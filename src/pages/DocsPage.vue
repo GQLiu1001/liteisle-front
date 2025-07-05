@@ -114,8 +114,13 @@
                 v-model="currentCategoriesList"
                 item-key="id"
                 class="space-y-2"
+                :animation="150"
                 ghost-class="ghost"
+                chosen-class="chosen"
+                drag-class="drag"
                 @end="onCategoryDragEnd"
+                :force-fallback="false"
+                :disabled="false"
               >
                 <template #item="{ element: category }">
                   <button
@@ -176,8 +181,14 @@
                 v-model="currentDocsList"
                 item-key="id"
                 class="space-y-1"
+                :animation="150"
                 ghost-class="ghost"
+                chosen-class="chosen"
+                drag-class="drag"
                 @start="onDragStart"
+                @end="onDocumentDragEnd"
+                :force-fallback="false"
+                :disabled="false"
               >
                 <template #item="{ element: document }">
                   <div
@@ -608,6 +619,13 @@ const onDragStart = (event: any) => {
 const onCategoryDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
     docsStore.reorderCategories(event.oldIndex, event.newIndex);
+  }
+};
+
+// 文档拖动结束事件
+const onDocumentDragEnd = (event: {oldIndex: number, newIndex: number}) => {
+  if (event.oldIndex !== event.newIndex) {
+    docsStore.reorderDocumentsInCurrentCategory(event.oldIndex, event.newIndex);
   }
 };
 

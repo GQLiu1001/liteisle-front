@@ -212,6 +212,16 @@ function hello() {
     documents.splice(newIndex, 0, movedItem);
   };
 
+  const reorderCategories = (oldIndex: number, newIndex: number) => {
+    if (oldIndex === newIndex) return;
+    
+    const categoriesArray = [...categories.value];
+    const [movedCategory] = categoriesArray.splice(oldIndex, 1);
+    categoriesArray.splice(newIndex, 0, movedCategory);
+    
+    categories.value = categoriesArray;
+  };
+
   const addDocument = (categoryId: string, document: Omit<Document, 'id'>) => {
     const newDocument: Document = {
       ...document,
@@ -291,6 +301,7 @@ function hello() {
     setCurrentCategory,
     setCurrentDocument,
     reorderDocumentsInCurrentCategory,
+    reorderCategories,
     addDocument,
     setSelectedText,
     showTranslationPopup,

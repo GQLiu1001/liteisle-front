@@ -149,13 +149,20 @@
                 v-model="currentPlaylistsList"
                 item-key="id"
                 class="space-y-2"
+                :animation="150"
                 ghost-class="ghost"
+                chosen-class="chosen"
+                drag-class="drag"
+                @start="onPlaylistDragStart"
                 @end="onPlaylistDragEnd"
+                :force-fallback="false"
+                :disabled="false"
               >
                 <template #item="{ element: playlist }">
                   <div
                     @click="selectPlaylist(playlist)"
                     @contextmenu.prevent="handlePlaylistContextMenu($event, playlist)"
+                    :data-id="playlist.id"
                     :class="[
                       'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
                       musicStore.currentPlaylist?.id === playlist.id 
@@ -240,6 +247,7 @@
                 <draggable
                   v-if="!musicStore.searchQuery"
                   v-model="currentTracksList"
+                  @start="onDragStart"
                   @end="onDragEnd"
                   item-key="id"
                   class="space-y-1"
@@ -247,18 +255,13 @@
                   ghost-class="ghost"
                   chosen-class="chosen"
                   drag-class="drag"
-                  :delay="200"
                   :force-fallback="false"
                   :disabled="false"
-                  handle=".drag-handle"
-                  :prevent-on-filter="false"
-                  filter=".no-drag"
                 >
                   <template #item="{ element: track, index }">
                     <div
-                      @click="playTrack(index)"
-                      @dblclick="playTrackImmediately(index)"
                       @contextmenu.prevent="handleTrackContextMenu($event, track)"
+                      :data-id="track.id"
                       :class="[
                         'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
                         musicStore.currentTrack?.id === track.id 
@@ -267,7 +270,7 @@
                       ]"
                     >
                       <!-- 拖动图标 -->
-                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity drag-handle cursor-move">
+                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
                         <div class="w-1 h-4 bg-morandi-400 rounded-full flex-shrink-0"></div>
                       </div>
 
@@ -292,7 +295,12 @@
                       </div>
 
                       <!-- 歌曲信息 -->
-                      <div class="flex-1 min-w-0 no-drag" @contextmenu.prevent="handleTrackContextMenu($event, track)">
+                      <div 
+                        class="flex-1 min-w-0" 
+                        @click="playTrack(index)"
+                        @dblclick="playTrackImmediately(index)"
+                        @contextmenu.prevent="handleTrackContextMenu($event, track)"
+                      >
                         <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
                         <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
                       </div>
@@ -627,6 +635,10 @@ const showRenamePlaylistDialog = ref(false)
 const renamePlaylistValue = ref('')
 const renamePlaylistInput = ref<HTMLInputElement | null>(null)
 
+// 拖拽相关
+const draggedItemId = ref<string | null>(null)
+const draggedPlaylistId = ref<string | null>(null)
+
 // 计算属性
 const filteredTracks = computed(() => {
   return musicStore.filteredTracks
@@ -635,20 +647,43 @@ const filteredTracks = computed(() => {
 // 可拖动的歌曲列表
 const currentTracksList = computed({
   get: () => musicStore.currentPlaylist?.tracks || [],
-  set: (value: TrackType[]) => {
-    if (musicStore.currentPlaylist) {
-      musicStore.currentPlaylist.tracks = value
+  set: (newTracks: TrackType[]) => {
+    if (!draggedItemId.value) return;
+
+    const oldIndex = musicStore.currentPlaylist?.tracks.findIndex((t: TrackType) => t.id === draggedItemId.value);
+    const newIndex = newTracks.findIndex((t: TrackType) => t.id === draggedItemId.value);
+
+    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
+      musicStore.reorderTracks(oldIndex, newIndex);
     }
+    
+    draggedItemId.value = null;
   }
 })
 
-// 可拖动的播放列表
+// 可拖动的播放列表  
 const currentPlaylistsList = computed({
   get: () => musicStore.playlists || [],
-  set: (value: Playlist[]) => {
-    musicStore.playlists = value
+  set: (newPlaylists: Playlist[]) => {
+    if (!draggedPlaylistId.value) return;
+
+    const oldIndex = musicStore.playlists.findIndex((p: Playlist) => p.id === draggedPlaylistId.value);
+    const newIndex = newPlaylists.findIndex((p: Playlist) => p.id === draggedPlaylistId.value);
+
+    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
+      musicStore.reorderPlaylists(oldIndex, newIndex);
+    }
+    
+    draggedPlaylistId.value = null;
   }
 })
+
+// 拖动开始事件
+const onDragStart = (event: any) => {
+  if (event.item) {
+    draggedItemId.value = event.item.dataset.id;
+  }
+};
 
 // 拖动结束事件
 const onDragEnd = (event: {oldIndex: number, newIndex: number}) => {
@@ -656,6 +691,13 @@ const onDragEnd = (event: {oldIndex: number, newIndex: number}) => {
     musicStore.reorderTracks(event.oldIndex, event.newIndex)
   }
 }
+
+// 播放列表拖动开始事件
+const onPlaylistDragStart = (event: any) => {
+  if (event.item) {
+    draggedPlaylistId.value = event.item.dataset.id;
+  }
+};
 
 // 播放列表拖动结束事件
 const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {

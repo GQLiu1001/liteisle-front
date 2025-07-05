@@ -6,6 +6,14 @@ interface DailyFocusData {
   focusMinutes: number // 当日专注时长（分钟）
 }
 
+interface UserFocusRecord {
+  id: number
+  userId: number
+  focusDate: string // yyyy-mm-dd格式
+  focusMinutes: number
+  createTime: string
+}
+
 export const useFocusStore = defineStore('focus', () => {
   // 核心状态
   const totalFocusTime = ref(360000) // 总专注时长 (100小时)

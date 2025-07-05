@@ -216,8 +216,8 @@
                         
                         <!-- 第二行：分享信息 -->
                         <div class="text-sm text-morandi-600 space-y-1">
-                          <div>分享链接: {{ share.shareLink }}</div>
-                          <div>访问密码: {{ share.password }}</div>
+                          <div>分享链接: {{ settingsStore.generateShareLink(share.shareToken) }}</div>
+                          <div>访问密码: {{ share.sharePassword }}</div>
                           <div>有效期: {{ share.expiryDate }}</div>
                           <div>分享时间: {{ share.createdAt }}</div>
                         </div>
@@ -639,7 +639,7 @@ const checkForUpdates = async () => {
 };
 
 // 取消分享
-const cancelShare = (shareId: string) => {
+const cancelShare = (shareId: number) => {
   if (confirm('确定要取消这个分享吗？')) {
     const success = settingsStore.cancelShare(shareId);
     if (success) {
@@ -650,33 +650,14 @@ const cancelShare = (shareId: string) => {
   }
 };
 
-// 复制到剪贴板
-const copyToClipboard = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    alert('已复制到剪贴板');
-  } catch (error) {
-    // 降级方案：使用传统的复制方法
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('已复制到剪贴板');
-    } catch (fallbackError) {
-      alert('复制失败，请手动复制');
-    }
-  }
-};
-
 // 一键复制分享信息
 const copyShareInfo = async (share: any) => {
-  const shareText = `分享链接: ${share.shareLink}\n访问密码: ${share.password}`;
-  await copyToClipboard(shareText);
+  const success = await settingsStore.copyShareInfo(share.shareToken, share.sharePassword);
+  if (success) {
+    alert('分享信息已复制到剪贴板');
+  } else {
+    alert('复制失败');
+  }
 };
 
 // 初始化专注记录
