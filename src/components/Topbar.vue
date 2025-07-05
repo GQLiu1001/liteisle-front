@@ -33,7 +33,14 @@
           class="absolute left-1/2 -translate-x-1/2 top-12 w-32 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 z-50"
         >
           <button 
-            @click="logout"
+            @click="goToAccountSettings"
+            class="w-full px-4 py-2 hover:bg-morandi-50 flex items-center justify-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
+          >
+            <Settings :size="16" />
+            <span>详情</span>
+          </button>
+          <button 
+            @click="handleLogout"
             class="w-full px-4 py-2 hover:bg-morandi-50 flex items-center justify-center gap-2 text-morandi-700 hover:text-red-600 transition-colors"
           >
             <LogOut :size="16" />
@@ -61,14 +68,18 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { PenTool, User, Minus, Square, X, LogOut } from 'lucide-vue-next'
+import { PenTool, User, Minus, Square, X, LogOut, Settings } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'
+import { useAuthStore } from '@/store/AuthStore'
+import { useSettingsStore } from '@/store/SettingsStore'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const focusStore = useFocusStore()
 const uiStore = useUIStore()
+const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 const { isFocusing } = storeToRefs(focusStore)
 
 // 用户菜单状态
@@ -88,17 +99,32 @@ const toggleUserMenu = (event: Event) => {
   showUserMenu.value = !showUserMenu.value
 }
 
-// 退出登录
-const logout = () => {
-  // 清空本地存储
-  localStorage.removeItem('isLoggedIn')
-  localStorage.removeItem('username')
-  
+// 跳转到账户设置
+const goToAccountSettings = () => {
   // 关闭菜单
   showUserMenu.value = false
   
-  // 跳转到登录页
-  router.push({ name: 'login' })
+  // 设置当前分类为账户与云盘
+  settingsStore.setCurrentCategoryId('account')
+  
+  // 跳转到设置页面
+  router.push({ name: 'settings' })
+}
+
+// 退出登录
+const handleLogout = async () => {
+  try {
+    // 关闭菜单
+    showUserMenu.value = false
+    
+    // 调用认证存储的注销方法
+    await authStore.logout()
+    
+    // 跳转到登录页
+    router.push({ name: 'login' })
+  } catch (error) {
+    console.error('注销失败:', error)
+  }
 }
 
 // 处理全局点击事件，关闭菜单

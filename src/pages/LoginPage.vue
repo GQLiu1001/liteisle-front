@@ -66,7 +66,7 @@
         </div>
 
         <!-- 登录表单 -->
-        <form v-if="activeTab === 'login'" @submit.prevent="handleLogin" class="space-y-6">
+        <form v-if="activeTab === 'login'" @submit.prevent="handleLogin" class="space-y-3">
           <!-- 用户名输入框 -->
           <div>
             <label for="login-username" class="block text-sm font-medium text-morandi-700 mb-2">用户名</label>
@@ -125,7 +125,7 @@
         </form>
 
         <!-- 注册表单 -->
-        <form v-if="activeTab === 'register'" @submit.prevent="handleRegister" class="space-y-6">
+        <form v-if="activeTab === 'register'" @submit.prevent="handleRegister" class="space-y-2">
           <!-- 用户名输入框 -->
           <div>
             <label for="register-username" class="block text-sm font-medium text-morandi-700 mb-2">用户名</label>
@@ -204,16 +204,16 @@
         </form>
 
         <!-- 忘记密码表单 -->
-        <form v-if="activeTab === 'forgot'" @submit.prevent="handleForgotPassword" class="space-y-6">
+        <form v-if="activeTab === 'forgot'" @submit.prevent="handleForgotPassword" class="space-y-2">
           <!-- 用户名输入框 -->
           <div>
-            <label for="forgot-username" class="block text-sm font-medium text-morandi-700 mb-2">用户名</label>
+            <label for="forgot-username" class="block text-sm font-medium text-morandi-700 mb-1">用户名</label>
             <input
               id="forgot-username"
               v-model="forgotForm.username"
               type="text"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              class="w-full px-4 py-2.5 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入用户名"
               style="user-select: text !important;"
             />
@@ -221,13 +221,13 @@
 
           <!-- 邮箱输入框 -->
           <div>
-            <label for="forgot-email" class="block text-sm font-medium text-morandi-700 mb-2">邮箱</label>
+            <label for="forgot-email" class="block text-sm font-medium text-morandi-700 mb-1">邮箱</label>
             <input
               id="forgot-email"
               v-model="forgotForm.email"
               type="email"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              class="w-full px-4 py-2.5 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入邮箱地址"
               style="user-select: text !important;"
             />
@@ -235,14 +235,14 @@
 
           <!-- 邮箱验证码 -->
           <div>
-            <label for="forgot-code" class="block text-sm font-medium text-morandi-700 mb-2">邮箱验证码</label>
-            <div class="flex gap-3">
+            <label for="forgot-code" class="block text-sm font-medium text-morandi-700 mb-1">邮箱验证码</label>
+            <div class="flex gap-2">
               <input
                 id="forgot-code"
                 v-model="forgotForm.verificationCode"
                 type="text"
                 required
-                class="flex-1 px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+                class="flex-1 px-4 py-2.5 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
                 placeholder="请输入验证码"
                 style="user-select: text !important;"
               />
@@ -250,7 +250,7 @@
                 type="button"
                 @click="sendForgotCode"
                 :disabled="isCodeLoading || forgotCodeCountdown > 0 || !forgotForm.email"
-                class="px-4 py-3 bg-morandi-500 hover:bg-morandi-600 disabled:bg-morandi-300 text-white text-sm rounded-xl transition-colors duration-200"
+                class="px-3 py-2.5 bg-morandi-500 hover:bg-morandi-600 disabled:bg-morandi-300 text-white text-xs rounded-xl transition-colors duration-200 whitespace-nowrap"
               >
                 {{ forgotCodeCountdown > 0 ? `${forgotCodeCountdown}s` : (isCodeLoading ? '发送中...' : '获取验证码') }}
               </button>
@@ -259,13 +259,13 @@
 
           <!-- 新密码输入框 -->
           <div>
-            <label for="forgot-new-password" class="block text-sm font-medium text-morandi-700 mb-2">新密码</label>
+            <label for="forgot-new-password" class="block text-sm font-medium text-morandi-700 mb-1">新密码</label>
             <input
               id="forgot-new-password"
               v-model="forgotForm.newPassword"
               type="password"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              class="w-full px-4 py-2.5 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请输入新密码"
               style="user-select: text !important;"
             />
@@ -273,13 +273,13 @@
 
           <!-- 确认密码输入框 -->
           <div>
-            <label for="forgot-confirm-password" class="block text-sm font-medium text-morandi-700 mb-2">确认密码</label>
+            <label for="forgot-confirm-password" class="block text-sm font-medium text-morandi-700 mb-1">确认密码</label>
             <input
               id="forgot-confirm-password"
               v-model="forgotForm.confirmPassword"
               type="password"
               required
-              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              class="w-full px-4 py-2.5 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
               placeholder="请再次输入新密码"
               style="user-select: text !important;"
             />
@@ -289,18 +289,12 @@
           <button
             type="submit"
             :disabled="authStore.isLoading"
-            class="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-morandi-300 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center"
+            class="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-morandi-300 text-white font-medium py-2.5 px-4 rounded-xl transition-colors duration-200 flex items-center justify-center"
           >
-            <Loader2 v-if="authStore.isLoading" :size="20" class="animate-spin mr-2" />
+            <Loader2 v-if="authStore.isLoading" :size="18" class="animate-spin mr-2" />
             {{ authStore.isLoading ? '重置中...' : '重置密码' }}
           </button>
 
-          <!-- 提示信息 -->
-          <div class="text-center">
-            <p class="text-sm text-morandi-600">
-              重置密码后，新密码将发送到您的邮箱
-            </p>
-          </div>
         </form>
       </div>
     </div>
