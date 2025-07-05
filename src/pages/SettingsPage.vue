@@ -111,6 +111,34 @@
               </div>
             </div>
             
+            <!-- 登录会话信息 -->
+            <div class="mb-6 w-full max-w-sm">
+              <div class="flex items-center justify-center gap-2 mb-3">
+                <Clock :size="20" class="text-morandi-600" />
+                <h4 class="font-medium text-morandi-900">登录会话</h4>
+              </div>
+              
+              <div class="space-y-3">
+                <!-- Token 信息 -->
+                <div class="bg-teal-50 rounded-lg p-3">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-teal-700">会话剩余时间</span>
+                    <span class="font-medium text-teal-900">{{ authStore.tokenRemainingText }}</span>
+                  </div>
+                  <div class="text-xs text-teal-600">
+                    桌面端应用 (30天有效期)
+                  </div>
+                </div>
+                
+                <!-- 会话说明 -->
+                <div class="text-xs text-morandi-500 text-center bg-morandi-100 rounded-lg p-2">
+                  <div class="font-medium mb-1">🔐 会话管理</div>
+                  <div>桌面端应用自动保持30天登录状态</div>
+                  <div>会话过期后需要重新登录</div>
+                </div>
+              </div>
+            </div>
+            
             <!-- 操作按钮 -->
             <div class="flex gap-3">
               <button 
@@ -294,7 +322,7 @@ import { useSettingsStore } from '@/store/SettingsStore';
 import { useFocusStore } from '@/store/FocusStore';
 import { useAuthStore } from '@/store/AuthStore';
 import { ref, computed, onMounted } from 'vue';
-import { User, HardDrive, FileText } from 'lucide-vue-next';
+import { User, HardDrive, FileText, Clock } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
 const focusStore = useFocusStore();

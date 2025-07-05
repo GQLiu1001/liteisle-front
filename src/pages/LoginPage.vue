@@ -95,16 +95,7 @@
             />
           </div>
 
-          <!-- 记住登录状态 -->
-          <div class="flex items-center">
-            <input
-              id="remember"
-              v-model="loginForm.remember"
-              type="checkbox"
-              class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-morandi-300 rounded"
-            />
-            <label for="remember" class="ml-2 block text-sm text-morandi-700">记住登录状态</label>
-          </div>
+
 
           <!-- 登录按钮 -->
           <button
@@ -316,8 +307,7 @@ const activeTab = ref<'login' | 'register' | 'forgot'>('login')
 // 表单数据
 const loginForm = reactive({
   username: '',
-  password: '',
-  remember: false
+  password: ''
 })
 
 const registerForm = reactive({
@@ -367,8 +357,7 @@ const handleLogin = async () => {
     await authStore.login({
       email: loginForm.username, // 可以是邮箱或用户名
       password: loginForm.password,
-      username: loginForm.username,
-      remember: loginForm.remember
+      username: loginForm.username
     })
     
     // 登录成功，跳转到首页

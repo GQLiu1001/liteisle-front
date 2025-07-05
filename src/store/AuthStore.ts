@@ -14,7 +14,6 @@ interface LoginRequest {
   email: string
   password: string
   username?: string
-  remember?: boolean
 }
 
 interface RegisterRequest {
@@ -46,6 +45,7 @@ interface AuthResponse {
   refreshToken?: string
   user?: User
   expiresIn?: number
+  refreshTokenExpiresIn?: number
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -53,8 +53,29 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
   const user = ref<User | null>(null)
   const isLoading = ref(false)
+  const tokenExpiresAt = ref<number | null>(null)
   
   const isAuthenticated = computed(() => !!token.value && !!user.value)
+  
+  // 计算token剩余时间（分钟）
+  const tokenRemainingMinutes = computed(() => {
+    if (!tokenExpiresAt.value) return null
+    const now = Date.now()
+    const remaining = tokenExpiresAt.value - now
+    return remaining > 0 ? Math.floor(remaining / (1000 * 60)) : 0
+  })
+  
+  // 格式化剩余时间显示
+  const tokenRemainingText = computed(() => {
+    const minutes = tokenRemainingMinutes.value
+    if (minutes === null) return '未知'
+    if (minutes === 0) return '已过期'
+    if (minutes < 60) return `${minutes}分钟`
+    if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}小时`
+    return `${Math.floor(minutes / (24 * 60))}天`
+  })
+  
+
   
   const convertSnakeToCamel = (obj: any): any => {
     if (Array.isArray(obj)) {
@@ -91,8 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
       try {
         const apiCredentials = convertCamelToSnake({
           email: credentials.email,
-          password: credentials.password,
-          remember: credentials.remember
+          password: credentials.password
         })
         
         const response = await authAPI.login(apiCredentials)
@@ -111,6 +131,9 @@ export const useAuthStore = defineStore('auth', () => {
         
         const usernameOrEmail = credentials.username || credentials.email
         if (usernameOrEmail === 'admin' && credentials.password === '123456') {
+          // 桌面端应用 - 固定30天有效期
+          const tokenExpiresIn = 30 * 24 * 3600 // 30天
+          
           const mockResponse: AuthResponse = {
             success: true,
             message: '登录成功',
@@ -119,7 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
               username: 'admin',
               email: 'admin@example.com',
               token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
-              expiresIn: 3600
+              expiresIn: tokenExpiresIn
             },
             token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
             refreshToken: 'refresh_token_demo_123',
@@ -128,7 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
               username: 'admin',
               email: 'admin@example.com'
             },
-            expiresIn: 3600
+            expiresIn: tokenExpiresIn
           }
           setAuthData(mockResponse)
         } else {
@@ -256,9 +279,14 @@ export const useAuthStore = defineStore('auth', () => {
       email: authData.data?.email || ''
     }
     
+    // 计算token过期时间
+    const expiresIn = authData.expiresIn || authData.data?.expiresIn || 3600
+    const expiresAt = Date.now() + (expiresIn * 1000)
+    
     token.value = accessToken
     refreshToken.value = refreshTokenValue || null
     user.value = userData
+    tokenExpiresAt.value = expiresAt
     
     if (accessToken) {
       localStorage.setItem('access_token', accessToken)
@@ -267,16 +295,19 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('refresh_token', refreshTokenValue)
     }
     localStorage.setItem('user_info', JSON.stringify(userData))
+    localStorage.setItem('token_expires_at', expiresAt.toString())
   }
   
   const clearAuthData = () => {
     token.value = null
     refreshToken.value = null
     user.value = null
+    tokenExpiresAt.value = null
     
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_info')
+    localStorage.removeItem('token_expires_at')
     localStorage.removeItem('isLoggedIn')
     localStorage.removeItem('username')
   }
@@ -284,11 +315,19 @@ export const useAuthStore = defineStore('auth', () => {
   const initializeAuth = async () => {
     const savedToken = localStorage.getItem('access_token')
     const savedUserInfo = localStorage.getItem('user_info')
+    const savedExpiresAt = localStorage.getItem('token_expires_at')
     
     if (savedToken && savedUserInfo) {
       try {
         user.value = JSON.parse(savedUserInfo)
         token.value = savedToken
+        tokenExpiresAt.value = savedExpiresAt ? parseInt(savedExpiresAt) : null
+        
+        // 检查token是否过期
+        if (tokenExpiresAt.value && Date.now() > tokenExpiresAt.value) {
+          console.log('Token已过期，清除认证数据')
+          clearAuthData()
+        }
       } catch (error) {
         clearAuthData()
       }
@@ -300,6 +339,9 @@ export const useAuthStore = defineStore('auth', () => {
     user: computed(() => user.value),
     isAuthenticated,
     isLoading: computed(() => isLoading.value),
+    tokenRemainingMinutes: computed(() => tokenRemainingMinutes.value),
+    tokenRemainingText: computed(() => tokenRemainingText.value),
+
     login,
     register,
     forgotPassword,
