@@ -155,4 +155,8 @@ declare module 'lucide-vue-next' {
   export const CalendarX: any
   export const CalendarCheck: any
   export const CloudLightning: any
+  export const Share2: any
+  export const Share: any
+  export const Lock: any
+  
 } 

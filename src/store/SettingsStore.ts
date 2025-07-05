@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
-import { Settings, User, FileText, Clock } from 'lucide-vue-next'
+import { Settings, User, FileText, Clock, Share2 } from 'lucide-vue-next'
 
 // 设置接口定义
 interface AppSettings {
@@ -36,6 +36,18 @@ export interface SettingCategory {
   icon: any
 }
 
+export interface ShareItem {
+  id: string
+  name: string
+  type: 'file' | 'folder'
+  shareLink: string
+  password: string
+  expiryDate: string
+  status: 'active' | 'expired' | 'disabled'
+  createdAt: string
+  accessCount: number
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   // 状态
   const currentCategoryId = ref('general')
@@ -65,6 +77,43 @@ export const useSettingsStore = defineStore('settings', () => {
     total: 5    // 总容量 5GB
   })
 
+  // 分享数据
+  const shareItems = ref<ShareItem[]>([
+    {
+      id: 'share-1',
+      name: '4coding',
+      type: 'folder',
+      shareLink: 'https://liteisle.com/share/abc123',
+      password: 'xyz789',
+      expiryDate: '2025/04/25',
+      status: 'active',
+      createdAt: '2025/04/25 11:22',
+      accessCount: 17
+    },
+    {
+      id: 'share-2', 
+      name: '4coding',
+      type: 'folder',
+      shareLink: 'https://liteisle.com/share/def456',
+      password: 'abc123',
+      expiryDate: '2025/03/19',
+      status: 'active',
+      createdAt: '2025/03/19 15:08',
+      accessCount: 0
+    },
+    {
+      id: 'share-3',
+      name: '4coding',
+      type: 'folder', 
+      shareLink: 'https://liteisle.com/share/ghi789',
+      password: 'def456',
+      expiryDate: '2025/03/11',
+      status: 'active',
+      createdAt: '2025/03/11 21:41',
+      accessCount: 3
+    }
+  ])
+
   // 设置分类
   const categories = ref<SettingCategory[]>([
     {
@@ -78,6 +127,12 @@ export const useSettingsStore = defineStore('settings', () => {
       name: '账户与云盘',
       description: '账户信息和云盘管理',
       icon: shallowRef(User)
+    },
+    {
+      id: 'shares',
+      name: '我的分享',
+      description: '分享文件管理',
+      icon: shallowRef(Share2)
     },
     {
       id: 'focus',
@@ -155,12 +210,22 @@ export const useSettingsStore = defineStore('settings', () => {
     })
   }
 
+  const cancelShare = (shareId: string) => {
+    const index = shareItems.value.findIndex(item => item.id === shareId)
+    if (index > -1) {
+      shareItems.value.splice(index, 1)
+      return true
+    }
+    return false
+  }
+
   return {
     // 状态
     currentCategoryId,
     settings,
     cloudStorage,
     categories,
+    shareItems,
     
     // 计算属性
     currentCategory,
@@ -172,6 +237,7 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings,
     logout,
     checkForUpdates,
-    changePassword
+    changePassword,
+    cancelShare
   }
 }) 

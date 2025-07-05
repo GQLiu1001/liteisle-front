@@ -157,6 +157,77 @@
               </div>
             </div>
 
+            <!-- 我的分享 -->
+            <div v-else-if="settingsStore.currentCategoryId === 'shares'" class="h-full flex flex-col">
+              <h3 class="text-xl font-bold text-morandi-900 mb-6 flex-shrink-0">我的分享</h3>
+              
+              <!-- 分享列表 -->
+              <div class="space-y-4 flex-1">
+                <!-- 列表容器 -->
+                <div 
+                  class="bg-transparent rounded-lg h-full overflow-y-auto"
+                >
+                  <div v-if="settingsStore.shareItems.length === 0" class="p-8 text-center text-morandi-500">
+                    暂无分享记录
+                  </div>
+                  <div v-else class="space-y-3">
+                    <div 
+                      v-for="share in settingsStore.shareItems" 
+                      :key="share.id"
+                      class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
+                    >
+                      <div class="flex flex-col">
+                        <!-- 第一行：文件名、标签和操作按钮 -->
+                        <div class="flex items-center justify-between mb-2">
+                          <div class="flex items-center gap-3">
+                            <div class="text-sm font-medium text-morandi-900">
+                              {{ share.name }}
+                            </div>
+                            <div class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {{ share.type === 'folder' ? '文件夹' : '文件' }}
+                            </div>
+                            <div 
+                              :class="[
+                                'px-2 py-1 text-xs rounded-full',
+                                share.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                share.status === 'expired' ? 'bg-red-100 text-red-800' : 
+                                'bg-gray-100 text-gray-800'
+                              ]"
+                            >
+                              {{ share.status === 'active' ? '永久有效' : 
+                                  share.status === 'expired' ? '已过期' : '已禁用' }}
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <button 
+                              @click="copyShareInfo(share)"
+                              class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                            >
+                              一键复制
+                            </button>
+                            <button 
+                              @click="cancelShare(share.id)"
+                              class="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            >
+                              取消分享
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <!-- 第二行：分享信息 -->
+                        <div class="text-sm text-morandi-600 space-y-1">
+                          <div>分享链接: {{ share.shareLink }}</div>
+                          <div>访问密码: {{ share.password }}</div>
+                          <div>有效期: {{ share.expiryDate }}</div>
+                          <div>分享时间: {{ share.createdAt }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 专注记录 -->
             <div v-else-if="settingsStore.currentCategoryId === 'focus'" class="h-full flex flex-col">
               <h3 class="text-xl font-bold text-morandi-900 mb-6 flex-shrink-0">专注记录</h3>
@@ -565,6 +636,47 @@ const checkForUpdates = async () => {
   } finally {
     isCheckingUpdates.value = false;
   }
+};
+
+// 取消分享
+const cancelShare = (shareId: string) => {
+  if (confirm('确定要取消这个分享吗？')) {
+    const success = settingsStore.cancelShare(shareId);
+    if (success) {
+      alert('分享已取消');
+    } else {
+      alert('取消分享失败');
+    }
+  }
+};
+
+// 复制到剪贴板
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('已复制到剪贴板');
+  } catch (error) {
+    // 降级方案：使用传统的复制方法
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('已复制到剪贴板');
+    } catch (fallbackError) {
+      alert('复制失败，请手动复制');
+    }
+  }
+};
+
+// 一键复制分享信息
+const copyShareInfo = async (share: any) => {
+  const shareText = `分享链接: ${share.shareLink}\n访问密码: ${share.password}`;
+  await copyToClipboard(shareText);
 };
 
 // 初始化专注记录
