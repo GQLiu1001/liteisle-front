@@ -625,6 +625,7 @@ import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
 import type { Track as TrackType } from '../store/MusicStore'
 import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 const musicStore = useMusicStore()
 const driveStore = useDriveStore()
@@ -662,6 +663,9 @@ const draggedPlaylistId = ref<string | null>(null)
 // 进度条拖拽相关
 const isDragging = ref(false)
 const dragStartTime = ref(0)
+
+// 从 store 解构进度百分比（保持与底栏同步）
+const { progressPercentage } = storeToRefs(musicStore)
 
 // 计算属性
 const filteredTracks = computed(() => {
@@ -729,11 +733,6 @@ const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
     musicStore.reorderPlaylists(event.oldIndex, event.newIndex)
   }
 }
-
-const progressPercentage = computed(() => {
-  if (musicStore.duration === 0) return 0
-  return (musicStore.currentTime / musicStore.duration) * 100
-})
 
 // 方法
 const selectPlaylist = (playlist: any) => {
@@ -820,7 +819,13 @@ const loadMusicFromDrive = () => {
 onMounted(() => {
   loadMusicFromDrive()
   const { playlist, song } = route.query
-  if (playlist && song && typeof playlist === 'string' && typeof song === 'string') {
+  // 只有没有当前播放才根据 query 设置当前播放，否则保持现有播放状态（不重置进度）
+  if (
+    playlist && song &&
+    typeof playlist === 'string' &&
+    typeof song === 'string' &&
+    (!musicStore.currentTrack || musicStore.currentTrackInfo.name !== song)
+  ) {
     musicStore.playSongFromDrive(playlist, song)
   }
 })

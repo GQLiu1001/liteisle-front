@@ -72,6 +72,12 @@ export const useMusicStore = defineStore('music', () => {
     return currentTrack.value
   })
 
+  // 新增：播放进度百分比
+  const progressPercentage = computed(() => {
+    if (duration.value === 0) return 0
+    return (currentTime.value / duration.value) * 100
+  })
+
   // 定时器管理
   const startPlayTimer = () => {
     if (playTimer) {
@@ -282,8 +288,9 @@ export const useMusicStore = defineStore('music', () => {
     
     playlists.value = newPlaylists
     
-    // 设置第一个播放列表为当前播放列表
-    if (newPlaylists.length > 0) {
+    // 如果当前尚未选择播放列表，则默认选中第一个播放列表，
+    // 避免覆盖正在播放的列表/歌曲导致进度被重置
+    if (!currentPlaylist.value && newPlaylists.length > 0) {
       setCurrentPlaylist(newPlaylists[0])
     }
   }
@@ -820,6 +827,7 @@ export const useMusicStore = defineStore('music', () => {
     currentTrack,
     filteredTracks,
     currentTrackInfo,
+    progressPercentage,
     
     // 方法
     togglePlay,
