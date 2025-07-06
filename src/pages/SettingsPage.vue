@@ -76,13 +76,39 @@
             <!-- 账户与云盘设置 -->
             <div v-else-if="settingsStore.currentCategoryId === 'account'" class="h-full flex flex-col items-center justify-center text-center">
               <!-- 用户头像 -->
-              <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center">
-                <User :size="40" class="text-teal-600" />
+              <div class="relative mb-4 group">
+                <div 
+                  @click="triggerFileSelect"
+                  class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-teal-200 transition-colors relative overflow-hidden"
+                >
+                  <img 
+                    v-if="authStore.user?.picture" 
+                    :src="authStore.user.picture" 
+                    alt="用户头像" 
+                    class="w-full h-full object-cover"
+                  />
+                  <User v-else :size="40" class="text-teal-600" />
+                  
+                  <!-- 悬浮提示 -->
+                  <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Upload :size="24" class="text-white" />
+                  </div>
+                </div>
+                
+                <!-- 文件输入框 -->
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="handleFileChange"
+                  class="hidden"
+                />
               </div>
               
               <!-- 用户名和邮箱 -->
               <h3 class="text-xl font-bold text-morandi-900 mb-2">{{ settingsStore.settings.username }}</h3>
-              <p class="text-sm text-morandi-500 mb-6">{{ authStore.user?.email || 'admin@example.com' }}</p>
+              <p class="text-sm text-morandi-500 mb-2">{{ authStore.user?.email || 'admin@example.com' }}</p>
+              <p class="text-xs text-morandi-400 mb-6">点击头像更换头像</p>
               
               <!-- 云盘容量信息 -->
               <div class="mb-6 w-full max-w-sm">
@@ -147,6 +173,13 @@
                   class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
                 >
                   修改密码
+                </button>
+                <button 
+                  v-if="authStore.user?.picture"
+                  @click="resetUserPicture"
+                  class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                >
+                  恢复默认头像
                 </button>
                 <button 
                   @click="handleLogout"
@@ -378,7 +411,7 @@ import { useSettingsStore } from '@/store/SettingsStore';
 import { useFocusStore } from '@/store/FocusStore';
 import { useAuthStore } from '@/store/AuthStore';
 import { ref, computed, onMounted } from 'vue';
-import { User, HardDrive, FileText, Clock } from 'lucide-vue-next';
+import { User, HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
 const focusStore = useFocusStore();
@@ -399,6 +432,62 @@ const isChangingPassword = ref(false);
 
 // 检查更新状态
 const isCheckingUpdates = ref(false);
+
+// 头像上传相关
+const fileInput = ref<HTMLInputElement | null>(null);
+
+// 触发文件选择
+const triggerFileSelect = () => {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+};
+
+// 处理文件选择
+const handleFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  
+  if (file) {
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件');
+      return;
+    }
+    
+    // 验证文件大小 (最大5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片文件大小不能超过5MB');
+      return;
+    }
+    
+    try {
+      await authStore.updateUserPicture(file);
+      alert('头像更新成功');
+    } catch (error) {
+      alert('头像更新失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    }
+    
+    // 清空文件输入框
+    target.value = '';
+  }
+};
+
+// 重置用户头像
+const resetUserPicture = async () => {
+  if (confirm('确定要恢复默认头像吗？')) {
+    try {
+      // 更新用户信息，清空头像
+      if (authStore.user) {
+        authStore.user.picture = undefined;
+        localStorage.setItem('user_info', JSON.stringify(authStore.user));
+        alert('头像已重置');
+      }
+    } catch (error) {
+      alert('重置头像失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  }
+};
 
 // 退出登录处理 - 与顶部栏注销功能一样
 const handleLogout = () => {

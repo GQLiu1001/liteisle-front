@@ -143,6 +143,15 @@ export const authAPI = {
   // 获取当前用户信息
   getCurrentUser: () => {
     return get('/v1/auth/me')
+  },
+  
+  // 更新用户头像
+  updateUserPicture: (formData: FormData) => {
+    return post('/v1/auth/me/picture', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }
 

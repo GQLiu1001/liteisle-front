@@ -23,8 +23,14 @@
     <div class="flex items-center gap-4">
       <!-- 用户头像下拉菜单 -->
       <div class="relative user-menu" @click="toggleUserMenu">
-        <div class="w-10 h-10 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors">
-          <User :size="20" class="text-morandi-600" />
+        <div class="w-10 h-10 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors overflow-hidden">
+          <img 
+            v-if="authStore.user?.picture" 
+            :src="authStore.user.picture" 
+            alt="用户头像" 
+            class="w-full h-full object-cover"
+          />
+          <User v-else :size="20" class="text-morandi-600" />
         </div>
         
         <!-- 下拉菜单 -->

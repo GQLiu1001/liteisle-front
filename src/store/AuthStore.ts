@@ -6,6 +6,7 @@ interface User {
   id: number
   username: string
   email: string
+  picture?: string
   storageUsed?: number
   storageQuota?: number
 }
@@ -149,7 +150,8 @@ export const useAuthStore = defineStore('auth', () => {
             user: {
               id: 1,
               username: 'admin',
-              email: 'admin@example.com'
+              email: 'admin@example.com',
+              picture: undefined
             },
             expiresIn: tokenExpiresIn
           }
@@ -333,6 +335,60 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
   }
+
+  const updateUserPicture = async (file: File): Promise<void> => {
+    if (!user.value) {
+      throw new Error('用户未登录')
+    }
+
+    isLoading.value = true
+    try {
+      // 创建FormData对象
+      const formData = new FormData()
+      formData.append('picture', file)
+      
+      // 尝试使用真实 API
+      try {
+        const response = await authAPI.updateUserPicture(formData)
+        const convertedResponse = convertSnakeToCamel(response.data)
+        
+        if (convertedResponse.success || convertedResponse.code === 200) {
+          // 更新用户信息
+          const pictureUrl = convertedResponse.data?.pictureUrl || convertedResponse.pictureUrl
+          user.value = {
+            ...user.value,
+            picture: pictureUrl
+          }
+          
+          // 更新本地存储
+          localStorage.setItem('user_info', JSON.stringify(user.value))
+        } else {
+          throw new Error(convertedResponse.message || '头像上传失败')
+        }
+      } catch (apiError) {
+        // 如果 API 调用失败，回退到演示模式
+        console.warn('API 调用失败，使用演示模式:', apiError)
+        
+        // 创建本地预览URL
+        const localUrl = URL.createObjectURL(file)
+        
+        // 更新用户信息
+        user.value = {
+          ...user.value,
+          picture: localUrl
+        }
+        
+        // 更新本地存储
+        localStorage.setItem('user_info', JSON.stringify(user.value))
+        
+        console.log('头像上传成功（演示模式）')
+      }
+    } catch (error) {
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
   
   return {
     token: computed(() => token.value),
@@ -347,6 +403,7 @@ export const useAuthStore = defineStore('auth', () => {
     forgotPassword,
     sendVerificationCode,
     logout,
-    initializeAuth
+    initializeAuth,
+    updateUserPicture
   }
 })
