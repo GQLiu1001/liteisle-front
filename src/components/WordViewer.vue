@@ -91,15 +91,23 @@
                 
                 <div class="mb-6">
                   <h2 class="text-xl font-semibold mb-3 text-blue-700">主要特性</h2>
-                  <div class="border border-gray-300 rounded p-4 bg-blue-50">
-                    <h3 class="font-medium mb-2 text-blue-800">📝 格式支持</h3>
-                    <p class="text-sm text-blue-700 mb-3">支持Word文档的基本格式显示</p>
-                    
-                    <h3 class="font-medium mb-2 text-blue-800">🔍 文本操作</h3>
-                    <p class="text-sm text-blue-700 mb-3">支持文本选择、复制和翻译功能</p>
-                    
-                    <h3 class="font-medium mb-2 text-blue-800">⌨️ 快捷键</h3>
-                    <p class="text-sm text-blue-700">支持键盘快捷键操作</p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border border-gray-300 rounded p-4 bg-blue-50">
+                      <h3 class="font-medium mb-2 text-blue-800">📝 格式支持</h3>
+                      <p class="text-sm text-blue-700 mb-3">支持Word文档的基本格式显示，保持A4标准比例</p>
+                    </div>
+                    <div class="border border-gray-300 rounded p-4 bg-green-50">
+                      <h3 class="font-medium mb-2 text-green-800">🔍 文本操作</h3>
+                      <p class="text-sm text-green-700 mb-3">支持文本选择、复制和翻译功能</p>
+                    </div>
+                    <div class="border border-gray-300 rounded p-4 bg-yellow-50">
+                      <h3 class="font-medium mb-2 text-yellow-800">⌨️ 快捷键</h3>
+                      <p class="text-sm text-yellow-700">支持键盘快捷键操作，提高使用效率</p>
+                    </div>
+                    <div class="border border-gray-300 rounded p-4 bg-purple-50">
+                      <h3 class="font-medium mb-2 text-purple-800">📄 标准格式</h3>
+                      <p class="text-sm text-purple-700">保持标准A4文档比例和布局</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -114,25 +122,29 @@
                     如Microsoft Office Online、OnlyOffice等，以实现完整的Word文档渲染。
                   </p>
                   
-                  <table class="w-full border-collapse border border-gray-300 mb-4">
+                  <table class="w-full border-collapse border border-gray-300 mb-4 text-sm">
                     <thead>
                       <tr class="bg-gray-100">
-                        <th class="border border-gray-300 p-3 text-left">功能</th>
-                        <th class="border border-gray-300 p-3 text-left">支持情况</th>
+                        <th class="border border-gray-300 p-2 text-left">功能</th>
+                        <th class="border border-gray-300 p-2 text-left">支持情况</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td class="border border-gray-300 p-3">文本显示</td>
-                        <td class="border border-gray-300 p-3">✅ 支持</td>
+                        <td class="border border-gray-300 p-2">文本显示</td>
+                        <td class="border border-gray-300 p-2">✅ 完全支持</td>
                       </tr>
                       <tr>
-                        <td class="border border-gray-300 p-3">图片显示</td>
-                        <td class="border border-gray-300 p-3">⚠️ 部分支持</td>
+                        <td class="border border-gray-300 p-2">图片显示</td>
+                        <td class="border border-gray-300 p-2">⚠️ 部分支持</td>
                       </tr>
                       <tr>
-                        <td class="border border-gray-300 p-3">表格显示</td>
-                        <td class="border border-gray-300 p-3">✅ 支持</td>
+                        <td class="border border-gray-300 p-2">表格显示</td>
+                        <td class="border border-gray-300 p-2">✅ 完全支持</td>
+                      </tr>
+                      <tr>
+                        <td class="border border-gray-300 p-2">A4格式</td>
+                        <td class="border border-gray-300 p-2">✅ 标准支持</td>
                       </tr>
                     </tbody>
                   </table>
@@ -146,7 +158,7 @@
                   <h2 class="text-xl font-semibold mb-3">示例内容</h2>
                   <p class="mb-4 text-justify">
                     这是第{{ currentPage }}页的内容。在真实的Word查看器中，这里会显示Word文档的实际内容，
-                    包括文本、图片、表格、图表等各种元素。
+                    包括文本、图片、表格、图表等各种元素。文档保持标准A4比例显示。
                   </p>
                   
                   <div class="bg-yellow-50 border border-yellow-200 p-4 rounded mb-4">
@@ -161,6 +173,7 @@
                   
                   <div class="text-center text-gray-500 text-sm mt-8">
                     <p>页面 {{ currentPage }} / {{ totalPages }}</p>
+                    <p class="mt-2">A4标准格式 (210mm × 297mm)</p>
                   </div>
                 </div>
               </div>

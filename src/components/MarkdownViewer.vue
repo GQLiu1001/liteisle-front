@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-viewer w-full h-[calc(100vh-8rem)] flex flex-col bg-white rounded-2xl overflow-hidden shadow-lg">
+  <div class="markdown-viewer w-full h-[calc(100vh-8rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 顶部工具栏 -->
     <div class="flex-shrink-0 border-b p-4 flex items-center justify-between bg-gray-50">
       <div class="flex items-center space-x-4">
@@ -119,7 +119,7 @@
     <div class="flex-1 flex overflow-hidden" @contextmenu="handleContextMenu">
       <!-- 编辑器容器 -->
       <div class="flex-1 overflow-hidden">
-        <div ref="vditorElement" class="h-full"></div>
+        <div ref="vditorElement" class="h-full w-full"></div>
       </div>
 
       <!-- 右键菜单 -->
@@ -982,26 +982,95 @@ onBeforeUnmount(() => {
 /* 强制编辑器背景为白色 */
 :deep(.vditor) {
   background-color: white !important;
+  border: none !important;
+  width: 100% !important;
+  max-width: none !important;
 }
 
 :deep(.vditor-content) {
   background-color: white !important;
+  width: 100% !important;
+  max-width: none !important;
 }
 
 :deep(.vditor-ir) {
   background-color: white !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 0 !important;
 }
 
 :deep(.vditor-ir .vditor-reset) {
   background-color: white !important;
+  width: 80% !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 2rem !important;
+  border: none !important;
 }
 
-:deep(.vditor-ir:focus) {
-  background-color: white !important;
+/* 工具栏样式 */
+:deep(.vditor-toolbar) {
+  border: none !important;
+  background-color: #f9fafb !important;
 }
 
-:deep(.vditor-ir:focus .vditor-reset) {
-  background-color: white !important;
+/* 编辑器边框透明 */
+:deep(.vditor-outline) {
+  border: none !important;
+}
+
+:deep(.vditor-content .vditor-reset) {
+  width: 80% !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 2rem !important;
+  border: none !important;
+}
+
+/* 在不同屏幕尺寸下优化内容布局 */
+@media (min-width: 768px) {
+  :deep(.vditor-ir .vditor-reset) {
+    padding: 2rem 3rem !important;
+  }
+  
+  :deep(.vditor-content .vditor-reset) {
+    padding: 2rem 3rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  :deep(.vditor-ir .vditor-reset) {
+    padding: 2rem 4rem !important;
+  }
+  
+  :deep(.vditor-content .vditor-reset) {
+    padding: 2rem 4rem !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  :deep(.vditor-ir .vditor-reset) {
+    padding: 2rem 5rem !important;
+  }
+  
+  :deep(.vditor-content .vditor-reset) {
+    padding: 2rem 5rem !important;
+  }
+}
+
+/* 移除所有边框 */
+:deep(.vditor-content),
+:deep(.vditor-ir),
+:deep(.vditor-outline),
+:deep(.vditor-preview) {
+  border: none !important;
+}
+
+/* 确保编辑器占满整个容器 */
+.markdown-viewer :deep(.vditor) {
+  height: 100% !important;
+  width: 100% !important;
 }
 
 /* 自定义 div 样式 */

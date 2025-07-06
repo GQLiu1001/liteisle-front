@@ -61,7 +61,7 @@
     <!-- PPT内容区域 -->
     <div class="flex-1 overflow-auto bg-gray-800 p-4 flex items-center justify-center" ref="pptContainer">
       <div 
-        class="bg-white shadow-lg rounded-xl w-full max-w-[800px]"
+        class="bg-white shadow-lg rounded-xl w-full max-w-[1200px]"
         :style="{ 
           transform: `scale(${scale})`, 
           transformOrigin: 'top center',
@@ -78,23 +78,30 @@
             <h1 class="text-4xl font-bold mb-6 text-blue-600">{{ fileName.replace(/\.(ppt|pptx)$/, '') }}</h1>
             <hr class="border-blue-300 mb-8 w-1/2 mx-auto">
             <h2 class="text-2xl text-gray-700 mb-4">演示文稿</h2>
-            <p class="text-lg text-gray-600">PowerPoint文档预览</p>
-            <div class="mt-8">
-              <div class="bg-blue-100 rounded-lg p-4 inline-block">
-                <p class="text-blue-800 text-sm">共 {{ totalSlides }} 张幻灯片</p>
+            <p class="text-lg text-gray-600">PowerPoint文档预览 - 标准16:9比例</p>
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="bg-blue-100 rounded-lg p-4">
+                <p class="text-blue-800 text-sm font-medium">共 {{ totalSlides }} 张幻灯片</p>
+              </div>
+              <div class="bg-green-100 rounded-lg p-4">
+                <p class="text-green-800 text-sm font-medium">16:9 标准比例</p>
+              </div>
+              <div class="bg-purple-100 rounded-lg p-4">
+                <p class="text-purple-800 text-sm font-medium">快捷键操作</p>
               </div>
             </div>
           </div>
           
           <div v-else-if="currentSlide === 2">
             <h1 class="text-3xl font-bold mb-8 text-orange-600">功能介绍</h1>
-            <div class="grid grid-cols-2 gap-6 h-full">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
               <div class="bg-orange-50 p-6 rounded-lg">
                 <h3 class="text-xl font-semibold mb-4 text-orange-700">📊 演示文稿查看</h3>
                 <ul class="text-gray-700 space-y-2">
                   <li>• 幻灯片导航</li>
                   <li>• 缩放控制</li>
                   <li>• 全屏模式</li>
+                  <li>• 标准比例显示</li>
                 </ul>
               </div>
               <div class="bg-blue-50 p-6 rounded-lg">
@@ -103,6 +110,7 @@
                   <li>• 文本选择</li>
                   <li>• 复制翻译</li>
                   <li>• 键盘快捷键</li>
+                  <li>• 专业布局</li>
                 </ul>
               </div>
             </div>
@@ -110,20 +118,20 @@
           
           <div v-else-if="currentSlide === 3">
             <h1 class="text-3xl font-bold mb-8 text-green-600">技术特性</h1>
-            <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div class="bg-green-50 border-l-4 border-green-500 p-6">
-                <h3 class="text-xl font-semibold mb-3 text-green-700">响应式设计</h3>
-                <p class="text-gray-700">自适应不同屏幕尺寸，支持移动端和桌面端访问</p>
+                <h3 class="text-xl font-semibold mb-3 text-green-700">标准比例</h3>
+                <p class="text-gray-700 text-sm">保持16:9标准幻灯片比例，确保演示效果的专业性</p>
               </div>
               
               <div class="bg-blue-50 border-l-4 border-blue-500 p-6">
                 <h3 class="text-xl font-semibold mb-3 text-blue-700">快捷键支持</h3>
-                <p class="text-gray-700">支持键盘快捷键操作，提高使用效率</p>
+                <p class="text-gray-700 text-sm">支持键盘快捷键操作，提高使用效率</p>
               </div>
               
               <div class="bg-purple-50 border-l-4 border-purple-500 p-6">
                 <h3 class="text-xl font-semibold mb-3 text-purple-700">文本交互</h3>
-                <p class="text-gray-700">支持文本选择、复制和翻译功能</p>
+                <p class="text-gray-700 text-sm">支持文本选择、复制和翻译功能</p>
               </div>
             </div>
           </div>
@@ -134,20 +142,24 @@
               
               <div class="bg-gray-50 rounded-lg p-8 mb-6">
                 <h2 class="text-xl font-semibold mb-4">示例内容</h2>
-                <p class="text-gray-600 mb-4">
+                <p class="text-gray-600 mb-4 text-justify">
                   这是第{{ currentSlide }}张幻灯片的内容。在真实的PowerPoint查看器中，
                   这里会显示演示文稿的实际内容，包括文本、图片、图表、动画等元素。
+                  幻灯片保持标准16:9比例显示。
                 </p>
               </div>
               
               <div class="bg-yellow-50 border border-yellow-200 p-4 rounded">
                 <h3 class="font-medium text-yellow-800 mb-2">💡 快捷键提示</h3>
-                <p class="text-yellow-700 text-sm">
-                  • 使用方向键（←→）或空格键切换幻灯片<br>
-                  • 使用+/-键调整缩放比例<br>
-                  • 使用Ctrl+滚轮进行缩放<br>
-                  • 按F键进入全屏模式
-                </p>
+                <div class="text-yellow-700 text-sm space-y-1">
+                  <div>• ← → 切换幻灯片</div>
+                  <div>• + - 调整缩放</div>
+                  <div>• F 全屏模式</div>
+                  <div>• 空格 下一张</div>
+                </div>
+                <div class="mt-3 text-xs text-yellow-600">
+                  标准16:9比例 (1920×1080)
+                </div>
               </div>
             </div>
           </div>

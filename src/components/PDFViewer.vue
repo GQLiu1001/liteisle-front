@@ -88,14 +88,22 @@
               
               <div class="mb-6">
                 <h2 class="text-xl font-semibold mb-3">主要特性</h2>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="border border-gray-200 p-4 rounded">
                     <h3 class="font-medium mb-2">响应式设计</h3>
-                    <p class="text-sm text-gray-600">自适应不同屏幕尺寸</p>
+                    <p class="text-sm text-gray-600">保持A4纸张比例，支持缩放查看</p>
                   </div>
                   <div class="border border-gray-200 p-4 rounded">
                     <h3 class="font-medium mb-2">键盘快捷键</h3>
-                    <p class="text-sm text-gray-600">支持方向键翻页</p>
+                    <p class="text-sm text-gray-600">支持方向键翻页和缩放操作</p>
+                  </div>
+                  <div class="border border-gray-200 p-4 rounded">
+                    <h3 class="font-medium mb-2">文本选择</h3>
+                    <p class="text-sm text-gray-600">支持文本选择、复制和翻译功能</p>
+                  </div>
+                  <div class="border border-gray-200 p-4 rounded">
+                    <h3 class="font-medium mb-2">标准格式</h3>
+                    <p class="text-sm text-gray-600">保持原始文档的页面比例</p>
                   </div>
                 </div>
               </div>
@@ -107,7 +115,7 @@
               <div class="mb-6">
                 <h2 class="text-xl font-semibold mb-3">技术实现</h2>
                 <p class="mb-4">
-                  该PDF查看器使用Vue 3和TypeScript构建，具有以下技术特点：
+                  该PDF查看器使用Vue 3和TypeScript构建，保持标准A4纸张比例显示。
                 </p>
                 
                 <div class="bg-gray-50 p-4 rounded mb-4">
@@ -126,8 +134,17 @@
                     <li>模块化组件设计</li>
                     <li>响应式状态管理</li>
                     <li>事件驱动架构</li>
-                    <li>可扩展的界面</li>
+                    <li>标准文档格式</li>
                   </ul>
+                </div>
+              </div>
+              
+              <div class="w-full">
+                <h2 class="text-xl font-semibold mb-3">布局特点</h2>
+                <div class="bg-green-50 border border-green-200 p-4 rounded">
+                  <p class="text-green-800">
+                    PDF查看器保持标准A4纸张比例(210mm × 297mm)，确保文档显示的准确性和专业性。
+                  </p>
                 </div>
               </div>
             </div>
@@ -139,6 +156,7 @@
                 <h2 class="text-xl font-semibold mb-3">示例内容</h2>
                 <p class="mb-4">
                   这是第{{ currentPage }}页的内容。在真实的PDF查看器中，这里会显示PDF文件的实际内容。
+                  文档保持标准的A4比例显示。
                 </p>
                 
                 <div class="bg-blue-50 border border-blue-200 p-4 rounded mb-4">
@@ -152,6 +170,7 @@
                 
                 <div class="text-center text-gray-500 text-sm mt-8">
                   <p>页面 {{ currentPage }} / {{ totalPages }}</p>
+                  <p class="mt-2">A4标准格式 (210mm × 297mm)</p>
                 </div>
               </div>
             </div>

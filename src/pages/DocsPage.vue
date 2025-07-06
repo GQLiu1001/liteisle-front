@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6 select-none">
-    <div class="max-w-7xl mx-auto h-full">
+  <div class="min-h-screen bg-liteisle-bg p-4 lg:p-6 select-none">
+    <div class="mx-auto h-full">
       <!-- 详情视图 -->
-      <div v-if="docsStore.currentDocument" class="h-full rounded-2xl overflow-hidden">
+      <div v-if="docsStore.currentDocument" class="h-[calc(100vh-2rem)] lg:h-[calc(100vh-3rem)] rounded-2xl overflow-hidden">
         <!-- PDF 展示 -->
         <div v-if="docsStore.currentDocument.type === 'pdf'" class="h-full">
           <PDFViewer 
@@ -83,157 +83,159 @@
       </div>
 
       <!-- 列表视图 -->
-      <div v-else class="flex gap-6 h-[calc(100vh-12rem)]">
-        <!-- 第一栏：分类导航 -->
-        <div class="card w-64 flex-shrink-0 relative">
-          <div class="h-full flex flex-col p-4">
-            <div class="relative mb-4">
-              <input 
-                v-model="docsStore.searchQuery"
-                placeholder="搜索所有文档..."
-                class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
-                style="user-select: text !important;"
-              />
-            </div>
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-bold text-morandi-900">文档分类</h2>
-              <button
-                @click="showCreateCategoryDialog = true"
-                class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
-                title="添加分类"
-              >
-                <svg :size="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                添加分类
-              </button>
-            </div>
-            <nav class="space-y-2 flex-1 overflow-y-auto">
-              <draggable
-                v-model="currentCategoriesList"
-                item-key="id"
-                class="space-y-2"
-                :animation="150"
-                ghost-class="ghost"
-                chosen-class="chosen"
-                drag-class="drag"
-                @end="onCategoryDragEnd"
-                :force-fallback="false"
-                :disabled="false"
-              >
-                <template #item="{ element: category }">
-                  <button
-                    @click="docsStore.setCurrentCategory(category.id)"
-                    @contextmenu.prevent="handleCategoryContextMenu($event, category)"
-                    :class="[
-                      'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 cursor-pointer',
-                      docsStore.currentCategory === category.id
-                        ? 'bg-teal-100 text-teal-800 border border-teal-300' 
-                        : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
-                    ]"
-                  >
-                    <BookImage :size="20" />
-                    <div class="flex-1">
-                      <div class="font-medium">{{ category.name }}</div>
-                      <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
-                    </div>
-                  </button>
-                </template>
-              </draggable>
-            </nav>
-          </div>
-        </div>
-
-        <!-- 第二栏：文档列表 -->
-        <div 
-          v-if="docsStore.currentCategory" 
-          class="card flex-1 min-w-0 relative"
-        >
-          <div class="h-full flex flex-col p-4">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentCategoryData?.name || '文档'">
-                {{ docsStore.currentCategoryData?.name || '文档' }}
-              </h2>
-              <div v-if="docsStore.currentCategory" class="flex items-center gap-2">
+      <div v-else class="max-w-7xl mx-auto">
+        <div class="flex gap-6  h-[calc(100vh-12rem)] lg: h-[calc(100vh-12rem)]">
+          <!-- 第一栏：分类导航 -->
+          <div class="card w-64 flex-shrink-0 relative">
+            <div class="h-full flex flex-col p-4">
+              <div class="relative mb-4">
+                <input 
+                  v-model="docsStore.searchQuery"
+                  placeholder="搜索所有文档..."
+                  class="w-full px-4 py-2 rounded-lg border border-morandi-300 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent select-text"
+                  style="user-select: text !important;"
+                />
+              </div>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-morandi-900">文档分类</h2>
                 <button
-                  @click="showUploadDocumentDialog = true"
-                  class="flex items-center gap-1 px-2 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors text-sm"
-                  title="上传文档"
+                  @click="showCreateCategoryDialog = true"
+                  class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
+                  title="添加分类"
                 >
-                  <Upload :size="16" />
-                  上传文档
-                </button>
-                <button
-                  @click="showAddMarkdownDialog = true"
-                  class="flex items-center gap-1 px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors text-sm"
-                  title="新建Markdown文档"
-                > 
-                  <Plus :size="16" />
-                  新建MD
+                  <svg :size="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  添加分类
                 </button>
               </div>
+              <nav class="space-y-2 flex-1 overflow-y-auto">
+                <draggable
+                  v-model="currentCategoriesList"
+                  item-key="id"
+                  class="space-y-2"
+                  :animation="150"
+                  ghost-class="ghost"
+                  chosen-class="chosen"
+                  drag-class="drag"
+                  @end="onCategoryDragEnd"
+                  :force-fallback="false"
+                  :disabled="false"
+                >
+                  <template #item="{ element: category }">
+                    <button
+                      @click="docsStore.setCurrentCategory(category.id)"
+                      @contextmenu.prevent="handleCategoryContextMenu($event, category)"
+                      :class="[
+                        'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 cursor-pointer',
+                        docsStore.currentCategory === category.id
+                          ? 'bg-teal-100 text-teal-800 border border-teal-300' 
+                          : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
+                      ]"
+                    >
+                      <BookImage :size="20" />
+                      <div class="flex-1">
+                        <div class="font-medium">{{ category.name }}</div>
+                        <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
+                      </div>
+                    </button>
+                  </template>
+                </draggable>
+              </nav>
             </div>
+          </div>
 
-            <div class="flex-1 overflow-y-auto -mr-2 pr-2">
-              <draggable
-                v-if="!docsStore.searchQuery"
-                v-model="currentDocsList"
-                item-key="id"
-                class="space-y-1"
-                :animation="150"
-                ghost-class="ghost"
-                chosen-class="chosen"
-                drag-class="drag"
-                @start="onDragStart"
-                @end="onDocumentDragEnd"
-                :force-fallback="false"
-                :disabled="false"
-              >
-                <template #item="{ element: document }">
+          <!-- 第二栏：文档列表 -->
+          <div 
+            v-if="docsStore.currentCategory" 
+            class="card flex-1 min-w-0 relative"
+          >
+            <div class="h-full flex flex-col p-4">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentCategoryData?.name || '文档'">
+                  {{ docsStore.currentCategoryData?.name || '文档' }}
+                </h2>
+                <div v-if="docsStore.currentCategory" class="flex items-center gap-2">
+                  <button
+                    @click="showUploadDocumentDialog = true"
+                    class="flex items-center gap-1 px-2 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors text-sm"
+                    title="上传文档"
+                  >
+                    <Upload :size="16" />
+                    上传文档
+                  </button>
+                  <button
+                    @click="showAddMarkdownDialog = true"
+                    class="flex items-center gap-1 px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors text-sm"
+                    title="新建Markdown文档"
+                  > 
+                    <Plus :size="16" />
+                    新建MD
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex-1 overflow-y-auto -mr-2 pr-2">
+                <draggable
+                  v-if="!docsStore.searchQuery"
+                  v-model="currentDocsList"
+                  item-key="id"
+                  class="space-y-1"
+                  :animation="150"
+                  ghost-class="ghost"
+                  chosen-class="chosen"
+                  drag-class="drag"
+                  @start="onDragStart"
+                  @end="onDocumentDragEnd"
+                  :force-fallback="false"
+                  :disabled="false"
+                >
+                  <template #item="{ element: document }">
+                    <div
+                      @dblclick="docsStore.setCurrentDocument(document)"
+                      @contextmenu.prevent="showDocumentContextMenu($event, document)"
+                      :data-id="document.id"
+                      :class="[
+                          'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                          'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
+                      ]"
+                    >
+                        <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
+                          <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
+                        </div>
+                        
+                        <div class="flex-shrink-0">
+                          <FileText :size="24" :class="getFileIconColor(document.type)" />
+                        </div>
+                        
+                        <div class="flex-1 min-w-0">
+                          <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                        </div>
+                    </div>
+                  </template>
+                </draggable>
+
+                <div v-else class="space-y-1">
                   <div
+                    v-for="document in docsStore.filteredDocuments"
+                    :key="document.id"
                     @dblclick="docsStore.setCurrentDocument(document)"
                     @contextmenu.prevent="showDocumentContextMenu($event, document)"
-                    :data-id="document.id"
                     :class="[
-                        'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
-                        'border-transparent hover:border-dashed hover:border-teal-300 hover:bg-morandi-50'
+                      'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
+                      'border-transparent hover:bg-morandi-50'
                     ]"
                   >
-                      <div class="w-4 text-center opacity-30 group-hover:opacity-70 transition-opacity">
-                        <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
-                      </div>
-                      
-                      <div class="flex-shrink-0">
-                        <FileText :size="24" :class="getFileIconColor(document.type)" />
-                      </div>
-                      
-                      <div class="flex-1 min-w-0">
-                        <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
-                      </div>
-                  </div>
-                </template>
-              </draggable>
-
-              <div v-else class="space-y-1">
-                <div
-                  v-for="document in docsStore.filteredDocuments"
-                  :key="document.id"
-                  @dblclick="docsStore.setCurrentDocument(document)"
-                  @contextmenu.prevent="showDocumentContextMenu($event, document)"
-                  :class="[
-                    'flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-200 group border-2',
-                    'border-transparent hover:bg-morandi-50'
-                  ]"
-                >
-                  <div class="w-4 text-center opacity-0">
-                    <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
-                  </div>
-                  <div class="flex-shrink-0">
-                    <FileText :size="24" :class="getFileIconColor(document.type)" />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                    <div class="w-4 text-center opacity-0">
+                      <div class="w-1 h-4 bg-morandi-400 rounded-full"></div>
+                    </div>
+                    <div class="flex-shrink-0">
+                      <FileText :size="24" :class="getFileIconColor(document.type)" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -450,8 +452,6 @@
         </div>
       </div>
 
-
-
       <!-- 重命名文档对话框 -->
       <div v-if="showRenameDocDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameDocument">
         <div class="bg-white rounded-lg p-6 w-96" @click.stop>
@@ -490,8 +490,6 @@
       </div>
     </div>
   </div>
-
-
 
   <!-- 重命名分类对话框 -->
   <div v-if="showRenameCategoryDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenameCategory">
