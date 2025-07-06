@@ -6,10 +6,36 @@
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
   >
-    <!-- 完整音乐栏 - 始终显示 -->
+    <!-- 文档页面的折叠箭头按钮 -->
     <div 
-      class="bg-liteisle-sidebar rounded-t-[40px] shadow-xl border border-morandi-300 border-b-0 px-4 lg:px-8 py-3 lg:py-4 backdrop-blur-sm"
+      v-if="isDocumentPage && !showFullMusicBar"
+      class="flex justify-center"
     >
+      <button
+        @click="toggleMusicBar"
+        class="bg-transparent backdrop-blur-sm border  hover:bg-gray-600/90 transition-all duration-300 rounded-t-xl px-4 py-1 shadow-md hover:shadow-lg group"
+        title="展开音乐栏"
+      >
+        <div class="flex items-center gap-1.5">
+          <ChevronUp :size="12"class="text-black-400/80 group-hover:text-gray-300 transition-colors"/>
+        </div>
+      </button>
+    </div>
+
+    <!-- 完整音乐栏 - 条件显示 -->
+    <div 
+      v-if="!isDocumentPage || showFullMusicBar"
+      class="bg-liteisle-sidebar rounded-t-[40px] shadow-xl border border-morandi-300 border-b-0 px-4 lg:px-8 py-3 lg:py-4 backdrop-blur-sm">
+      <!-- 文档页面模式的收起按钮 -->
+      <div v-if="isDocumentPage && showFullMusicBar" class="flex justify-center mb-2">
+        <button
+          @click="toggleMusicBar"
+          class="text-morandi-600 hover:text-morandi-800 transition-colors rounded-t-xl px-4 py-1 p-1 rounded-full hover:bg-morandi-100"
+          title="收起音乐栏"
+        >
+          <ChevronDown :size="12" />
+        </button>
+      </div>
       <!-- 移动端布局 -->
       <div class="lg:hidden">
         <div class="flex items-center justify-between">
@@ -262,10 +288,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Repeat1,Shuffle,Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List } from 'lucide-vue-next'
+import { Repeat1, Shuffle, Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
 import { useRoute, useRouter } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
+import { useDocsStore } from '@/store/DocsStore'
 import { storeToRefs } from 'pinia'
 
 const musicStore = useMusicStore()
@@ -278,6 +305,13 @@ const router = useRouter()
 const showVolumeSlider = ref(false)
 const showPlaylistPanel = ref(false)
 const showPlaylistSelector = ref(false)
+const showFullMusicBar = ref(false)
+
+// 文档页面检测 - 通过 DocsStore 检查是否有当前文档
+const docsStore = useDocsStore()
+const isDocumentPage = computed(() => {
+  return !!docsStore.currentDocument
+})
 
 // 菜单引用
 const volumeRef = ref<HTMLElement>()
@@ -396,6 +430,11 @@ const playTrackFromPanel = (index: number) => {
   // 选择歌曲后自动关闭播放列表
   showPlaylistPanel.value = false
   showPlaylistSelector.value = false
+}
+
+// 切换音乐栏显示状态
+const toggleMusicBar = () => {
+  showFullMusicBar.value = !showFullMusicBar.value
 }
 
 // 跳转到音乐页面

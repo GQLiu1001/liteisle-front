@@ -1,5 +1,5 @@
 <template>
-  <div class="ppt-viewer h-[calc(100vh-12rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
+  <div class="ppt-viewer h-[calc(100vh-8rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 工具栏 -->
     <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between">
       <div class="flex items-center gap-4 flex-1 min-w-0">
