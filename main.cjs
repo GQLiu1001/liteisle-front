@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, Tray, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 // 设置应用数据目录
 const userDataPath = path.join(app.getPath('appData'), 'liteisle-desktop')
@@ -29,81 +29,63 @@ function clearCache() {
 
 // 创建系统托盘
 function createTray() {
-  // 创建托盘图标 - 修复路径问题
-  let iconPath
+  let trayIcon
+  // 首先尝试加载文件图标
   if (isDev) {
-    iconPath = path.join(__dirname, 'public/logopic.png')
-  } else {
-    // 生产环境下，图标文件应该在resources目录下
-    iconPath = path.join(process.resourcesPath, 'logopic.png')
-    // 如果上面的路径不存在，尝试其他可能的路径
-    if (!fs.existsSync(iconPath)) {
-      iconPath = path.join(__dirname, 'public/logopic.png')
+    const iconPath = path.join(__dirname, 'public/logopic.png')
+    if (fs.existsSync(iconPath)) {
+      try {
+        trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+      } catch (error) {
+        console.error('加载开发环境托盘图标失败:', error)
+      }
     }
-    if (!fs.existsSync(iconPath)) {
-      iconPath = path.join(__dirname, '../public/logopic.png')
+  } else {
+    // 生产环境下，尝试多个可能的路径
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'logopic.png'),
+      path.join(process.resourcesPath, 'app.asar.unpacked/public/logopic.png'),
+      path.join(process.resourcesPath, 'public/logopic.png'),
+      path.join(__dirname, 'public/logopic.png'),
+      path.join(__dirname, '../public/logopic.png')
+    ]
+    for (const iconPath of possiblePaths) {
+      if (fs.existsSync(iconPath)) {
+        try {
+          trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+          break
+        } catch (error) {
+          console.error('加载生产环境托盘图标失败:', iconPath, error)
+        }
+      }
     }
   }
-  
-  console.log('托盘图标路径:', iconPath)
-  console.log('图标文件是否存在:', fs.existsSync(iconPath))
-  
-  // 如果图标文件不存在，使用默认图标
-  let trayIcon
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
-    console.log('成功加载托盘图标')
-  } else {
-    console.warn('托盘图标文件不存在，使用默认图标')
-    // 创建一个简单的默认图标
+  // 如果文件图标加载失败，使用空图标兜底
+  if (!trayIcon || trayIcon.isEmpty()) {
     trayIcon = nativeImage.createEmpty()
   }
-  
   tray = new Tray(trayIcon)
-  
-  // 设置托盘提示文本
-  tray.setToolTip('Liteisle Desktop')
-  
-  // 创建托盘菜单
+  tray.setToolTip('LiteIsle')
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '显示应用',
       click: () => {
         if (mainWindow) {
-          if (mainWindow.isMinimized()) {
-            mainWindow.restore()
-          }
           mainWindow.show()
           mainWindow.focus()
         }
       }
     },
     {
-      label: '隐藏应用',
+      label: '退出',
       click: () => {
-        if (mainWindow) {
-          mainWindow.hide()
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: '退出应用',
-      click: () => {
-        app.isQuiting = true
         app.quit()
       }
     }
   ])
-  
   tray.setContextMenu(contextMenu)
-  
-  // 双击托盘图标显示窗口
   tray.on('double-click', () => {
     if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore()
-      }
       mainWindow.show()
       mainWindow.focus()
     }
@@ -268,4 +250,9 @@ ipcMain.handle('select-directory', async () => {
   } catch (error) {
     return { canceled: true, error: error.message }
   }
-}) 
+})
+
+// 只在开发环境打开DevTools
+if (isDev) {
+  mainWindow.webContents.openDevTools()
+} 

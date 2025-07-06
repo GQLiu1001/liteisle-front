@@ -61,12 +61,17 @@
       "dist/**/*",
       "main.cjs",
       "preload.js",
-      "package.json"
+      "package.json",
+      "public/**/*"
     ],
     "extraFiles": [
       {
         "from": "public/logopic.png",
         "to": "logopic.png"
+      },
+      {
+        "from": "public/logopic.png",
+        "to": "public/logopic.png"
       }
     ],
     "win": {
@@ -76,6 +81,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "asarUnpack": [
+      "public/**/*"
+    ]
   }
 }
