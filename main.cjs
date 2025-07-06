@@ -79,7 +79,8 @@ function createTray() {
     {
       label: '退出',
       click: () => {
-        app.quit()
+        app.isQuiting = true;
+        app.quit();
       }
     }
   ])
@@ -149,9 +150,8 @@ function createWindow() {
   // 处理窗口关闭事件
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
-      event.preventDefault()
-      // 发送关闭确认请求到渲染进程
-      mainWindow.webContents.send('show-close-confirmation')
+      event.preventDefault();
+      mainWindow.webContents.send('show-close-confirmation');
     }
   })
 

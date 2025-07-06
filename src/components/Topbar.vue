@@ -98,7 +98,7 @@
     
     <div class="flex flex-col gap-2">
       <button 
-        @click="handleMinimizeToTray"
+        @click="handleMinimizeToTrayWithRemember"
         class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
       >
         <Minimize :size="16" />
@@ -106,7 +106,7 @@
       </button>
       
       <button 
-        @click="handleQuitApp"
+        @click="handleQuitAppWithRemember"
         class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
       >
         <X :size="16" />
@@ -119,6 +119,10 @@
       >
         取消
       </button>
+      <label class="flex items-center mt-2 select-none text-sm text-gray-500">
+        <input type="checkbox" v-model="rememberCloseChoice" class="mr-2" />
+        记住我的选择
+      </label>
     </div>
   </div>
 </div>
@@ -151,6 +155,8 @@ const isMaximized = ref(false)
 
 // 关闭确认对话框状态
 const showCloseConfirmation = ref(false)
+
+const rememberCloseChoice = ref(false)
 
 const toggleFocus = () => {
   if (isFocusing.value) {
@@ -233,7 +239,18 @@ onMounted(() => {
     })
     // 监听关闭确认对话框请求
     window.electronAPI.onShowCloseConfirmation(() => {
-      showCloseConfirmation.value = true
+      // 检查是否记住了选择
+      const remember = localStorage.getItem('closeRemember') === '1'
+      const action = localStorage.getItem('closeAction')
+      if (remember && action) {
+        if (action === 'minimize') {
+          handleMinimizeToTray()
+        } else if (action === 'quit') {
+          handleQuitApp()
+        }
+      } else {
+        showCloseConfirmation.value = true
+      }
     })
   } else {
     console.warn('electronAPI 不可用，窗口控制按钮可能无法正常工作')
@@ -336,6 +353,28 @@ const handleQuitApp = () => {
   } catch (error) {
     console.error('退出应用时出错:', error)
   }
+}
+
+function handleMinimizeToTrayWithRemember() {
+  if (rememberCloseChoice.value) {
+    localStorage.setItem('closeAction', 'minimize')
+    localStorage.setItem('closeRemember', '1')
+  } else {
+    localStorage.removeItem('closeAction')
+    localStorage.removeItem('closeRemember')
+  }
+  handleMinimizeToTray()
+}
+
+function handleQuitAppWithRemember() {
+  if (rememberCloseChoice.value) {
+    localStorage.setItem('closeAction', 'quit')
+    localStorage.setItem('closeRemember', '1')
+  } else {
+    localStorage.removeItem('closeAction')
+    localStorage.removeItem('closeRemember')
+  }
+  handleQuitApp()
 }
 </script>
 
