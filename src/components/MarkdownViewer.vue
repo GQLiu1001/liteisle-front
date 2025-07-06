@@ -1029,47 +1029,90 @@ onBeforeUnmount(() => {
   border: none !important;
 }
 
-/* 自定义滚动条样式 */
-:deep(.vditor-ir),
-:deep(.vditor-content),
-:deep(.vditor-preview) {
-  /* WebKit浏览器滚动条 */
+/* 自定义滚动条样式 - 使用更强的选择器 */
+.markdown-viewer :deep(.vditor-ir),
+.markdown-viewer :deep(.vditor-content),
+.markdown-viewer :deep(.vditor-preview),
+.markdown-viewer :deep(.vditor-ir .vditor-reset),
+.markdown-viewer :deep(.vditor-content .vditor-reset) {
+  /* Firefox滚动条 */
   scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
 }
 
-:deep(.vditor-ir::-webkit-scrollbar),
-:deep(.vditor-content::-webkit-scrollbar),
-:deep(.vditor-preview::-webkit-scrollbar) {
-  width: 8px;
+/* WebKit浏览器滚动条 - 更强的选择器 */
+.markdown-viewer :deep(.vditor-ir::-webkit-scrollbar),
+.markdown-viewer :deep(.vditor-content::-webkit-scrollbar),
+.markdown-viewer :deep(.vditor-preview::-webkit-scrollbar),
+.markdown-viewer :deep(.vditor-ir .vditor-reset::-webkit-scrollbar),
+.markdown-viewer :deep(.vditor-content .vditor-reset::-webkit-scrollbar) {
+  width: 6px !important;
+  height: 6px !important;
 }
 
-:deep(.vditor-ir::-webkit-scrollbar-track),
-:deep(.vditor-content::-webkit-scrollbar-track),
-:deep(.vditor-preview::-webkit-scrollbar-track) {
-  background: transparent;
+.markdown-viewer :deep(.vditor-ir::-webkit-scrollbar-track),
+.markdown-viewer :deep(.vditor-content::-webkit-scrollbar-track),
+.markdown-viewer :deep(.vditor-preview::-webkit-scrollbar-track),
+.markdown-viewer :deep(.vditor-ir .vditor-reset::-webkit-scrollbar-track),
+.markdown-viewer :deep(.vditor-content .vditor-reset::-webkit-scrollbar-track) {
+  background: transparent !important;
+  border-radius: 0 !important;
 }
 
-:deep(.vditor-ir::-webkit-scrollbar-thumb),
-:deep(.vditor-content::-webkit-scrollbar-thumb),
-:deep(.vditor-preview::-webkit-scrollbar-thumb) {
-  background: rgba(156, 163, 175, 0.3);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+.markdown-viewer :deep(.vditor-ir::-webkit-scrollbar-thumb),
+.markdown-viewer :deep(.vditor-content::-webkit-scrollbar-thumb),
+.markdown-viewer :deep(.vditor-preview::-webkit-scrollbar-thumb),
+.markdown-viewer :deep(.vditor-ir .vditor-reset::-webkit-scrollbar-thumb),
+.markdown-viewer :deep(.vditor-content .vditor-reset::-webkit-scrollbar-thumb) {
+  background: rgba(156, 163, 175, 0.3) !important;
+  border-radius: 3px !important;
+  border: 1px solid transparent !important;
+  background-clip: padding-box !important;
+  max-height: 30px !important;
 }
 
-:deep(.vditor-ir::-webkit-scrollbar-thumb:hover),
-:deep(.vditor-content::-webkit-scrollbar-thumb:hover),
-:deep(.vditor-preview::-webkit-scrollbar-thumb:hover) {
-  background: rgba(156, 163, 175, 0.5);
-  background-clip: content-box;
+.markdown-viewer :deep(.vditor-ir::-webkit-scrollbar-thumb:hover),
+.markdown-viewer :deep(.vditor-content::-webkit-scrollbar-thumb:hover),
+.markdown-viewer :deep(.vditor-preview::-webkit-scrollbar-thumb:hover),
+.markdown-viewer :deep(.vditor-ir .vditor-reset::-webkit-scrollbar-thumb:hover),
+.markdown-viewer :deep(.vditor-content .vditor-reset::-webkit-scrollbar-thumb:hover) {
+  background: rgba(156, 163, 175, 0.6) !important;
+  background-clip: padding-box !important;
 }
 
-:deep(.vditor-ir::-webkit-scrollbar-corner),
-:deep(.vditor-content::-webkit-scrollbar-corner),
-:deep(.vditor-preview::-webkit-scrollbar-corner) {
-  background: transparent;
+.markdown-viewer :deep(.vditor-ir::-webkit-scrollbar-corner),
+.markdown-viewer :deep(.vditor-content::-webkit-scrollbar-corner),
+.markdown-viewer :deep(.vditor-preview::-webkit-scrollbar-corner),
+.markdown-viewer :deep(.vditor-ir .vditor-reset::-webkit-scrollbar-corner),
+.markdown-viewer :deep(.vditor-content .vditor-reset::-webkit-scrollbar-corner) {
+  background: transparent !important;
+}
+
+/* 额外的滚动条样式覆盖 */
+.markdown-viewer :deep(*::-webkit-scrollbar) {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.markdown-viewer :deep(*::-webkit-scrollbar-track) {
+  background: transparent !important;
+}
+
+.markdown-viewer :deep(*::-webkit-scrollbar-thumb) {
+  background: rgba(156, 163, 175, 0.3) !important;
+  border-radius: 3px !important;
+  border: 1px solid transparent !important;
+  background-clip: padding-box !important;
+  min-height: 20px !important;
+}
+
+.markdown-viewer :deep(*::-webkit-scrollbar-thumb:hover) {
+  background: rgba(156, 163, 175, 0.6) !important;
+  background-clip: padding-box !important;
+}
+
+.markdown-viewer :deep(*::-webkit-scrollbar-corner) {
+  background: transparent !important;
 }
 
 /* 在不同屏幕尺寸下优化内容布局 */
