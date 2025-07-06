@@ -15,7 +15,11 @@
         <div class="flex items-center justify-between">
           <!-- 左侧 - 音乐信息（简化版） -->
           <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-teal-500 rounded-xl flex items-center justify-center">
+            <div 
+              @click="goToMusicPage"
+              class="w-10 h-10 bg-gradient-to-r from-blue-400 to-teal-500 rounded-xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+              title="进入音乐页面"
+            >
               <Music :size="20" class="text-white" />
             </div>
             <div class="min-w-0 flex-1">
@@ -79,7 +83,11 @@
       <div class="hidden lg:flex items-center justify-between">
         <!-- 左侧区域 - 音乐信息 -->
         <div class="flex items-center gap-4 min-w-0 flex-1">
-          <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-teal-500 rounded-2xl flex items-center justify-center">
+          <div 
+            @click="goToMusicPage"
+            class="w-12 h-12 bg-gradient-to-r from-blue-400 to-teal-500 rounded-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform"
+            title="进入音乐页面"
+          >
             <Music :size="24" class="text-white" />
           </div>
           <div class="min-w-0">
@@ -256,7 +264,7 @@
 import { ref, computed } from 'vue'
 import { Repeat1,Shuffle,Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
 import { storeToRefs } from 'pinia'
 
@@ -264,6 +272,7 @@ const musicStore = useMusicStore()
 const uiStore = useUIStore()
 const { progressPercentage } = storeToRefs(musicStore)
 const route = useRoute()
+const router = useRouter()
 
 // 新增的响应式状态
 const showVolumeSlider = ref(false)
@@ -387,6 +396,23 @@ const playTrackFromPanel = (index: number) => {
   // 选择歌曲后自动关闭播放列表
   showPlaylistPanel.value = false
   showPlaylistSelector.value = false
+}
+
+// 跳转到音乐页面
+const goToMusicPage = () => {
+  if (musicStore.currentPlaylist && musicStore.currentTrack) {
+    // 传递当前播放列表和歌曲信息到音乐页面
+    router.push({
+      name: 'music',
+      query: {
+        playlist: musicStore.currentPlaylist.name,
+        song: musicStore.currentTrack.name
+      }
+    })
+  } else {
+    // 如果没有当前播放，直接跳转到音乐页面
+    router.push({ name: 'music' })
+  }
 }
 </script>
 
