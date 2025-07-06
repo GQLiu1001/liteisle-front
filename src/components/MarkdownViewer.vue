@@ -979,7 +979,7 @@ onBeforeUnmount(() => {
   display: none !important;
 }
 
-/* 强制编辑器背景为白色 */
+/* 确保编辑器内容区域占80%宽度，左右留空 */
 :deep(.vditor) {
   background-color: white !important;
   border: none !important;
@@ -1015,9 +1015,10 @@ onBeforeUnmount(() => {
   background-color: #f9fafb !important;
 }
 
-/* 编辑器边框透明 */
+/* 大纲栏边框 */
 :deep(.vditor-outline) {
-  border: none !important;
+  border-right: 1px solid #e5e7eb !important;
+  background-color: #f9fafb !important;
 }
 
 :deep(.vditor-content .vditor-reset) {
@@ -1026,6 +1027,49 @@ onBeforeUnmount(() => {
   margin: 0 auto !important;
   padding: 2rem !important;
   border: none !important;
+}
+
+/* 自定义滚动条样式 */
+:deep(.vditor-ir),
+:deep(.vditor-content),
+:deep(.vditor-preview) {
+  /* WebKit浏览器滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+:deep(.vditor-ir::-webkit-scrollbar),
+:deep(.vditor-content::-webkit-scrollbar),
+:deep(.vditor-preview::-webkit-scrollbar) {
+  width: 8px;
+}
+
+:deep(.vditor-ir::-webkit-scrollbar-track),
+:deep(.vditor-content::-webkit-scrollbar-track),
+:deep(.vditor-preview::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+:deep(.vditor-ir::-webkit-scrollbar-thumb),
+:deep(.vditor-content::-webkit-scrollbar-thumb),
+:deep(.vditor-preview::-webkit-scrollbar-thumb) {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+:deep(.vditor-ir::-webkit-scrollbar-thumb:hover),
+:deep(.vditor-content::-webkit-scrollbar-thumb:hover),
+:deep(.vditor-preview::-webkit-scrollbar-thumb:hover) {
+  background: rgba(156, 163, 175, 0.5);
+  background-clip: content-box;
+}
+
+:deep(.vditor-ir::-webkit-scrollbar-corner),
+:deep(.vditor-content::-webkit-scrollbar-corner),
+:deep(.vditor-preview::-webkit-scrollbar-corner) {
+  background: transparent;
 }
 
 /* 在不同屏幕尺寸下优化内容布局 */
@@ -1059,10 +1103,9 @@ onBeforeUnmount(() => {
   }
 }
 
-/* 移除所有边框 */
+/* 移除其他区域的边框 */
 :deep(.vditor-content),
 :deep(.vditor-ir),
-:deep(.vditor-outline),
 :deep(.vditor-preview) {
   border: none !important;
 }
