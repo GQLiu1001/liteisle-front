@@ -36,7 +36,7 @@
       <!-- 有岛屿时显示 -->
       <template v-else>
         <!-- A. 超大屏 (>=1280px): 单岛屿轮播 -->
-        <div class="w-full h-full items-center justify-center hidden xl:flex">
+        <div class="w-full h-full items-center justify-center hidden lg:flex">
           <img 
             :src="singleIsleImage" 
             :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
@@ -45,25 +45,7 @@
           />
         </div>
 
-        <!-- B. 中等屏幕 (1024px - 1279px): 三岛屿静态分页显示 -->
-        <div class="w-full h-full hidden lg:flex xl:hidden items-center justify-center">
-          <div class="flex justify-around items-center w-full">
-            <div 
-              v-for="isle in threeIslesForCurrentPage" :key="`three-${isle.id}`"
-              class="flex flex-col items-center gap-2 p-2"
-            >
-              <div class="w-24 h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
-                <img :src="isle.image_url" :alt="`岛屿 ${isle.id}`" class="max-w-full max-h-full object-contain" @error="handleImageError" />
-              </div>
-            </div>
-            <!-- 填充空白项，确保布局稳定 -->
-            <template v-if="threeIslesForCurrentPage.length < 3">
-              <div v-for="i in (3 - threeIslesForCurrentPage.length)" :key="`placeholder-${i}`" class="w-24 p-2"></div>
-            </template>
-          </div>
-        </div>
-
-        <!-- C. 小屏幕 (<1024px): 网格视图 -->
+        <!-- B. 小屏幕 (<1024px): 网格视图 -->
         <div class="grid grid-cols-3 sm:grid-cols-4 lg:hidden gap-4 w-full h-full overflow-y-auto">
           <div v-for="isle in isles" :key="`grid-${isle.id}`" class="flex flex-col items-center gap-2 p-2 rounded-lg">
             <div class="w-20 h-20 md:w-24 md:h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
@@ -101,9 +83,14 @@ const { isleCount } = storeToRefs(focusStore)
 
 // 用户已收集的岛屿（从后端获取，暂时为空数组）
 const isles = computed((): Island[] => {
-  // TODO: 从 FocusStore 或 API 获取用户实际收集的岛屿
-  // 暂时返回空数组，显示"暂未净化岛屿"状态
-  return []
+  // 模拟4个岛屿数据
+  return Array(4).fill(null).map((_, index) => ({
+    id: index + 1,
+    image_url: 'https://pub-061d1fd03ea74e68849f186c401fde40.r2.dev/Figma%20%E7%B4%A0%E6%9D%90%E5%88%B6%E4%BD%9C%20(18).png',
+    rarity: 'common',
+    obtain_probability: 0.1,
+    min_focus_minutes: 30
+  }))
 })
 
 // 是否有岛屿
@@ -158,10 +145,8 @@ const prev = () => {
 // 检测当前屏幕模式
 const checkScreenMode = () => {
   if (typeof window === 'undefined') return
-  if (window.innerWidth >= 1280) {
+  if (window.innerWidth >= 1024) {
     currentScreenMode.value = 'single'
-  } else if (window.innerWidth >= 1024) {
-    currentScreenMode.value = 'three'
   } else {
     currentScreenMode.value = 'grid'
   }
