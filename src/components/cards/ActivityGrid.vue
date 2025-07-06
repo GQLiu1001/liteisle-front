@@ -8,7 +8,7 @@
     <!-- 简单日历 -->
     <div class="flex-1 min-h-0 overflow-auto mb-2">
       <!-- 星期标题 -->
-      <div class="grid grid-cols-7 gap-1 mb-2 flex-shrink-0">
+      <div class="grid grid-cols-7 gap-1 mb-2 flex-shrink-0 px-1">
         <div v-for="day in weekDays" :key="day" 
              class="text-xs text-morandi-500 text-center py-1">
           {{ day }}
@@ -16,7 +16,7 @@
       </div>
       
       <!-- 日期网格 -->
-      <div class="grid grid-cols-7 gap-1 pb-2">
+      <div class="grid grid-cols-7 gap-1 pb-2 px-1">
         <div v-for="(day, index) in calendarDays" :key="index"
              :class="[
                'aspect-square flex items-center justify-center rounded-lg text-xs font-medium relative min-h-[28px] max-h-[36px]',
@@ -140,7 +140,12 @@ const monthlyStats = computed(() => {
 <style scoped>
 /* 确保日历网格适应容器 */
 .grid {
-  gap: 0.5rem;
+  gap: 0.25rem;
+}
+
+/* 确保网格对齐，防止穿模 */
+.grid-cols-7 {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 /* 移除任何可能影响布局的样式 */

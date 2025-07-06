@@ -66,8 +66,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { PenTool, User, Minus, Square, X, LogOut, Settings } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'
@@ -76,6 +76,7 @@ import { useSettingsStore } from '@/store/SettingsStore'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
+const route = useRoute()
 const focusStore = useFocusStore()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
@@ -101,27 +102,31 @@ const toggleUserMenu = (event: Event) => {
 
 // 跳转到账户设置
 const goToAccountSettings = () => {
-  // 关闭菜单
+  // 先关闭菜单
   showUserMenu.value = false
   
   // 设置当前分类为账户与云盘
   settingsStore.setCurrentCategoryId('account')
   
-  // 跳转到设置页面
-  router.push({ name: 'settings' })
+  // 使用 nextTick 确保菜单关闭后再跳转
+  nextTick(() => {
+    router.push({ name: 'settings' })
+  })
 }
 
 // 退出登录
 const handleLogout = async () => {
   try {
-    // 关闭菜单
+    // 先关闭菜单
     showUserMenu.value = false
     
     // 调用认证存储的注销方法
     await authStore.logout()
     
-    // 跳转到登录页
-    router.push({ name: 'login' })
+    // 使用 nextTick 确保菜单关闭后再跳转
+    nextTick(() => {
+      router.push({ name: 'login' })
+    })
   } catch (error) {
     console.error('注销失败:', error)
   }
@@ -135,6 +140,11 @@ const handleClickOutside = () => {
 // 组件挂载时添加全局点击监听
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+})
+
+// 监听路由变化，自动关闭菜单
+watch(route, () => {
+  showUserMenu.value = false
 })
 
 // 组件卸载时移除监听器
