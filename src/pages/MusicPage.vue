@@ -11,6 +11,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
+              <p class="text-xs text-morandi-500 truncate mb-1">{{ musicStore.currentTrackInfo.album || '未知专辑' }}</p>
               <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
               <div class="flex items-center justify-between text-xs text-morandi-500 mt-2">
                 <span>{{ musicStore.formatTime(musicStore.currentTime) }}</span>
@@ -21,12 +22,21 @@
           <!-- 播放进度条 -->
           <div class="px-4 pb-4">
             <div 
-              class="w-full bg-morandi-200 rounded-full h-2 cursor-pointer"
+              class="w-full bg-morandi-200 rounded-full h-2 cursor-pointer relative"
               @click="seekToPosition"
+              @mousedown="startDrag"
+              @touchstart="startDrag"
             >
               <div 
                 class="bg-teal-500 h-2 rounded-full transition-all duration-100"
                 :style="{ width: progressPercentage + '%' }"
+              ></div>
+              <!-- 拖拽滑块 -->
+              <div 
+                class="absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-teal-500 rounded-full shadow-lg cursor-pointer opacity-0 hover:opacity-100 transition-opacity sm:opacity-100"
+                :style="{ left: `calc(${progressPercentage}% - 8px)` }"
+                @mousedown.stop="startDrag"
+                @touchstart.stop="startDrag"
               ></div>
             </div>
           </div>
@@ -388,6 +398,7 @@
                 <Music :size="48" class="text-white" />
               </div>
               <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
+              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.album || '未知专辑' }}</p>
               <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
             </div>
 
@@ -398,12 +409,21 @@
                 <span>{{ musicStore.formatTime(musicStore.duration) }}</span>
               </div>
               <div 
-                class="w-full bg-morandi-200 rounded-full h-2 cursor-pointer"
+                class="w-full bg-morandi-200 rounded-full h-2 cursor-pointer relative"
                 @click="seekToPosition"
+                @mousedown="startDrag"
+                @touchstart="startDrag"
               >
                 <div 
                   class="bg-teal-500 h-2 rounded-full transition-all duration-100"
                   :style="{ width: progressPercentage + '%' }"
+                ></div>
+                <!-- 拖拽滑块 -->
+                <div 
+                  class="absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-teal-500 rounded-full shadow-lg cursor-pointer opacity-0 hover:opacity-100 transition-opacity sm:opacity-100"
+                  :style="{ left: `calc(${progressPercentage}% - 8px)` }"
+                  @mousedown.stop="startDrag"
+                  @touchstart.stop="startDrag"
                 ></div>
               </div>
             </div>
@@ -639,6 +659,10 @@ const renamePlaylistInput = ref<HTMLInputElement | null>(null)
 const draggedItemId = ref<string | null>(null)
 const draggedPlaylistId = ref<string | null>(null)
 
+// 进度条拖拽相关
+const isDragging = ref(false)
+const dragStartTime = ref(0)
+
 // 计算属性
 const filteredTracks = computed(() => {
   return musicStore.filteredTracks
@@ -733,11 +757,45 @@ const playAll = () => {
 }
 
 const seekToPosition = (event: MouseEvent) => {
+  if (isDragging.value) return // 拖拽时不响应点击
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
   const percentage = (event.clientX - rect.left) / rect.width
   const newTime = percentage * musicStore.duration
   musicStore.seek(newTime)
+}
+
+// 拖拽进度条相关方法
+const startDrag = (event: MouseEvent | TouchEvent) => {
+  event.preventDefault()
+  isDragging.value = true
+  
+  const handleMove = (e: MouseEvent | TouchEvent) => {
+    if (!isDragging.value) return
+    
+    const target = (event.currentTarget as HTMLElement).closest('.cursor-pointer') as HTMLElement
+    if (!target) return
+    
+    const rect = target.getBoundingClientRect()
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const newTime = percentage * musicStore.duration
+    
+    musicStore.seek(newTime)
+  }
+  
+  const handleEnd = () => {
+    isDragging.value = false
+    document.removeEventListener('mousemove', handleMove)
+    document.removeEventListener('mouseup', handleEnd)
+    document.removeEventListener('touchmove', handleMove)
+    document.removeEventListener('touchend', handleEnd)
+  }
+  
+  document.addEventListener('mousemove', handleMove)
+  document.addEventListener('mouseup', handleEnd)
+  document.addEventListener('touchmove', handleMove)
+  document.addEventListener('touchend', handleEnd)
 }
 
 const getPlaylistDisplayCount = (playlist: any) => {
@@ -1034,5 +1092,19 @@ const deletePlaylist = () => {
 /* 拖动过渡动画 */
 .flip-list-move {
   transition: transform 0.3s;
+}
+
+/* 进度条拖拽滑块样式增强 */
+.cursor-pointer:hover .absolute {
+  opacity: 1 !important;
+}
+
+/* 移动端触摸友好的滑块 */
+@media (max-width: 640px) {
+  .absolute.w-4.h-4 {
+    width: 20px;
+    height: 20px;
+    opacity: 0.8 !important;
+  }
 }
 </style> 

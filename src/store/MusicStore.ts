@@ -251,7 +251,7 @@ export const useMusicStore = defineStore('music', () => {
                 id: file.id,
                 name: file.name.replace(/\.[^/.]+$/, ''), // 移除文件扩展名
                 artist: extractArtistFromFileName(file.name),
-                album: subfolder.name,
+                album: extractAlbumFromFileName(file.name),
                 duration: estimateDurationFromSize(file.size),
                 filePath: file.path,
                 coverUrl: '',
@@ -326,6 +326,40 @@ export const useMusicStore = defineStore('music', () => {
     }
     
     return artistMap[nameWithoutExt] || '未知艺术家'
+  }
+
+  // 从文件名提取专辑信息
+  const extractAlbumFromFileName = (fileName: string): string => {
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '')
+    
+    // 根据歌名匹配已知专辑
+    const albumMap: { [key: string]: string } = {
+      '夜曲': '十一月的萧邦',
+      '晴天': '叶惠美',
+      '稻香': '魔杰座',
+      '青花瓷': '我很忙',
+      '七里香': '七里香',
+      '东风破': '叶惠美',
+      '蓝莲花': '在别处',
+      '贝多芬第九交响曲': '交响曲全集',
+      '月光奏鸣曲': '钢琴奏鸣曲',
+      '土耳其进行曲': 'K331奏鸣曲',
+      '致爱丽丝': '钢琴小品',
+      '卡农': '室内乐',
+      '小夜曲': 'K525',
+      '光辉岁月': '光辉岁月',
+      '海阔天空': '乐与怒',
+      '真的爱你': 'Beyond IV',
+      '喜欢你': '现代舞台',
+      '不再犹豫': '犹豫',
+      '冷雨夜': '旧日的足迹',
+      '南山南': '孤岛',
+      '成都': '无法长大',
+      '理想': '赵雷',
+      '董小姐': '安河桥北'
+    }
+    
+    return albumMap[nameWithoutExt] || '未知专辑'
   }
 
   // 根据文件大小估算时长（粗略估算）
