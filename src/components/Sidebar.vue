@@ -3,10 +3,11 @@
     <!-- Logo -->
     <div class="pt-4 pb-2 px-4 flex justify-center flex-shrink-0">
       <div class="relative">
+        <!-- 只保留应用图标（树） -->
         <img 
-          src="/titlepic.png" 
-          alt="Liteisle" 
-          class="w-16 h-16 lg:w-20 lg:h-20 object-contain drop-shadow-md hover:drop-shadow-lg transition-all duration-300 hover:scale-105" 
+          src="/logopic.png" 
+          alt="Liteisle Logo" 
+          class="w-12 h-12 lg:w-16 lg:h-16 object-contain drop-shadow-md hover:drop-shadow-lg transition-all duration-300 hover:scale-105" 
         />
         <!-- 可选：添加背景光环效果 -->
         <div class="absolute inset-0 bg-gradient-to-br from-teal-400/20 to-blue-400/20 rounded-2xl -z-10 blur-xl"></div>

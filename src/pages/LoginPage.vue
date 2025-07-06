@@ -19,7 +19,11 @@
     <div class="w-full max-w-md">
       <!-- Logo区域 -->
       <div class="text-center mb-12">
-        <img src="/titlepic.png" alt="Liteisle" class="h-20 mx-auto mb-6" />
+        <!-- 组合Logo：应用图标 + 艺术字 -->
+        <div class="flex items-center justify-center gap-4 mb-6">
+          <img src="/logopic.png" alt="Liteisle Logo" class="h-16 w-16 object-contain drop-shadow-lg" />
+          <img src="/titlepic.png" alt="Liteisle" class="h-20 object-contain" />
+        </div>
         <h1 class="text-2xl font-light text-morandi-900 mb-2">欢迎来到 Liteisle</h1>
         <p class="text-morandi-600">专注学习，净化心灵</p>
       </div>

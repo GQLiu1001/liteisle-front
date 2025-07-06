@@ -79,7 +79,7 @@
               <div class="relative mb-4 group">
                 <div 
                   @click="triggerFileSelect"
-                  class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-teal-200 transition-colors relative overflow-hidden"
+                  class="w-32 h-32 bg-teal-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-teal-200 transition-colors relative overflow-hidden"
                 >
                   <img 
                     v-if="authStore.user?.picture" 
@@ -87,11 +87,11 @@
                     alt="用户头像" 
                     class="w-full h-full object-cover"
                   />
-                  <User v-else :size="40" class="text-teal-600" />
+                  <User v-else :size="64" class="text-teal-600" />
                   
                   <!-- 悬浮提示 -->
                   <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Upload :size="24" class="text-white" />
+                    <Upload :size="32" class="text-white" />
                   </div>
                 </div>
                 
@@ -138,33 +138,7 @@
                 </div>
               </div>
               
-              <!-- 登录会话信息 -->
-              <div class="mb-6 w-full max-w-sm">
-                <div class="flex items-center justify-center gap-2 mb-3">
-                  <Clock :size="20" class="text-morandi-600" />
-                  <h4 class="font-medium text-morandi-900">登录会话</h4>
-                </div>
-                
-                <div class="space-y-3">
-                  <!-- Token 信息 -->
-                  <div class="bg-teal-50 rounded-lg p-3">
-                    <div class="flex justify-between text-sm mb-1">
-                      <span class="text-teal-700">会话剩余时间</span>
-                      <span class="font-medium text-teal-900">{{ authStore.tokenRemainingText }}</span>
-                    </div>
-                    <div class="text-xs text-teal-600">
-                      桌面端应用 (30天有效期)
-                    </div>
-                  </div>
-                  
-                  <!-- 会话说明 -->
-                  <div class="text-xs text-morandi-500 text-center bg-morandi-100 rounded-lg p-2">
-                    <div class="font-medium mb-1">🔐 会话管理</div>
-                    <div>桌面端应用自动保持30天登录状态</div>
-                    <div>会话过期后需要重新登录</div>
-                  </div>
-                </div>
-              </div>
+
               
               <!-- 操作按钮 -->
               <div class="flex gap-3">

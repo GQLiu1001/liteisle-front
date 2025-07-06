@@ -19,6 +19,15 @@
       </button>
     </div>
 
+    <!-- 中间 - 艺术字Logo -->
+    <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center">
+      <img 
+        src="/titlepic.png" 
+        alt="Liteisle" 
+        class="h-12 lg:h-16 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all duration-300 hover:scale-105" 
+      />
+    </div>
+
     <!-- 右侧 - 用户头像和窗口控制 -->
     <div class="flex items-center gap-4">
       <!-- 用户头像下拉菜单 -->
