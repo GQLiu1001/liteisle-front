@@ -431,8 +431,8 @@
     </div>
 
     <!-- 新建文件夹对话框 -->
-    <div v-if="showCreateFolderDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showCreateFolderDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="showCreateFolderDialog = false">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4">新建文件夹</h3>
         <div class="space-y-4">
           <div>
@@ -466,8 +466,8 @@
     </div>
 
     <!-- 上传文件对话框 -->
-    <div v-if="showUploadDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showUploadDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelUpload">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4">上传文件</h3>
         <div class="space-y-4">
           <div class="border-2 border-dashed border-morandi-300 rounded-lg p-8 text-center">
@@ -760,8 +760,8 @@
     </div>
 
     <!-- 移动对话框 -->
-    <div v-if="showMoveDialogState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showMoveDialogState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelMove">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4">移动到</h3>
         <div class="space-y-4">
           <div>
@@ -815,8 +815,8 @@
     </div>
 
     <!-- 删除确认对话框 -->
-    <div v-if="showDeleteConfirmState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 w-96">
+    <div v-if="showDeleteConfirmState" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelDelete">
+      <div class="bg-white rounded-lg p-6 w-96" @click.stop>
         <h3 class="text-lg font-bold mb-4 text-red-600">确认删除</h3>
         <div class="mb-6">
           <p class="text-morandi-700">
