@@ -907,26 +907,6 @@
             </div>
           </div>
 
-          <!-- 分享链接 -->
-          <div>
-            <label class="block text-sm font-medium text-morandi-700 mb-2">分享链接</label>
-            <div class="flex gap-2">
-              <input
-                v-model="shareLink"
-                type="text"
-                readonly
-                class="flex-1 px-4 py-2 border border-morandi-300 rounded-lg bg-morandi-50 text-morandi-700 select-text"
-                style="user-select: text !important;"
-              />
-              <button
-                @click="copyShareLink"
-                class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-              >
-                复制
-              </button>
-            </div>
-          </div>
-
           <!-- 分享设置 -->
           <div class="grid grid-cols-2 gap-4">
             <!-- 有效期设置 -->
@@ -953,17 +933,11 @@
                 />
                 <label class="text-sm font-medium text-morandi-700">设置访问密码</label>
               </div>
-              <input
-                v-if="enableSharePassword"
-                v-model="sharePassword"
-                type="text"
-                placeholder="请输入访问密码"
-                class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
-                style="user-select: text !important;"
-              />
+              <p v-if="enableSharePassword" class="text-xs text-morandi-500 mt-1">
+                密码将由系统自动生成
+              </p>
             </div>
           </div>
-
 
         </div>
         
@@ -976,9 +950,10 @@
           </button>
           <button
             @click="generateShareLink"
-            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+            :disabled="isGeneratingShare"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50"
           >
-            生成链接
+            {{ isGeneratingShare ? '生成中...' : '生成链接' }}
           </button>
         </div>
       </div>
@@ -1050,10 +1025,9 @@ const clipboardAction = ref<'copy' | 'cut' | null>(null)
 
 // 分享相关
 const showShareDialogState = ref(false)
-const shareLink = ref('')
 const shareExpireTime = ref(7) // 分享链接有效期（天）
-const sharePassword = ref('')
 const enableSharePassword = ref(false)
+const isGeneratingShare = ref(false)
 
 // 排序选项
 const sortOptions = [
@@ -1951,10 +1925,9 @@ const showShareDialog = () => {
   if (selectedItem.value) {
     showShareDialogState.value = true
     // 重置分享设置
-    shareLink.value = ''
     shareExpireTime.value = 7
-    sharePassword.value = ''
     enableSharePassword.value = false
+    isGeneratingShare.value = false
   }
   showContextMenuState.value = false;
 }
@@ -1964,45 +1937,60 @@ const closeShareDialog = () => {
   selectedItem.value = null
 }
 
-const generateShareLink = () => {
+const generateShareLink = async () => {
   if (!selectedItem.value) return
 
-  // 生成分享链接（模拟）
-  const itemType = selectedItem.value.type === 'folder' ? 'folder' : 'file'
-  const baseUrl = 'https://liteisle.com/share'
-  const shareId = Math.random().toString(36).substring(2, 15)
-  
-  let link = `${baseUrl}/${itemType}/${shareId}`
-  
-  // 添加密码参数（如果启用）
-  if (enableSharePassword.value && sharePassword.value) {
-    link += `?pwd=${sharePassword.value}`
-  }
-  
-  shareLink.value = link
-  
-  // 显示成功提示
-  toast.success(`分享链接已生成！\n有效期：${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`)
-}
-
-const copyShareLink = async () => {
-  if (!shareLink.value) {
-    alert('请先生成分享链接')
-    return
-  }
+  isGeneratingShare.value = true
 
   try {
-    await navigator.clipboard.writeText(shareLink.value)
-    toast.success('分享链接已复制到剪贴板')
-  } catch (err) {
-    // 降级方案
-    const textArea = document.createElement('textarea')
-    textArea.value = shareLink.value
-    document.body.appendChild(textArea)
-    textArea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textArea)
-    toast.success('分享链接已复制到剪贴板')
+    // 模拟调用后端API生成分享链接
+    const response = await new Promise((resolve) => {
+      setTimeout(() => {
+        const shareId = Math.random().toString(36).substring(2, 15)
+        const shareLink = `https://liteisle.com/share/${shareId}`
+        const sharePassword = enableSharePassword.value ? 
+          Math.random().toString(36).substring(2, 8).toUpperCase() : null
+        
+        resolve({
+          shareLink,
+          sharePassword,
+          expiresAt: shareExpireTime.value === 0 ? null : 
+            new Date(Date.now() + shareExpireTime.value * 24 * 60 * 60 * 1000)
+        })
+      }, 1000) // 模拟网络延迟
+    })
+
+    const { shareLink, sharePassword } = response as any
+
+    // 准备复制内容
+    let copyContent = `分享链接: ${shareLink}`
+    if (sharePassword) {
+      copyContent += `\n访问密码: ${sharePassword}`
+    }
+    copyContent += `\n有效期: ${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`
+
+    // 复制到剪贴板
+    try {
+      await navigator.clipboard.writeText(copyContent)
+      toast.success('分享链接已复制到剪贴板')
+    } catch (err) {
+      // 降级方案
+      const textArea = document.createElement('textarea')
+      textArea.value = copyContent
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success('分享链接已复制到剪贴板')
+    }
+
+    // 关闭分享对话框
+    closeShareDialog()
+
+  } catch (error) {
+    toast.error('生成分享链接失败，请重试')
+  } finally {
+    isGeneratingShare.value = false
   }
 }
 
