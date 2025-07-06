@@ -99,8 +99,6 @@
             />
           </div>
 
-
-
           <!-- 登录按钮 -->
           <button
             type="submit"
@@ -338,20 +336,45 @@ const forgotCodeCountdown = ref(0)
 
 // 窗口控制函数
 const minimizeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.minimizeWindow()
+  try {
+    if (typeof window !== 'undefined' && window?.electronAPI?.minimizeWindow) {
+      window.electronAPI.minimizeWindow()
+      console.log('窗口最小化成功')
+    } else {
+      console.error('electronAPI.minimizeWindow 不可用')
+    }
+  } catch (error) {
+    console.error('最小化窗口时出错:', error)
   }
 }
 
 const maximizeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.maximizeWindow()
+  try {
+    if (typeof window !== 'undefined' && window?.electronAPI?.maximizeWindow) {
+      window.electronAPI.maximizeWindow()
+      console.log('窗口最大化/还原成功')
+    } else {
+      console.error('electronAPI.maximizeWindow 不可用')
+    }
+  } catch (error) {
+    console.error('最大化窗口时出错:', error)
   }
 }
 
 const closeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.closeWindow()
+  try {
+    if (typeof window !== 'undefined' && window?.electronAPI?.closeWindow) {
+      window.electronAPI.closeWindow()
+      console.log('窗口关闭成功')
+    } else {
+      console.error('electronAPI.closeWindow 不可用')
+      // 后备方案
+      if (typeof window !== 'undefined') {
+        window.close()
+      }
+    }
+  } catch (error) {
+    console.error('关闭窗口时出错:', error)
   }
 }
 

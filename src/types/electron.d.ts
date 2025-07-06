@@ -12,8 +12,9 @@ export interface ElectronAPI {
   onUnmaximize: (callback: () => void) => void;
 }
 
+// 声明全局window对象上的electronAPI
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI?: ElectronAPI;
   }
 }

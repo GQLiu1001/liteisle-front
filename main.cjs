@@ -107,24 +107,37 @@ Menu.setApplicationMenu(null)
 
 // IPC 事件处理 - 窗口控制
 ipcMain.on('window-minimize', () => {
+  console.log('收到窗口最小化请求')
   if (mainWindow) {
     mainWindow.minimize();
+    console.log('窗口最小化成功')
+  } else {
+    console.error('mainWindow 不存在')
   }
 })
 
 ipcMain.on('window-maximize', () => {
+  console.log('收到窗口最大化/还原请求')
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
       mainWindow.unmaximize();
+      console.log('窗口还原成功')
     } else {
       mainWindow.maximize();
+      console.log('窗口最大化成功')
     }
+  } else {
+    console.error('mainWindow 不存在')
   }
 })
 
 ipcMain.on('window-close', () => {
+  console.log('收到窗口关闭请求')
   if (mainWindow) {
     mainWindow.close();
+    console.log('窗口关闭成功')
+  } else {
+    console.error('mainWindow 不存在')
   }
 })
 

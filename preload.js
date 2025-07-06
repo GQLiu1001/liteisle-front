@@ -1,11 +1,22 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+console.log('=== Preload 脚本开始执行 ===')
+
 // 暴露 Electron API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   // 窗口控制
-  minimizeWindow: () => ipcRenderer.send('window-minimize'),
-  maximizeWindow: () => ipcRenderer.send('window-maximize'),
-  closeWindow: () => ipcRenderer.send('window-close'),
+  minimizeWindow: () => {
+    console.log('preload: 发送窗口最小化请求')
+    ipcRenderer.send('window-minimize')
+  },
+  maximizeWindow: () => {
+    console.log('preload: 发送窗口最大化请求')
+    ipcRenderer.send('window-maximize')
+  },
+  closeWindow: () => {
+    console.log('preload: 发送窗口关闭请求')
+    ipcRenderer.send('window-close')
+  },
   
   // 监听窗口状态
   onMaximize: (callback) => ipcRenderer.on('window-maximized', callback),
@@ -14,3 +25,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 文件系统操作
   selectDirectory: () => ipcRenderer.invoke('select-directory')
 })
+
+console.log('=== Preload 脚本执行完成，electronAPI 已暴露 ===')

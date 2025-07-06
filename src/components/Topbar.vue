@@ -169,6 +169,14 @@ const handleClickOutside = () => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 
+  // 检查electronAPI状态
+  console.log('=== ElectronAPI 状态检查 ===')
+  console.log('window.electronAPI:', window?.electronAPI)
+  console.log('minimizeWindow 方法:', typeof window?.electronAPI?.minimizeWindow)
+  console.log('maximizeWindow 方法:', typeof window?.electronAPI?.maximizeWindow)
+  console.log('closeWindow 方法:', typeof window?.electronAPI?.closeWindow)
+  console.log('========================')
+
   if (window?.electronAPI) {
     window.electronAPI.onMaximize(() => {
       isMaximized.value = true
@@ -176,6 +184,8 @@ onMounted(() => {
     window.electronAPI.onUnmaximize(() => {
       isMaximized.value = false
     })
+  } else {
+    console.warn('electronAPI 不可用，窗口控制按钮可能无法正常工作')
   }
 })
 
@@ -191,20 +201,56 @@ onUnmounted(() => {
 
 // 窗口控制函数
 const minimizeWindow = () => {
-  if (window?.electronAPI) {
-    window.electronAPI.minimizeWindow()
+  try {
+    if (window?.electronAPI?.minimizeWindow) {
+      window.electronAPI.minimizeWindow()
+      console.log('窗口最小化成功')
+    } else {
+      console.error('electronAPI.minimizeWindow 不可用')
+      // 在非Electron环境下的后备方案
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'minimize-window' }, '*')
+      }
+    }
+  } catch (error) {
+    console.error('最小化窗口时出错:', error)
   }
 }
 
 const maximizeWindow = () => {
-  if (window?.electronAPI) {
-    window.electronAPI.maximizeWindow()
+  try {
+    if (window?.electronAPI?.maximizeWindow) {
+      window.electronAPI.maximizeWindow()
+      console.log('窗口最大化/还原成功')
+    } else {
+      console.error('electronAPI.maximizeWindow 不可用')
+      // 在非Electron环境下的后备方案
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'maximize-window' }, '*')
+      }
+    }
+  } catch (error) {
+    console.error('最大化窗口时出错:', error)
   }
 }
 
 const closeWindow = () => {
-  if (window?.electronAPI) {
-    window.electronAPI.closeWindow()
+  try {
+    if (window?.electronAPI?.closeWindow) {
+      window.electronAPI.closeWindow()
+      console.log('窗口关闭成功')
+    } else {
+      console.error('electronAPI.closeWindow 不可用')
+      // 在非Electron环境下的后备方案
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'close-window' }, '*')
+      } else {
+        // 最后的后备方案
+        window.close()
+      }
+    }
+  } catch (error) {
+    console.error('关闭窗口时出错:', error)
   }
 }
 </script>
