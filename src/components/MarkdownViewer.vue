@@ -38,6 +38,15 @@
           <span>快捷键</span>
         </button>
 
+        <!-- 隐藏大纲按钮 -->
+        <button 
+          @click="toggleOutline"
+          class="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          :title="showOutline ? '隐藏大纲' : '显示大纲'"
+        >
+          <span>{{ showOutline ? '隐藏大纲' : '显示大纲' }}</span>
+        </button>
+
         <!-- 保存按钮 -->
         <button 
           @click="saveContent"
@@ -180,6 +189,7 @@ const emit = defineEmits<{
 const currentContent = ref(props.content || '')
 const zoomLevel = ref(1) // 添加缩放级别状态
 const showShortcuts = ref(false) // 添加快捷键提示状态
+const showOutline = ref(true) // 大纲显示状态
 
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
@@ -244,7 +254,7 @@ const initVditor = async () => {
         enable: false
       },
       outline: {
-        enable: true, // 启用大纲以增强文档结构感
+        enable: showOutline.value, // 启用大纲以增强文档结构感
         position: 'left'
       },
       tab: '\t', // 设置 Tab 键行为
@@ -402,6 +412,19 @@ const saveContent = () => {
     currentContent.value = content
     emit('save', content)
     emit('update:content', content)
+  }
+}
+
+// 切换大纲显示状态
+const toggleOutline = () => {
+  showOutline.value = !showOutline.value
+  
+  // 重新初始化 Vditor 以应用大纲设置
+  if (vditor) {
+    vditor.destroy()
+    nextTick(() => {
+      initVditor()
+    })
   }
 }
 
