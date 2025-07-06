@@ -24,44 +24,54 @@
     <!-- 主内容区域: 三段式响应式布局 -->
     <div class="flex-1 flex items-center justify-center min-h-0 mb-4 lg:mb-6">
 
-      <!-- A. 超大屏 (>=1280px): 单岛屿轮播 -->
-      <div class="w-full h-full items-center justify-center hidden xl:flex">
-        <img 
-          :src="singleIsleImage" 
-          :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
-          class="max-w-full max-h-full object-contain transition-all duration-300 rounded-lg"
-          @error="handleImageError"
-        />
+      <!-- 无岛屿状态 -->
+      <div v-if="!hasIsles" class="text-center">
+        <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 bg-morandi-100 rounded-2xl flex items-center justify-center">
+          <div class="text-6xl lg:text-7xl opacity-50">🏝️</div>
+        </div>
+        <h4 class="text-lg lg:text-xl font-semibold text-morandi-700 mb-2">暂未净化岛屿</h4>
+        <p class="text-sm text-morandi-500">专注学习有概率获得净化岛屿</p>
       </div>
 
-      <!-- B. 中等屏幕 (1024px - 1279px): 三岛屿静态分页显示 -->
-      <div class="w-full h-full hidden lg:flex xl:hidden items-center justify-center">
-        <div class="flex justify-around items-center w-full">
-          <div 
-            v-for="isle in threeIslesForCurrentPage" :key="`three-${isle.name}`"
-            class="flex flex-col items-center gap-2 p-2"
-          >
-            <div class="w-24 h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
-              <img :src="`/islepic/${isle.image}`" :alt="isle.name" class="max-w-full max-h-full object-contain" @error="handleImageError" />
+      <!-- 有岛屿时显示 -->
+      <template v-else>
+        <!-- A. 超大屏 (>=1280px): 单岛屿轮播 -->
+        <div class="w-full h-full items-center justify-center hidden xl:flex">
+          <img 
+            :src="singleIsleImage" 
+            :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
+            class="max-w-full max-h-full object-contain transition-all duration-300 rounded-lg"
+            @error="handleImageError"
+          />
+        </div>
+
+        <!-- B. 中等屏幕 (1024px - 1279px): 三岛屿静态分页显示 -->
+        <div class="w-full h-full hidden lg:flex xl:hidden items-center justify-center">
+          <div class="flex justify-around items-center w-full">
+            <div 
+              v-for="isle in threeIslesForCurrentPage" :key="`three-${isle.id}`"
+              class="flex flex-col items-center gap-2 p-2"
+            >
+              <div class="w-24 h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
+                <img :src="isle.image_url" :alt="`岛屿 ${isle.id}`" class="max-w-full max-h-full object-contain" @error="handleImageError" />
+              </div>
             </div>
-            <p class="text-sm text-morandi-800 text-center font-medium">{{ isle.name }}</p>
+            <!-- 填充空白项，确保布局稳定 -->
+            <template v-if="threeIslesForCurrentPage.length < 3">
+              <div v-for="i in (3 - threeIslesForCurrentPage.length)" :key="`placeholder-${i}`" class="w-24 p-2"></div>
+            </template>
           </div>
-          <!-- 填充空白项，确保布局稳定 -->
-          <template v-if="threeIslesForCurrentPage.length < 3">
-            <div v-for="i in (3 - threeIslesForCurrentPage.length)" :key="`placeholder-${i}`" class="w-24 p-2"></div>
-          </template>
         </div>
-      </div>
 
-      <!-- C. 小屏幕 (<1024px): 网格视图 -->
-      <div class="grid grid-cols-3 sm:grid-cols-4 lg:hidden gap-4 w-full h-full overflow-y-auto">
-        <div v-for="(isle) in isles" :key="`grid-${isle.name}`" class="flex flex-col items-center gap-2 p-2 rounded-lg">
-          <div class="w-20 h-20 md:w-24 md:h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
-            <img :src="`/islepic/${isle.image}`" :alt="isle.name" class="max-w-full max-h-full object-contain" @error="handleImageError" />
+        <!-- C. 小屏幕 (<1024px): 网格视图 -->
+        <div class="grid grid-cols-3 sm:grid-cols-4 lg:hidden gap-4 w-full h-full overflow-y-auto">
+          <div v-for="isle in isles" :key="`grid-${isle.id}`" class="flex flex-col items-center gap-2 p-2 rounded-lg">
+            <div class="w-20 h-20 md:w-24 md:h-24 bg-morandi-50 rounded-xl flex items-center justify-center p-2">
+              <img :src="isle.image_url" :alt="`岛屿 ${isle.id}`" class="max-w-full max-h-full object-contain" @error="handleImageError" />
+            </div>
           </div>
-          <p class="text-xs md:text-sm text-morandi-800 text-center font-medium">{{ isle.name }}</p>
         </div>
-      </div>
+      </template>
     </div>
     
     <!-- 数量显示 -->
@@ -77,35 +87,63 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
 import { storeToRefs } from 'pinia'
 
+// 岛屿数据类型
+interface Island {
+  id: number
+  image_url: string
+  rarity: 'common' | 'rare' | 'epic' | 'legendary'
+  obtain_probability: number
+  min_focus_minutes: number
+}
+
 const focusStore = useFocusStore()
 const { isleCount } = storeToRefs(focusStore)
 
-const isles = [
-  { name: '绿意盎然', image: 'isle1.png' }, { name: '珊瑚礁石', image: 'isle2.png' },
-  { name: '雪山之巅', image: 'isle3.png' }, { name: '沙漠绿洲', image: 'isle4.png' },
-  { name: '樱花飞舞', image: 'isle5.png' }, { name: '极光之岛', image: 'isle6.png' },
-  { name: '火山之心', image: 'isle7.png' }, { name: '水晶洞穴', image: 'isle8.png' },
-]
+// 用户已收集的岛屿（从后端获取，暂时为空数组）
+const isles = computed((): Island[] => {
+  // TODO: 从 FocusStore 或 API 获取用户实际收集的岛屿
+  // 暂时返回空数组，显示"暂未净化岛屿"状态
+  return []
+})
+
+// 是否有岛屿
+const hasIsles = computed(() => isles.value.length > 0)
 
 // --- 统一状态和控制逻辑 ---
 const currentScreenMode = ref<'single' | 'three' | 'grid'>('single')
 const currentSingleIsleIndex = ref(0)
 const threeIsleCurrentPage = ref(0)
-const maxThreeIslePage = computed(() => Math.ceil(isles.length / 3) - 1)
 
 // A. 单岛屿轮播
-const singleIsleImage = computed(() => `/islepic/${isles[currentSingleIsleIndex.value]?.image}`)
-const nextSingleIsle = () => { currentSingleIsleIndex.value = (currentSingleIsleIndex.value + 1) % isles.length }
-const prevSingleIsle = () => { currentSingleIsleIndex.value = (currentSingleIsleIndex.value - 1 + isles.length) % isles.length }
+const singleIsleImage = computed(() => isles.value[currentSingleIsleIndex.value]?.image_url || '')
+const nextSingleIsle = () => { 
+  if (isles.value.length > 0) {
+    currentSingleIsleIndex.value = (currentSingleIsleIndex.value + 1) % isles.value.length 
+  }
+}
+const prevSingleIsle = () => { 
+  if (isles.value.length > 0) {
+    currentSingleIsleIndex.value = (currentSingleIsleIndex.value - 1 + isles.value.length) % isles.value.length 
+  }
+}
 
 // B. 三岛屿静态分页
+const maxThreeIslePage = computed(() => Math.max(0, Math.ceil(isles.value.length / 3) - 1))
 const threeIslesForCurrentPage = computed(() => {
   const start = threeIsleCurrentPage.value * 3;
   const end = start + 3;
-  return isles.slice(start, end);
+  return isles.value.slice(start, end);
 })
-const nextThreeIslePage = () => { threeIsleCurrentPage.value = (threeIsleCurrentPage.value + 1) % (maxThreeIslePage.value + 1) }
-const prevThreeIslePage = () => { threeIsleCurrentPage.value = (threeIsleCurrentPage.value - 1 + (maxThreeIslePage.value + 1)) % (maxThreeIslePage.value + 1) }
+const nextThreeIslePage = () => { 
+  if (maxThreeIslePage.value > 0) {
+    threeIsleCurrentPage.value = (threeIsleCurrentPage.value + 1) % (maxThreeIslePage.value + 1) 
+  }
+}
+const prevThreeIslePage = () => { 
+  if (maxThreeIslePage.value > 0) {
+    threeIsleCurrentPage.value = (threeIsleCurrentPage.value - 1 + (maxThreeIslePage.value + 1)) % (maxThreeIslePage.value + 1) 
+  }
+}
 
 // 统一的切换函数
 const next = () => {
