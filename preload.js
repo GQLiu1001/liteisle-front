@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
   closeWindow: () => ipcRenderer.send('window-close'),
   
+  // 监听窗口状态
+  onMaximize: (callback) => ipcRenderer.on('window-maximized', callback),
+  onUnmaximize: (callback) => ipcRenderer.on('window-unmaximized', callback),
+  
   // 文件系统操作
   selectDirectory: () => ipcRenderer.invoke('select-directory')
 })

@@ -3,7 +3,28 @@ const path = require('path')
 const fs = require('fs')
 const isDev = process.env.NODE_ENV === 'development'
 
+// 设置应用数据目录
+const userDataPath = path.join(app.getPath('appData'), 'liteisle-desktop')
+app.setPath('userData', userDataPath)
+
+// 确保目录存在
+if (!fs.existsSync(userDataPath)) {
+  fs.mkdirSync(userDataPath, { recursive: true })
+}
+
 let mainWindow
+
+// 清理缓存目录
+function clearCache() {
+  if (mainWindow) {
+    const session = mainWindow.webContents.session
+    session.clearCache().then(() => {
+      console.log('Cache cleared successfully')
+    }).catch(err => {
+      console.error('Failed to clear cache:', err)
+    })
+  }
+}
 
 function createWindow() {
   const preloadPath = path.join(__dirname, 'preload.js');
@@ -26,6 +47,9 @@ function createWindow() {
     titleBarStyle: 'hidden'  // 隐藏标题栏
   })
 
+  // 在窗口创建后清理缓存
+  clearCache()
+
   // 加载应用
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
@@ -42,6 +66,15 @@ function createWindow() {
     if (isDev) {
       mainWindow.maximize()
     }
+  })
+
+  // 监听窗口状态变化
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized')
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-unmaximized')
   })
 
   // 当窗口关闭时触发

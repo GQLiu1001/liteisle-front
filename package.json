@@ -63,7 +63,8 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "public/logopic.png"
     },
     "nsis": {
       "oneClick": false,

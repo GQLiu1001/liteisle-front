@@ -71,7 +71,7 @@
           <Minus :size="16" />
         </button>
         <button @click="maximizeWindow" class="topbar-control">
-          <Square :size="14" />
+          <Square :size="14" :class="{ 'opacity-50': isMaximized }" />
         </button>
         <button @click="closeWindow" class="topbar-control hover:bg-red-100 hover:text-red-600">
           <X :size="16" />
@@ -101,6 +101,9 @@ const { isFocusing } = storeToRefs(focusStore)
 
 // 用户菜单状态
 const showUserMenu = ref(false)
+
+// 窗口状态
+const isMaximized = ref(false)
 
 const toggleFocus = () => {
   if (isFocusing.value) {
@@ -165,6 +168,15 @@ const handleClickOutside = () => {
 // 组件挂载时添加全局点击监听
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+
+  if (window?.electronAPI) {
+    window.electronAPI.onMaximize(() => {
+      isMaximized.value = true
+    })
+    window.electronAPI.onUnmaximize(() => {
+      isMaximized.value = false
+    })
+  }
 })
 
 // 监听路由变化，自动关闭菜单
@@ -179,37 +191,34 @@ onUnmounted(() => {
 
 // 窗口控制函数
 const minimizeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.minimizeWindow()
+  if (window?.electronAPI) {
+    window.electronAPI.minimizeWindow()
   }
 }
 
 const maximizeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.maximizeWindow()
+  if (window?.electronAPI) {
+    window.electronAPI.maximizeWindow()
   }
 }
 
 const closeWindow = () => {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
-    ;(window as any).electronAPI.closeWindow()
+  if (window?.electronAPI) {
+    window.electronAPI.closeWindow()
   }
 }
 </script>
 
 <style scoped>
+.topbar-control {
+  @apply p-2 rounded-lg text-morandi-600 hover:bg-morandi-100 transition-colors;
+}
+
 .draggable-area {
   -webkit-app-region: drag;
 }
 
-.draggable-area button {
-  -webkit-app-region: no-drag;
-}
-
-.draggable-area .topbar-control {
-  -webkit-app-region: no-drag;
-}
-
+.draggable-area button,
 .draggable-area .user-menu {
   -webkit-app-region: no-drag;
 }

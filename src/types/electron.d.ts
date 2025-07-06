@@ -5,10 +5,11 @@ export interface ElectronAPI {
   closeWindow: () => void;
   
   // 文件系统操作
-  selectDirectory: () => Promise<{
-    canceled: boolean;
-    filePaths?: string[];
-  }>;
+  selectDirectory: () => Promise<Electron.OpenDialogReturnValue>;
+
+  // 窗口状态监听
+  onMaximize: (callback: () => void) => void;
+  onUnmaximize: (callback: () => void) => void;
 }
 
 declare global {
