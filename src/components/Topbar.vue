@@ -31,16 +31,17 @@
         <div 
           v-if="showUserMenu"
           class="absolute left-1/2 -translate-x-1/2 top-12 w-32 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 z-50"
+          @click.stop
         >
           <button 
-            @click="goToAccountSettings"
+            @click.stop="goToAccountSettings"
             class="w-full px-4 py-2 hover:bg-morandi-50 flex items-center justify-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
           >
             <Settings :size="16" />
             <span>详情</span>
           </button>
           <button 
-            @click="handleLogout"
+            @click.stop="handleLogout"
             class="w-full px-4 py-2 hover:bg-morandi-50 flex items-center justify-center gap-2 text-morandi-700 hover:text-red-600 transition-colors"
           >
             <LogOut :size="16" />
@@ -102,11 +103,20 @@ const toggleUserMenu = (event: Event) => {
 
 // 跳转到账户设置
 const goToAccountSettings = () => {
-  // 先关闭菜单
+  // 立即关闭菜单
   showUserMenu.value = false
   
   // 设置当前分类为账户与云盘
   settingsStore.setCurrentCategoryId('account')
+  
+  // 如果已经在设置页面，直接返回，不需要跳转
+  if (route.name === 'settings') {
+    // 强制确保菜单关闭
+    nextTick(() => {
+      showUserMenu.value = false
+    })
+    return
+  }
   
   // 使用 nextTick 确保菜单关闭后再跳转
   nextTick(() => {
