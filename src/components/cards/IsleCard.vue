@@ -11,7 +11,7 @@
         <ChevronLeft :size="20" class="text-morandi-600" />
       </button>
       
-      <h3 class="text-xl lg:text-2xl font-bold text-morandi-900">净化岛屿</h3>
+      <h3 class="text-xl lg:text-2xl font-bold text-morandi-900">秘境岛屿</h3>
       
       <button 
         @click="next"
@@ -29,8 +29,8 @@
         <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 bg-morandi-100 rounded-2xl flex items-center justify-center">
           <div class="text-6xl lg:text-7xl opacity-50">🏝️</div>
         </div>
-        <h4 class="text-lg lg:text-xl font-semibold text-morandi-700 mb-2">暂未净化岛屿</h4>
-        <p class="text-sm text-morandi-500">专注学习有概率获得净化岛屿</p>
+        <h4 class="text-lg lg:text-xl font-semibold text-morandi-700 mb-2">暂未探索到秘境岛屿</h4>
+        <p class="text-sm text-morandi-500">专注学习有概率探索到秘境岛屿</p>
       </div>
 
       <!-- 有岛屿时显示 -->
