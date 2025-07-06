@@ -79,50 +79,49 @@
       </div>
     </div>
 
-    <!-- 关闭确认对话框 -->
     <div 
-      v-if="showCloseConfirmation" 
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
-      @click="showCloseConfirmation = false"
-    >
-      <div 
-        class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
-        @click.stop
-      >
-        <div class="text-center mb-6">
-          <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-            <X :size="32" class="text-orange-600" />
-          </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">确认关闭应用</h3>
-          <p class="text-gray-600">您想要退出应用还是最小化到系统托盘？</p>
-        </div>
-        
-        <div class="flex flex-col gap-3">
-          <button 
-            @click="handleMinimizeToTray"
-            class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <Minimize :size="18" />
-            <span>最小化到托盘</span>
-          </button>
-          
-          <button 
-            @click="handleQuitApp"
-            class="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <X :size="18" />
-            <span>退出应用</span>
-          </button>
-          
-          <button 
-            @click="showCloseConfirmation = false"
-            class="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
-          >
-            取消
-          </button>
-        </div>
+  v-if="showCloseConfirmation" 
+  class="fixed inset-0 flex items-center justify-center z-[9999]"
+  @click="showCloseConfirmation = false"
+>
+  <div 
+    class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+    @click.stop
+  >
+    <div class="text-center mb-4">
+      <div class="w-12 h-12 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
+        <X :size="24" class="text-orange-600" />
       </div>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">确认关闭应用</h3>
+      <p class="text-sm text-gray-600">您想要退出应用还是最小化到系统托盘？</p>
     </div>
+    
+    <div class="flex flex-col gap-2">
+      <button 
+        @click="handleMinimizeToTray"
+        class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+      >
+        <Minimize :size="16" />
+        <span>最小化到托盘</span>
+      </button>
+      
+      <button 
+        @click="handleQuitApp"
+        class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+      >
+        <X :size="16" />
+        <span>退出应用</span>
+      </button>
+      
+      <button 
+        @click="showCloseConfirmation = false"
+        class="w-full px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-sm"
+      >
+        取消
+      </button>
+    </div>
+  </div>
+</div>
   </header>
 </template>
 

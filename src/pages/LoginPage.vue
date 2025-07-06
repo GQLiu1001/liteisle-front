@@ -363,11 +363,15 @@ const maximizeWindow = () => {
 
 const closeWindow = () => {
   try {
-    if (typeof window !== 'undefined' && window?.electronAPI?.closeWindow) {
+    // 在登录页面直接退出应用
+    if (typeof window !== 'undefined' && window?.electronAPI?.quitApp) {
+      window.electronAPI.quitApp()
+      console.log('应用退出成功')
+    } else if (typeof window !== 'undefined' && window?.electronAPI?.closeWindow) {
       window.electronAPI.closeWindow()
       console.log('窗口关闭成功')
     } else {
-      console.error('electronAPI.closeWindow 不可用')
+      console.error('electronAPI 不可用')
       // 后备方案
       if (typeof window !== 'undefined') {
         window.close()

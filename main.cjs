@@ -29,16 +29,32 @@ function clearCache() {
 
 // 创建系统托盘
 function createTray() {
-  // 创建托盘图标
-  const iconPath = isDev 
-    ? path.join(__dirname, 'public/logopic.png')
-    : path.join(process.resourcesPath, 'app.asar.unpacked/public/logopic.png')
+  // 创建托盘图标 - 修复路径问题
+  let iconPath
+  if (isDev) {
+    iconPath = path.join(__dirname, 'public/logopic.png')
+  } else {
+    // 生产环境下，图标文件应该在resources目录下
+    iconPath = path.join(process.resourcesPath, 'logopic.png')
+    // 如果上面的路径不存在，尝试其他可能的路径
+    if (!fs.existsSync(iconPath)) {
+      iconPath = path.join(__dirname, 'public/logopic.png')
+    }
+    if (!fs.existsSync(iconPath)) {
+      iconPath = path.join(__dirname, '../public/logopic.png')
+    }
+  }
+  
+  console.log('托盘图标路径:', iconPath)
+  console.log('图标文件是否存在:', fs.existsSync(iconPath))
   
   // 如果图标文件不存在，使用默认图标
   let trayIcon
   if (fs.existsSync(iconPath)) {
     trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+    console.log('成功加载托盘图标')
   } else {
+    console.warn('托盘图标文件不存在，使用默认图标')
     // 创建一个简单的默认图标
     trayIcon = nativeImage.createEmpty()
   }
