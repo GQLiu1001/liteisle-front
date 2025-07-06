@@ -277,7 +277,7 @@ export const useDriveStore = defineStore('drive', () => {
     },
     {
       id: 3,
-      name: '学习资料',
+      name: '下载',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-12'),
@@ -371,7 +371,7 @@ export const useDriveStore = defineStore('drive', () => {
     },
     {
       id: 4,
-      name: '图片',
+      name: '分享',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-05'),

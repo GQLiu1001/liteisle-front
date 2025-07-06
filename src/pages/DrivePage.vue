@@ -210,7 +210,7 @@
                 v-for="item in filteredItems"
                 :key="item.id"
                 :data-item-id="item.id"
-                class="item-card p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer select-none"
+                class="item-card p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer select-none relative"
                 :class="getDragOverClass(item)"
                 @click="handleItemClick(item, $event)"
                 @dblclick="handleItemDoubleClick(item)"
@@ -221,6 +221,18 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
               >
+                <!-- 多选框 - 只在选中时显示 -->
+                <div 
+                  v-if="selectedItemIds.has(item.id)" 
+                  class="absolute top-2 left-2 z-10 pointer-events-auto"
+                >
+                  <div class="w-5 h-5 bg-teal-500 rounded-full flex items-center justify-center shadow-md">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                </div>
+
                 <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
                     <FolderLock v-if="item.type === 'folder' && getCurrentLevel() === 0" :size="48" class="text-gray-500" />
@@ -309,6 +321,18 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, item)"
               >
+                <!-- 多选框 - 只在选中时显示 -->
+                <div class="mr-3 pointer-events-auto w-5 flex justify-center">
+                  <div 
+                    v-if="selectedItemIds.has(item.id)"
+                    class="w-4 h-4 bg-teal-500 rounded-full flex items-center justify-center shadow-sm"
+                  >
+                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                </div>
+
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3 pointer-events-none">
                   <div class="w-8 h-8 flex items-center justify-center">
@@ -1236,6 +1260,8 @@ const handleItemClick = (item: DriveItem, event: MouseEvent) => {
   }
 }
 
+
+
 const handleItemDoubleClick = (item: DriveItem) => {
   const now = Date.now()
   if (now - lastFolderOpenTime.value < 300) {
@@ -2068,7 +2094,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     if (parsedData.type === 'multiple' && parsedData.ids) {
       // 处理多选拖拽
       const itemsToMove = parsedData.ids
-        .map((id: string) => findItemInStore(id))
+        .map((id: number) => findItemInStore(id))
         .filter((item: DriveItem | null) => item !== null)
       
       if (itemsToMove.length === 0) return
@@ -2091,8 +2117,8 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     }
   } catch (e) {
     // 如果不是JSON格式，按原来的单项拖拽处理
-    const draggedItemId = dragData
-    if (draggedItemId === targetItem.id) return
+    const draggedItemId = parseInt(dragData, 10)
+    if (isNaN(draggedItemId) || draggedItemId === targetItem.id) return
 
     const itemToMove = findItemInStore(draggedItemId)
     if (itemToMove) {
@@ -2120,7 +2146,7 @@ const getDragOverClass = (item: DriveItem, isList: boolean = false) => {
   return [baseClasses, selectedClasses, dragOverClasses].filter(Boolean)
 }
 
-const findItemInStore = (itemId: string): DriveItem | null => {
+const findItemInStore = (itemId: number): DriveItem | null => {
   const find = (items: DriveItem[]): DriveItem | null => {
     for (const item of items) {
       if (item.id === itemId) return item
@@ -2167,6 +2193,13 @@ const handleBreadcrumbDragLeave = () => {
 
 const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: number) => {
   dragOverBreadcrumbPath.value = null
+  // 清除面包屑下拉菜单和定时器
+  clearBreadcrumbDropdown()
+  if (dropdownHideTimer.value) {
+    clearTimeout(dropdownHideTimer.value)
+    dropdownHideTimer.value = null
+  }
+  
   // 阻止放置到当前目录
   if (index === breadcrumbPaths.value.length - 1) {
     return
@@ -2182,7 +2215,7 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
     if (parsedData.type === 'multiple' && parsedData.ids) {
       // 处理多选拖拽到面包屑
       const itemsToMove = parsedData.ids
-        .map((id: string) => findItemInStore(id))
+        .map((id: number) => findItemInStore(id))
         .filter((item: DriveItem | null) => item !== null)
       
       if (itemsToMove.length === 0) return
@@ -2205,7 +2238,9 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
     }
   } catch (e) {
     // 如果不是JSON格式，按原来的单项拖拽处理
-    const draggedItemId = dragData
+    const draggedItemId = parseInt(dragData, 10)
+    if (isNaN(draggedItemId)) return
+    
     const itemToMove = findItemInStore(draggedItemId)
     
     if (itemToMove) {
@@ -2261,7 +2296,13 @@ const refreshAndHide = async () => {
 }
 
 const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) => {
+  // 清除面包屑下拉菜单和定时器
   clearBreadcrumbDropdown()
+  if (dropdownHideTimer.value) {
+    clearTimeout(dropdownHideTimer.value)
+    dropdownHideTimer.value = null
+  }
+  
   if (!event.dataTransfer) return
 
   const dragData = event.dataTransfer.getData('text/plain')
@@ -2272,7 +2313,7 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
     if (parsedData.type === 'multiple' && parsedData.ids) {
       // 处理多选拖拽到面包屑子项
       const itemsToMove = parsedData.ids
-        .map((id: string) => findItemInStore(id))
+        .map((id: number) => findItemInStore(id))
         .filter((item: DriveItem | null) => item !== null && item.id !== targetFolder.id)
       
       if (itemsToMove.length === 0) return
@@ -2292,7 +2333,9 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
     }
   } catch (e) {
     // 如果不是JSON格式，按原来的单项拖拽处理
-    const draggedItemId = dragData
+    const draggedItemId = parseInt(dragData, 10)
+    if (isNaN(draggedItemId)) return
+    
     const itemToMove = findItemInStore(draggedItemId)
 
     if (itemToMove && itemToMove.id !== targetFolder.id) {
@@ -2526,8 +2569,11 @@ const updateSelectedItems = () => {
     const itemRight = itemLeft + itemRect.width
     const itemBottom = itemTop + itemRect.height
 
-    const itemId = item.getAttribute('data-item-id')
-    if (!itemId) return
+    const itemIdStr = item.getAttribute('data-item-id')
+    if (!itemIdStr) return
+
+    const itemId = parseInt(itemIdStr, 10)
+    if (isNaN(itemId)) return
 
     // 检查是否有重叠 - 更精确的碰撞检测
     const isOverlapping = !(
@@ -2544,12 +2590,12 @@ const updateSelectedItems = () => {
 }
 
 const hasLockedItems = () => {
-  return Array.from(selectedItemIds.value).some((id: string) => findItemInStore(id)?.isLocked)
+  return Array.from(selectedItemIds.value).some((id: number) => findItemInStore(id)?.isLocked)
 }
 
 const copyMultipleItems = () => {
   const selectedItems = Array.from(selectedItemIds.value)
-    .map((id: string) => findItemInStore(id))
+    .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   clipboard.value = selectedItems.map(item => ({ ...item }))
@@ -2560,7 +2606,7 @@ const copyMultipleItems = () => {
 
 const cutMultipleItems = () => {
   const selectedItems = Array.from(selectedItemIds.value)
-    .map((id: string) => findItemInStore(id))
+    .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   clipboard.value = selectedItems.map(item => ({ ...item }))
@@ -2571,7 +2617,7 @@ const cutMultipleItems = () => {
 
 const deleteMultipleItems = () => {
   const selectedItems = Array.from(selectedItemIds.value)
-    .map((id: string) => findItemInStore(id))
+    .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   
@@ -2594,7 +2640,7 @@ const deleteMultipleItems = () => {
 
 const restoreMultipleItems = () => {
   const selectedItems = Array.from(selectedItemIds.value)
-    .map((id: string) => findItemInStore(id))
+    .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   
