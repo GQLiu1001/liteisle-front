@@ -39,17 +39,24 @@ import MusicBar from '@/components/MusicBar.vue'
 import GlobalContextMenu from '@/components/GlobalContextMenu.vue'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
+import { useVditorStore } from '@/store/VditorStore'
 
 const route = useRoute()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
+const vditorStore = useVditorStore()
 
-// 应用启动时初始化认证状态
+// 应用启动时初始化认证状态和Vditor
 onMounted(async () => {
   try {
-    await authStore.initializeAuth()
+    // 并行初始化认证状态和Vditor
+    await Promise.all([
+      authStore.initializeAuth(),
+      vditorStore.initializeVditor()
+    ])
+    console.log('应用初始化完成')
   } catch (error) {
-    console.warn('初始化认证状态失败:', error)
+    console.warn('应用初始化过程中出现错误:', error)
   }
 })
 </script>

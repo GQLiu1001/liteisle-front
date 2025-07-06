@@ -8,6 +8,7 @@ import { useTransferStore } from './TransferStore'
 import { useSettingsStore } from './SettingsStore'
 import { useFocusStore } from './FocusStore'
 import { useContextMenuStore } from './ContextMenuStore'
+import { useVditorStore } from './VditorStore'
 
 const pinia = createPinia()
 
@@ -21,5 +22,6 @@ export {
   useTransferStore,
   useSettingsStore,
   useFocusStore,
-  useContextMenuStore
+  useContextMenuStore,
+  useVditorStore
 } 

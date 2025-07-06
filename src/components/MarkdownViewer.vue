@@ -122,6 +122,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import CheckIcon from 'lucide-vue-next/dist/esm/icons/check'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
+import { useVditorStore } from '@/store/VditorStore'
 
 // 组件属性
 interface Props {
@@ -148,15 +149,17 @@ const showShortcuts = ref(false) // 添加快捷键提示状态
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
 
-// Vditor 实例
+// Vditor 实例和Store
 let vditor: Vditor | null = null
+const vditorStore = useVditorStore()
 
 // 初始化 Vditor
 const initVditor = async () => {
   if (!vditorElement.value) return
 
   try {
-    vditor = new Vditor(vditorElement.value, {
+    // 使用全局VditorStore创建实例，确保依赖已预加载
+    vditor = await vditorStore.createVditorInstance(vditorElement.value, {
       height: '100%',
       mode: 'ir', // 即时渲染模式 - 类似 Typora 的优雅编辑方式
       value: currentContent.value,
@@ -345,7 +348,7 @@ const initVditor = async () => {
         }, 100)
       }
     })
-    } catch (error) {
+  } catch (error) {
     console.error('Vditor IR 模式初始化失败:', error)
   }
 }
