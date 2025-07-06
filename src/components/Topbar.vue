@@ -37,7 +37,7 @@
             @click.stop="goToAccountSettings"
             class="w-full px-4 py-2 hover:bg-morandi-50 flex items-center justify-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
           >
-            <Settings :size="16" />
+            <CircleEqual :size="16" />
             <span>详情</span>
           </button>
           <button 
@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { PenTool, User, Minus, Square, X, LogOut, Settings } from 'lucide-vue-next'
+import { PenTool, User, Minus, Square, X, LogOut, CircleEqual } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
