@@ -18,9 +18,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('window-close')
   },
   
+  // 托盘和退出相关
+  minimizeToTray: () => {
+    console.log('preload: 发送最小化到托盘请求')
+    ipcRenderer.send('minimize-to-tray')
+  },
+  quitApp: () => {
+    console.log('preload: 发送退出应用请求')
+    ipcRenderer.send('quit-app')
+  },
+  
   // 监听窗口状态
   onMaximize: (callback) => ipcRenderer.on('window-maximized', callback),
   onUnmaximize: (callback) => ipcRenderer.on('window-unmaximized', callback),
+  onShowCloseConfirmation: (callback) => ipcRenderer.on('show-close-confirmation', callback),
   
   // 文件系统操作
   selectDirectory: () => ipcRenderer.invoke('select-directory')

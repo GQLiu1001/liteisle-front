@@ -78,13 +78,58 @@
         </button>
       </div>
     </div>
+
+    <!-- 关闭确认对话框 -->
+    <div 
+      v-if="showCloseConfirmation" 
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
+      @click="showCloseConfirmation = false"
+    >
+      <div 
+        class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+        @click.stop
+      >
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+            <X :size="32" class="text-orange-600" />
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-2">确认关闭应用</h3>
+          <p class="text-gray-600">您想要退出应用还是最小化到系统托盘？</p>
+        </div>
+        
+        <div class="flex flex-col gap-3">
+          <button 
+            @click="handleMinimizeToTray"
+            class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <Minimize :size="18" />
+            <span>最小化到托盘</span>
+          </button>
+          
+          <button 
+            @click="handleQuitApp"
+            class="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            <X :size="18" />
+            <span>退出应用</span>
+          </button>
+          
+          <button 
+            @click="showCloseConfirmation = false"
+            class="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { PenTool, User, Minus, Square, X, LogOut, CircleEqual } from 'lucide-vue-next'
+import { PenTool, User, Minus, Square, X, LogOut, CircleEqual, Minimize } from 'lucide-vue-next'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
@@ -104,6 +149,9 @@ const showUserMenu = ref(false)
 
 // 窗口状态
 const isMaximized = ref(false)
+
+// 关闭确认对话框状态
+const showCloseConfirmation = ref(false)
 
 const toggleFocus = () => {
   if (isFocusing.value) {
@@ -184,6 +232,10 @@ onMounted(() => {
     window.electronAPI.onUnmaximize(() => {
       isMaximized.value = false
     })
+    // 监听关闭确认对话框请求
+    window.electronAPI.onShowCloseConfirmation(() => {
+      showCloseConfirmation.value = true
+    })
   } else {
     console.warn('electronAPI 不可用，窗口控制按钮可能无法正常工作')
   }
@@ -238,7 +290,7 @@ const closeWindow = () => {
   try {
     if (window?.electronAPI?.closeWindow) {
       window.electronAPI.closeWindow()
-      console.log('窗口关闭成功')
+      console.log('窗口关闭请求发送成功')
     } else {
       console.error('electronAPI.closeWindow 不可用')
       // 在非Electron环境下的后备方案
@@ -251,6 +303,39 @@ const closeWindow = () => {
     }
   } catch (error) {
     console.error('关闭窗口时出错:', error)
+  }
+}
+
+// 处理最小化到托盘
+const handleMinimizeToTray = () => {
+  try {
+    if (window?.electronAPI?.minimizeToTray) {
+      window.electronAPI.minimizeToTray()
+      showCloseConfirmation.value = false
+      console.log('最小化到托盘成功')
+    } else {
+      console.error('electronAPI.minimizeToTray 不可用')
+    }
+  } catch (error) {
+    console.error('最小化到托盘时出错:', error)
+  }
+}
+
+// 处理退出应用
+const handleQuitApp = () => {
+  try {
+    if (window?.electronAPI?.quitApp) {
+      window.electronAPI.quitApp()
+      console.log('退出应用请求发送成功')
+    } else {
+      console.error('electronAPI.quitApp 不可用')
+      // 后备方案
+      if (typeof window !== 'undefined') {
+        window.close()
+      }
+    }
+  } catch (error) {
+    console.error('退出应用时出错:', error)
   }
 }
 </script>

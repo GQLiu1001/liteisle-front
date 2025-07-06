@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, dialog, Tray, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const isDev = process.env.NODE_ENV === 'development'
@@ -13,6 +13,7 @@ if (!fs.existsSync(userDataPath)) {
 }
 
 let mainWindow
+let tray = null
 
 // 清理缓存目录
 function clearCache() {
@@ -24,6 +25,73 @@ function clearCache() {
       console.error('Failed to clear cache:', err)
     })
   }
+}
+
+// 创建系统托盘
+function createTray() {
+  // 创建托盘图标
+  const iconPath = isDev 
+    ? path.join(__dirname, 'public/logopic.png')
+    : path.join(process.resourcesPath, 'app.asar.unpacked/public/logopic.png')
+  
+  // 如果图标文件不存在，使用默认图标
+  let trayIcon
+  if (fs.existsSync(iconPath)) {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+  } else {
+    // 创建一个简单的默认图标
+    trayIcon = nativeImage.createEmpty()
+  }
+  
+  tray = new Tray(trayIcon)
+  
+  // 设置托盘提示文本
+  tray.setToolTip('Liteisle Desktop')
+  
+  // 创建托盘菜单
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示应用',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) {
+            mainWindow.restore()
+          }
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      }
+    },
+    {
+      label: '隐藏应用',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.hide()
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出应用',
+      click: () => {
+        app.isQuiting = true
+        app.quit()
+      }
+    }
+  ])
+  
+  tray.setContextMenu(contextMenu)
+  
+  // 双击托盘图标显示窗口
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
 }
 
 function createWindow() {
@@ -50,6 +118,9 @@ function createWindow() {
   // 在窗口创建后清理缓存
   clearCache()
 
+  // 创建系统托盘
+  createTray()
+
   // 加载应用
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
@@ -75,6 +146,15 @@ function createWindow() {
 
   mainWindow.on('unmaximize', () => {
     mainWindow.webContents.send('window-unmaximized')
+  })
+
+  // 处理窗口关闭事件
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault()
+      // 发送关闭确认请求到渲染进程
+      mainWindow.webContents.send('show-close-confirmation')
+    }
   })
 
   // 当窗口关闭时触发
@@ -134,11 +214,27 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => {
   console.log('收到窗口关闭请求')
   if (mainWindow) {
-    mainWindow.close();
-    console.log('窗口关闭成功')
+    // 不直接关闭，而是发送确认请求
+    mainWindow.webContents.send('show-close-confirmation')
   } else {
     console.error('mainWindow 不存在')
   }
+})
+
+// 最小化到托盘
+ipcMain.on('minimize-to-tray', () => {
+  console.log('收到最小化到托盘请求')
+  if (mainWindow) {
+    mainWindow.hide()
+    console.log('应用已最小化到系统托盘')
+  }
+})
+
+// 真正退出应用
+ipcMain.on('quit-app', () => {
+  console.log('收到退出应用请求')
+  app.isQuiting = true
+  app.quit()
 })
 
 // 目录选择对话框

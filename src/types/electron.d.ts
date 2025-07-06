@@ -4,12 +4,17 @@ export interface ElectronAPI {
   maximizeWindow: () => void;
   closeWindow: () => void;
   
+  // 托盘和退出相关
+  minimizeToTray: () => void;
+  quitApp: () => void;
+  
   // 文件系统操作
   selectDirectory: () => Promise<Electron.OpenDialogReturnValue>;
 
   // 窗口状态监听
   onMaximize: (callback: () => void) => void;
   onUnmaximize: (callback: () => void) => void;
+  onShowCloseConfirmation: (callback: () => void) => void;
 }
 
 // 声明全局window对象上的electronAPI
