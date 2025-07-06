@@ -49,14 +49,17 @@
             </div>
           </div>
           <!-- 图片 -->
-          <img 
-            v-show="!singleIsleLoading"
-            :src="singleIsleImage" 
-            :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
-            class="max-w-full max-h-full object-contain transition-all duration-300 rounded-lg"
-            @load="handleImageLoad('single')"
-            @error="handleImageError"
-          />
+          <Transition name="fade" mode="out-in">
+            <img 
+              v-show="!singleIsleLoading"
+              :key="currentSingleIsleIndex"
+              :src="singleIsleImage" 
+              :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
+              class="max-w-full max-h-full object-contain transition-all duration-300 rounded-lg"
+              @load="handleImageLoad('single')"
+              @error="handleImageError"
+            />
+          </Transition>
         </div>
 
         <!-- B. 小屏幕 (<1024px): 网格视图 -->
@@ -115,6 +118,7 @@ const focusStore = useFocusStore()
 // 图片加载状态管理
 const singleIsleLoading = ref(true)
 const gridImageLoading = reactive<Record<number, boolean>>({})
+const initialLoadComplete = ref(false)
 
 // 用户已收集的岛屿（从后端获取，暂时为空数组）
 const isles = computed((): Island[] => {
@@ -158,20 +162,18 @@ const threeIsleCurrentPage = ref(0)
 const singleIsleImage = computed(() => isles.value[currentSingleIsleIndex.value]?.image_url || '')
 const nextSingleIsle = () => { 
   if (isles.value.length > 0) {
-    singleIsleLoading.value = true // 切换时显示加载状态
     currentSingleIsleIndex.value = (currentSingleIsleIndex.value + 1) % isles.value.length 
   }
 }
 const prevSingleIsle = () => { 
   if (isles.value.length > 0) {
-    singleIsleLoading.value = true // 切换时显示加载状态
     currentSingleIsleIndex.value = (currentSingleIsleIndex.value - 1 + isles.value.length) % isles.value.length 
   }
 }
 
 // 监听单岛屿图片URL变化，重置加载状态
 watch(() => singleIsleImage.value, () => {
-  if (singleIsleImage.value) {
+  if (singleIsleImage.value && !initialLoadComplete.value) {
     singleIsleLoading.value = true
   }
 })
@@ -218,6 +220,7 @@ const checkScreenMode = () => {
 const handleImageLoad = (type: 'single' | 'grid', islandId?: number) => {
   if (type === 'single') {
     singleIsleLoading.value = false
+    initialLoadComplete.value = true
   } else if (type === 'grid' && islandId !== undefined) {
     gridImageLoading[islandId] = false
   }
@@ -245,9 +248,49 @@ const handleImageError = (event: Event) => {
   }
 }
 
+// 自动轮播定时器
+let autoPlayTimer: ReturnType<typeof setInterval> | null = null
+
+// 启动自动轮播
+const startAutoPlay = () => {
+  if (autoPlayTimer) clearInterval(autoPlayTimer)
+  autoPlayTimer = setInterval(() => {
+    if (isles.value.length > 1) {
+      next()
+    }
+  }, 30000) // 30秒切换一次
+}
+
+// 停止自动轮播
+const stopAutoPlay = () => {
+  if (autoPlayTimer) {
+    clearInterval(autoPlayTimer)
+    autoPlayTimer = null
+  }
+}
+
+// 在组件挂载时启动自动轮播
 onMounted(() => {
   checkScreenMode()
   window.addEventListener('resize', checkScreenMode)
+  startAutoPlay()
 })
-onUnmounted(() => window.removeEventListener('resize', checkScreenMode))
-</script> 
+
+// 在组件卸载时清理
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenMode)
+  stopAutoPlay()
+})
+</script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style> 

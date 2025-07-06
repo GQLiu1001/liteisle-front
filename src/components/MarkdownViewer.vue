@@ -107,10 +107,45 @@
     </div>
 
     <!-- 主内容区 -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex overflow-hidden" @contextmenu="handleContextMenu">
       <!-- 编辑器容器 -->
       <div class="flex-1 overflow-hidden">
         <div ref="vditorElement" class="h-full"></div>
+      </div>
+
+      <!-- 右键菜单 -->
+      <div
+        v-if="showContextMenu"
+        :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+        class="context-menu fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[150px] max-w-[300px]"
+      >
+        <button
+          @click.stop="copyText"
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+        >
+          📋 复制{{ translatedText ? '译文' : '' }}
+        </button>
+        <button
+          @click.stop="translateText"
+          :disabled="isTranslating"
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+        >
+          🌐 翻译
+        </button>
+        
+        <!-- 翻译结果区域 -->
+        <div v-if="isTranslating || translatedText" class="border-t border-gray-200 mt-2">
+          <div v-if="isTranslating" class="px-4 py-3 text-xs text-gray-500">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+              翻译中...
+            </div>
+          </div>
+          <div v-else-if="translatedText" class="px-4 py-3">
+            <div class="text-xs text-gray-500 mb-1">译文:</div>
+            <div class="text-sm text-gray-800 leading-relaxed">{{ translatedText }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -152,6 +187,13 @@ const vditorElement = ref<HTMLElement>()
 // Vditor 实例和Store
 let vditor: Vditor | null = null
 const vditorStore = useVditorStore()
+
+// 右键菜单相关状态
+const showContextMenu = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const selectedText = ref('')
+const translatedText = ref('')
+const isTranslating = ref(false)
 
 // 初始化 Vditor
 const initVditor = async () => {
@@ -776,6 +818,69 @@ watch(() => props.content, (newContent) => {
   }
 }, { immediate: true })
 
+// 右键菜单处理
+const handleContextMenu = (event: MouseEvent) => {
+  const selection = window.getSelection()
+  if (selection && selection.toString().trim()) {
+    event.preventDefault()
+    selectedText.value = selection.toString().trim()
+    contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+    showContextMenu.value = true
+  }
+}
+
+// 复制文本
+const copyText = async () => {
+  const textToCopy = translatedText.value || selectedText.value
+  if (textToCopy) {
+    try {
+      await navigator.clipboard.writeText(textToCopy)
+      showContextMenu.value = false
+      translatedText.value = ''
+      isTranslating.value = false
+    } catch (err) {
+      console.error('复制失败:', err)
+    }
+  }
+}
+
+// 翻译文本
+const translateText = async () => {
+  if (selectedText.value) {
+    isTranslating.value = true
+    translatedText.value = ''
+    
+    try {
+      // 模拟API调用延迟
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // 这里应该调用真实的翻译API
+      // 现在先用模拟翻译结果
+      const mockTranslation = `翻译结果: ${selectedText.value}`
+      translatedText.value = mockTranslation
+      
+    } catch (error) {
+      translatedText.value = '翻译失败，请重试'
+    } finally {
+      isTranslating.value = false
+    }
+  }
+}
+
+// 点击其他地方关闭右键菜单
+const handleClickOutside = (event: MouseEvent) => {
+  if (showContextMenu.value) {
+    const target = event.target as Element
+    const contextMenu = document.querySelector('.context-menu')
+    
+    if (contextMenu && !contextMenu.contains(target)) {
+      showContextMenu.value = false
+      translatedText.value = ''
+      isTranslating.value = false
+    }
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   document.addEventListener('keydown', handleGlobalKeydown)
@@ -786,6 +891,7 @@ onMounted(async () => {
   if (vditorElement.value) {
     vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
   }
+  document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
@@ -802,6 +908,7 @@ onBeforeUnmount(() => {
     }
   }
   vditor?.destroy()
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
