@@ -174,6 +174,7 @@
                 <div 
                   class="bg-transparent rounded-lg h-full overflow-y-auto"
                   @scroll="handleShareScroll"
+                  style="min-height: 400px; max-height: calc(100vh - 300px);"
                 >
                   <div v-if="settingsStore.shareItems.length === 0 && !settingsStore.shareLoading" class="p-8 text-center text-morandi-500">
                     暂无分享记录
@@ -256,6 +257,7 @@
                 <div 
                   class="bg-transparent rounded-lg h-full overflow-y-auto"
                   @scroll="handleScroll"
+                  style="min-height: 400px; max-height: calc(100vh - 300px);"
                 >
                   <div v-if="focusRecords.length === 0 && !isLoadingRecords" class="p-8 text-center text-morandi-500">
                     暂无专注记录
@@ -276,10 +278,8 @@
                               专注
                             </div>
                           </div>
-                          <div class="text-sm text-morandi-600 space-y-1">
+                          <div class="text-sm text-morandi-600">
                             <div>专注时长: {{ formatMinutes(record.focusMinutes) }}</div>
-                            <div>专注次数: {{ record.focusSessions }} 次</div>
-                            <div v-if="record.longestSession">最长单次: {{ formatMinutes(record.longestSession) }}</div>
                           </div>
                         </div>
                         <div class="text-right">
@@ -533,9 +533,6 @@ const submitPasswordChange = async () => {
 const focusRecords = ref<Array<{
   date: string;
   focusMinutes: number;
-  focusSessions: number;
-  longestSession: number;
-  hasCheckin: boolean;
 }>>([]);
 
 const isLoadingRecords = ref(false);
@@ -547,9 +544,6 @@ const focusPageSize = ref(10);
 const mockFocusData: Array<{
   date: string;
   focusMinutes: number;
-  focusSessions: number;
-  longestSession: number;
-  hasCheckin: boolean;
 }> = [];
 
 // 专注统计
@@ -640,10 +634,7 @@ const initMockFocusData = () => {
       const focusMinutes = Math.floor(Math.random() * 120) + 15; // 15-135分钟
       mockFocusData.push({
         date: dateStr,
-        focusMinutes: focusMinutes,
-        focusSessions: Math.ceil(focusMinutes / 25), // 假设每次25分钟
-        longestSession: Math.min(focusMinutes, 90), // 假设最长90分钟
-        hasCheckin: focusMinutes >= 30
+        focusMinutes: focusMinutes
       });
     }
   }
