@@ -1,5 +1,5 @@
 <template>
-  <aside class="fixed left-0 top-0 w-[133px] h-full bg-liteisle-sidebar flex flex-col z-50 select-none">
+  <aside class="fixed left-0 top-0 w-[150px] h-full bg-liteisle-sidebar flex flex-col z-50 select-none">
 
     <!-- Navigation Items Container - 智能居中布局，确保不被截断 -->
     <div class="flex-1 flex flex-col justify-center min-h-0 py-4 lg:py-6">
