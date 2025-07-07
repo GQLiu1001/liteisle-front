@@ -77,7 +77,7 @@ export const useDriveStore = defineStore('drive', () => {
           path: '/音乐/我喜欢的',
           parentId: 1,
           level: 2,
-          itemCount: 2,
+          itemCount: 6,
           children: [
             {
               id: 111,
@@ -91,8 +91,8 @@ export const useDriveStore = defineStore('drive', () => {
               storageId: 201
             },
             {
-              id: 1112412432,
-              name: '蓝莲63花.mp3',
+              id: 112,
+              name: '蓝莲花.mp3',
               type: 'audio',
               size: 4536320,
               modifiedAt: new Date('2024-01-11'),
@@ -102,114 +102,48 @@ export const useDriveStore = defineStore('drive', () => {
               storageId: 202
             },
             {
-              id: 3123111,
-              name: '夜97979曲.mp3',
+              id: 113,
+              name: '稻香.mp3',
               type: 'audio',
               size: 5242880,
               modifiedAt: new Date('2024-01-12'),
               createdAt: new Date('2024-01-05'),
-              path: '/音乐/我喜欢的/夜曲.mp3',
+              path: '/音乐/我喜欢的/稻香.mp3',
               parentId: 11,
-              storageId: 201
+              storageId: 203
             },
             {
-              id: 111363142,
-              name: '蓝123132莲花.mp3',
+              id: 114,
+              name: '青花瓷.mp3',
               type: 'audio',
               size: 4536320,
               modifiedAt: new Date('2024-01-11'),
               createdAt: new Date('2024-01-06'),
-              path: '/音乐/我喜欢的/蓝莲花.mp3',
+              path: '/音乐/我喜欢的/青花瓷.mp3',
               parentId: 11,
-              storageId: 202
+              storageId: 204
             },
             {
-              id: 121513711,
-              name: '夜78978978曲.mp3',
+              id: 115,
+              name: '七里香.mp3',
               type: 'audio',
               size: 5242880,
               modifiedAt: new Date('2024-01-12'),
               createdAt: new Date('2024-01-05'),
-              path: '/音乐/我喜欢的/夜曲.mp3',
+              path: '/音乐/我喜欢的/七里香.mp3',
               parentId: 11,
-              storageId: 201
+              storageId: 205
             },
             {
-              id: 111322,
-              name: '蓝莲花5152.mp3',
+              id: 116,
+              name: '东风破.mp3',
               type: 'audio',
               size: 4536320,
               modifiedAt: new Date('2024-01-11'),
               createdAt: new Date('2024-01-06'),
-              path: '/音乐/我喜欢的/蓝莲花.mp3',
+              path: '/音乐/我喜欢的/东风破.mp3',
               parentId: 11,
-              storageId: 202
-            },    
-            {
-              id: 111777,
-              name: '夜1132曲.mp3',
-              type: 'audio',
-              size: 5242880,
-              modifiedAt: new Date('2024-01-12'),
-              createdAt: new Date('2024-01-05'),
-              path: '/音乐/我喜欢的/夜曲.mp3',
-              parentId: 11,
-              storageId: 201
-            },
-            {
-              id: 111312,
-              name: '蓝莲23花.mp3',
-              type: 'audio',
-              size: 4536320,
-              modifiedAt: new Date('2024-01-11'),
-              createdAt: new Date('2024-01-06'),
-              path: '/音乐/我喜欢的/蓝莲花.mp3',
-              parentId: 11,
-              storageId: 202
-            },
-            {
-              id: 13211,
-              name: '夜1曲1.mp3',
-              type: 'audio',
-              size: 5242880,
-              modifiedAt: new Date('2024-01-12'),
-              createdAt: new Date('2024-01-05'),
-              path: '/音乐/我喜欢的/夜曲.mp3',
-              parentId: 11,
-              storageId: 201
-            },
-            {
-              id: 1112,
-              name: '蓝莲花5.mp3',
-              type: 'audio',
-              size: 4536320,
-              modifiedAt: new Date('2024-01-11'),
-              createdAt: new Date('2024-01-06'),
-              path: '/音乐/我喜欢的/蓝莲花.mp3',
-              parentId: 11,
-              storageId: 202
-            },
-            {
-              id: 1311,
-              name: '夜2曲.mp3',
-              type: 'audio',
-              size: 5242880,
-              modifiedAt: new Date('2024-01-12'),
-              createdAt: new Date('2024-01-05'),
-              path: '/音乐/我喜欢的/夜曲.mp3',
-              parentId: 11,
-              storageId: 201
-            },
-            {
-              id: 1412,
-              name: '蓝1莲花.mp3',
-              type: 'audio',
-              size: 4536320,
-              modifiedAt: new Date('2024-01-11'),
-              createdAt: new Date('2024-01-06'),
-              path: '/音乐/我喜欢的/蓝莲花.mp3',
-              parentId: 11,
-              storageId: 202
+              storageId: 206
             }
           ]
         },
@@ -234,7 +168,7 @@ export const useDriveStore = defineStore('drive', () => {
               createdAt: new Date('2024-01-07'),
               path: '/音乐/古典音乐/贝多芬第九交响曲.mp3',
               parentId: 12,
-              storageId: 203
+              storageId: 207
             }
           ]
         },
@@ -259,7 +193,7 @@ export const useDriveStore = defineStore('drive', () => {
               createdAt: new Date('2024-01-08'),
               path: '/音乐/摇滚音乐/光辉岁月.mp3',
               parentId: 13,
-              storageId: 204
+              storageId: 208
             },
             {
               id: 132,
@@ -270,7 +204,7 @@ export const useDriveStore = defineStore('drive', () => {
               createdAt: new Date('2024-01-09'),
               path: '/音乐/摇滚音乐/海阔天空.mp3',
               parentId: 13,
-              storageId: 205
+              storageId: 209
             }
           ]
         }

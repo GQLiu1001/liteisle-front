@@ -190,6 +190,7 @@
             class="flex-1 overflow-auto select-none relative" 
             @contextmenu.prevent="showEmptyContextMenu"
             @mousedown="startSelection"
+            ref="scrollContainer"
           >
             <!-- 选择框 -->
             <div
@@ -963,7 +964,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDriveStore, type DriveItem } from '../store/DriveStore'
 import { useTransferStore } from '../store/TransferStore'
 import { useSettingsStore } from '../store/SettingsStore'
@@ -2067,6 +2068,9 @@ const handleDragStart = (event: DragEvent, item: DriveItem) => {
       setTimeout(() => document.body.removeChild(wrapper), 0)
     }
   }
+  
+  // 开始全局拖拽监听
+  startGlobalDragListening()
 }
 
 // 拖拽状态
@@ -2350,6 +2354,79 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
 // 当前悬停下拉条目
 const dragOverDropdownTargetId = ref<string | null>(null)
 
+// 拖拽自动滚动方法
+const handleDragOverScroll = (event: DragEvent) => {
+  if (!scrollContainer.value) return
+  
+  const container = scrollContainer.value
+  const rect = container.getBoundingClientRect()
+  const mouseY = event.clientY
+  const scrollZone = 50 // 滚动触发区域的高度
+  
+  // 只有当鼠标在容器范围内或接近容器边缘时才处理滚动
+  if (mouseY < rect.top - scrollZone || mouseY > rect.bottom + scrollZone) {
+    return
+  }
+  
+  // 计算滚动速度
+  let newScrollSpeed = 0
+  
+  if (mouseY < rect.top + scrollZone && mouseY > rect.top - scrollZone) {
+    // 靠近顶部，向上滚动
+    const distance = rect.top + scrollZone - mouseY
+    newScrollSpeed = -Math.min(15, Math.max(2, distance / 3))
+  } else if (mouseY > rect.bottom - scrollZone && mouseY < rect.bottom + scrollZone) {
+    // 靠近底部，向下滚动
+    const distance = mouseY - (rect.bottom - scrollZone)
+    newScrollSpeed = Math.min(15, Math.max(2, distance / 3))
+  }
+  
+  if (newScrollSpeed !== scrollSpeed.value) {
+    scrollSpeed.value = newScrollSpeed
+    
+    if (autoScrollTimer.value) {
+      clearInterval(autoScrollTimer.value)
+      autoScrollTimer.value = null
+    }
+    
+    if (scrollSpeed.value !== 0) {
+      autoScrollTimer.value = window.setInterval(() => {
+        if (scrollContainer.value) {
+          scrollContainer.value.scrollTop += scrollSpeed.value
+        }
+      }, 16) // 60fps
+    }
+  }
+}
+
+const clearAutoScroll = () => {
+  if (autoScrollTimer.value) {
+    clearInterval(autoScrollTimer.value)
+    autoScrollTimer.value = null
+  }
+  scrollSpeed.value = 0
+}
+
+// 全局拖拽监听
+const startGlobalDragListening = () => {
+  // 添加全局dragover事件监听
+  document.addEventListener('dragover', handleGlobalDragOver, { passive: false })
+  document.addEventListener('dragend', stopGlobalDragListening, { passive: false })
+  document.addEventListener('drop', stopGlobalDragListening, { passive: false })
+}
+
+const stopGlobalDragListening = () => {
+  document.removeEventListener('dragover', handleGlobalDragOver)
+  document.removeEventListener('dragend', stopGlobalDragListening)
+  document.removeEventListener('drop', stopGlobalDragListening)
+  clearAutoScroll()
+}
+
+const handleGlobalDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  handleDragOverScroll(event)
+}
+
 // 添加新的响应式数据
 const isDraggingOverTrash = ref(false)
 
@@ -2472,6 +2549,11 @@ const selectionStart = ref({ x: 0, y: 0 })
 const selectionEnd = ref({ x: 0, y: 0 })
 const selectedItemIds = ref<Set<number>>(new Set())
 const initialSelectedIds = ref<Set<number>>(new Set())
+
+// 拖拽自动滚动相关
+const scrollContainer = ref<HTMLElement | null>(null)
+const autoScrollTimer = ref<number | null>(null)
+const scrollSpeed = ref(0)
 
 // 多选框相关方法
 const startSelection = (event: MouseEvent) => {
@@ -2653,5 +2735,10 @@ const restoreMultipleItems = () => {
   toast.success(`已从回收站恢复 ${selectedItems.length} 个项目`)
   hideContextMenu()
 }
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  clearAutoScroll()
+})
 
 </script> 

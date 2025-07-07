@@ -131,7 +131,7 @@
       <div class="hidden lg:flex gap-6 h-[calc(100vh-10rem)]">
         <!-- 左侧播放列表导航: 固定宽度，绝不压缩 -->
         <div class="w-72 flex-shrink-0">
-          <div class="card h-full">
+          <div class="card h-full flex flex-col">
             <!-- 搜索框 -->
             <div class="mb-6">
               <input
@@ -143,7 +143,8 @@
             </div>
 
             <!-- 播放列表 -->
-            <div class="space-y-2">
+            <div class="flex-1 overflow-auto" ref="playlistScrollContainer">
+              <div class="space-y-2">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-morandi-900">播放列表</h3>
                 <button
@@ -196,6 +197,7 @@
                 <Music :size="32" class="mx-auto mb-3 text-morandi-400" />
                 <p class="text-sm text-morandi-500">暂无播放列表</p>
                 <p class="text-xs text-morandi-400 mt-1">请先在云盘中上传音乐文件</p>
+              </div>
               </div>
             </div>
           </div>
@@ -251,7 +253,10 @@
 
             <!-- 歌曲列表内容保持不变 -->
             <!-- 歌曲列表 -->
-            <div class="flex-1 overflow-auto">
+            <div 
+              class="flex-1 overflow-auto"
+              ref="scrollContainer"
+            >
               <div v-if="filteredTracks.length > 0" class="space-y-1">
                 <!-- 可拖动的歌曲列表 -->
                 <draggable
@@ -263,6 +268,7 @@
                   ghost-class="ghost"
                   chosen-class="chosen"
                   drag-class="drag"
+                  @start="onDragStart"
                   @end="onDragEnd"
                 >
                   <template #item="{ element: track, index }">
@@ -666,6 +672,12 @@ const renamePlaylistInput = ref<HTMLInputElement | null>(null)
 const draggedItemId = ref<string | null>(null)
 const draggedPlaylistId = ref<string | null>(null)
 
+// 拖拽自动滚动相关
+const scrollContainer = ref<HTMLElement | null>(null)
+const playlistScrollContainer = ref<HTMLElement | null>(null)
+const autoScrollTimer = ref<number | null>(null)
+const scrollSpeed = ref(0)
+
 // 进度条拖拽相关
 const isDragging = ref(false)
 const dragStartTime = ref(0)
@@ -704,7 +716,8 @@ const currentPlaylistsList = computed({
 
 // 拖动开始事件
 const onDragStart = (event: any) => {
-  // 这个函数现在可以保留为空，或者用于其他需要在拖拽开始时执行的逻辑
+  // 开始全局拖拽监听
+  startGlobalDragListening()
 };
 
 // 拖动结束事件
@@ -713,6 +726,8 @@ const onDragEnd = (event: { oldIndex?: number; newIndex?: number }) => {
     // 直接在 Pinia store 中更新顺序
     musicStore.reorderTracks(event.oldIndex, event.newIndex);
   }
+  // 停止全局拖拽监听
+  stopGlobalDragListening();
 }
 
 // 播放列表拖动开始事件
@@ -720,6 +735,8 @@ const onPlaylistDragStart = (event: any) => {
   if (event.item) {
     draggedPlaylistId.value = event.item.dataset.id;
   }
+  // 开始播放列表的全局拖拽监听
+  startPlaylistGlobalDragListening()
 };
 
 // 播放列表拖动结束事件
@@ -727,6 +744,8 @@ const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
     musicStore.reorderPlaylists(event.oldIndex, event.newIndex)
   }
+  // 停止播放列表的全局拖拽监听
+  stopPlaylistGlobalDragListening()
 }
 
 // 方法
@@ -825,10 +844,147 @@ onMounted(() => {
   }
 })
 
+// 拖拽自动滚动方法
+const handleDragOverScroll = (event: DragEvent) => {
+  if (!scrollContainer.value) return
+  
+  const container = scrollContainer.value
+  const rect = container.getBoundingClientRect()
+  const mouseY = event.clientY
+  const scrollZone = 50 // 滚动触发区域的高度
+  
+  // 计算滚动速度
+  let newScrollSpeed = 0
+  
+  if (mouseY < rect.top + scrollZone) {
+    // 靠近顶部，向上滚动
+    const distance = rect.top + scrollZone - mouseY
+    newScrollSpeed = -Math.min(10, Math.max(1, distance / 5))
+  } else if (mouseY > rect.bottom - scrollZone) {
+    // 靠近底部，向下滚动
+    const distance = mouseY - (rect.bottom - scrollZone)
+    newScrollSpeed = Math.min(10, Math.max(1, distance / 5))
+  }
+  
+  if (newScrollSpeed !== scrollSpeed.value) {
+    scrollSpeed.value = newScrollSpeed
+    
+    if (autoScrollTimer.value) {
+      clearInterval(autoScrollTimer.value)
+      autoScrollTimer.value = null
+    }
+    
+    if (scrollSpeed.value !== 0) {
+      autoScrollTimer.value = window.setInterval(() => {
+        if (scrollContainer.value) {
+          scrollContainer.value.scrollTop += scrollSpeed.value
+        }
+      }, 16) // 60fps
+    }
+  }
+}
+
+const clearAutoScroll = () => {
+  if (autoScrollTimer.value) {
+    clearInterval(autoScrollTimer.value)
+    autoScrollTimer.value = null
+  }
+  scrollSpeed.value = 0
+}
+
+// 全局拖拽监听
+const startGlobalDragListening = () => {
+  // 添加全局dragover事件监听
+  document.addEventListener('dragover', handleGlobalDragOver, { passive: false })
+  document.addEventListener('dragend', stopGlobalDragListening, { passive: false })
+  document.addEventListener('drop', stopGlobalDragListening, { passive: false })
+}
+
+const stopGlobalDragListening = () => {
+  document.removeEventListener('dragover', handleGlobalDragOver)
+  document.removeEventListener('dragend', stopGlobalDragListening)
+  document.removeEventListener('drop', stopGlobalDragListening)
+  clearAutoScroll()
+}
+
+const handleGlobalDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  handleDragOverScroll(event)
+}
+
+// 播放列表全局拖拽监听
+const startPlaylistGlobalDragListening = () => {
+  // 添加全局dragover事件监听
+  document.addEventListener('dragover', handlePlaylistGlobalDragOver, { passive: false })
+  document.addEventListener('dragend', stopPlaylistGlobalDragListening, { passive: false })
+  document.addEventListener('drop', stopPlaylistGlobalDragListening, { passive: false })
+}
+
+const stopPlaylistGlobalDragListening = () => {
+  document.removeEventListener('dragover', handlePlaylistGlobalDragOver)
+  document.removeEventListener('dragend', stopPlaylistGlobalDragListening)
+  document.removeEventListener('drop', stopPlaylistGlobalDragListening)
+  clearAutoScroll()
+}
+
+const handlePlaylistGlobalDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  handlePlaylistDragOverScroll(event)
+}
+
+// 播放列表拖拽滚动处理
+const handlePlaylistDragOverScroll = (event: DragEvent) => {
+  if (!playlistScrollContainer.value) return
+  
+  const container = playlistScrollContainer.value
+  const rect = container.getBoundingClientRect()
+  const y = event.clientY
+  
+  // 检查是否在容器内
+  if (y < rect.top || y > rect.bottom) {
+    clearAutoScroll()
+    return
+  }
+  
+  const triggerZone = 50 // 触发区域大小
+  const scrollZoneTop = rect.top + triggerZone
+  const scrollZoneBottom = rect.bottom - triggerZone
+  
+  let newScrollSpeed = 0
+  
+  if (y < scrollZoneTop) {
+    // 向上滚动
+    const intensity = (scrollZoneTop - y) / triggerZone
+    newScrollSpeed = -Math.max(2, Math.min(15, intensity * 15))
+  } else if (y > scrollZoneBottom) {
+    // 向下滚动
+    const intensity = (y - scrollZoneBottom) / triggerZone
+    newScrollSpeed = Math.max(2, Math.min(15, intensity * 15))
+  }
+  
+  if (newScrollSpeed !== scrollSpeed.value) {
+    scrollSpeed.value = newScrollSpeed
+    
+    if (autoScrollTimer.value) {
+      clearInterval(autoScrollTimer.value)
+      autoScrollTimer.value = null
+    }
+    
+    if (scrollSpeed.value !== 0) {
+      autoScrollTimer.value = window.setInterval(() => {
+        if (container) {
+          container.scrollTop += scrollSpeed.value
+        }
+      }, 16) // 60fps
+    }
+  }
+}
+
 // 组件卸载时清理定时器
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     musicStore.cleanup()
+    clearAutoScroll()
   })
 }
 

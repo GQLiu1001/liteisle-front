@@ -183,7 +183,10 @@
                   </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto -mr-2 pr-2">
+                <div 
+                  class="flex-1 overflow-y-auto -mr-2 pr-2"
+                  ref="scrollContainer"
+                >
                   <draggable
                     v-if="!docsStore.searchQuery"
                     v-model="currentDocsList"
@@ -578,6 +581,11 @@ const selectedDocumentFiles = ref<File[]>([]);
 const documentFileInput = ref<HTMLInputElement | null>(null);
 const draggedItemId = ref<string | null>(null);
 
+// 拖拽自动滚动相关
+const scrollContainer = ref<HTMLElement | null>(null);
+const autoScrollTimer = ref<number | null>(null);
+const scrollSpeed = ref(0);
+
 // 右键菜单相关
 const selectedDocument = ref<Document | null>(null);
 const selectedCategory = ref<DocumentCategory | null>(null);
@@ -605,6 +613,8 @@ onUnmounted(() => {
   uiStore.setSidebarVisible(true);
   // Also reset the document state to avoid side-effects
   docsStore.setCurrentDocument(null);
+  // 清理自动滚动定时器
+  clearAutoScroll();
 });
 
 onMounted(() => {
@@ -619,6 +629,8 @@ const onDragStart = (event: any) => {
   if (event.item) {
     draggedItemId.value = event.item.dataset.id;
   }
+  // 开始全局拖拽监听
+  startGlobalDragListening();
 };
 
 // 分类拖动结束事件
@@ -662,6 +674,74 @@ const currentCategoriesList = computed({
     docsStore.reorderCategories(newCategories);
   }
 });
+
+// 拖拽自动滚动方法
+const handleDragOverScroll = (event: DragEvent) => {
+  if (!scrollContainer.value) return
+  
+  const container = scrollContainer.value
+  const rect = container.getBoundingClientRect()
+  const mouseY = event.clientY
+  const scrollZone = 50 // 滚动触发区域的高度
+  
+  // 计算滚动速度
+  let newScrollSpeed = 0
+  
+  if (mouseY < rect.top + scrollZone) {
+    // 靠近顶部，向上滚动
+    const distance = rect.top + scrollZone - mouseY
+    newScrollSpeed = -Math.min(10, Math.max(1, distance / 5))
+  } else if (mouseY > rect.bottom - scrollZone) {
+    // 靠近底部，向下滚动
+    const distance = mouseY - (rect.bottom - scrollZone)
+    newScrollSpeed = Math.min(10, Math.max(1, distance / 5))
+  }
+  
+  if (newScrollSpeed !== scrollSpeed.value) {
+    scrollSpeed.value = newScrollSpeed
+    
+    if (autoScrollTimer.value) {
+      clearInterval(autoScrollTimer.value)
+      autoScrollTimer.value = null
+    }
+    
+    if (scrollSpeed.value !== 0) {
+      autoScrollTimer.value = window.setInterval(() => {
+        if (scrollContainer.value) {
+          scrollContainer.value.scrollTop += scrollSpeed.value
+        }
+      }, 16) // 60fps
+    }
+  }
+}
+
+const clearAutoScroll = () => {
+  if (autoScrollTimer.value) {
+    clearInterval(autoScrollTimer.value)
+    autoScrollTimer.value = null
+  }
+  scrollSpeed.value = 0
+}
+
+// 全局拖拽监听
+const startGlobalDragListening = () => {
+  // 添加全局dragover事件监听
+  document.addEventListener('dragover', handleGlobalDragOver, { passive: false })
+  document.addEventListener('dragend', stopGlobalDragListening, { passive: false })
+  document.addEventListener('drop', stopGlobalDragListening, { passive: false })
+}
+
+const stopGlobalDragListening = () => {
+  document.removeEventListener('dragover', handleGlobalDragOver)
+  document.removeEventListener('dragend', stopGlobalDragListening)
+  document.removeEventListener('drop', stopGlobalDragListening)
+  clearAutoScroll()
+}
+
+const handleGlobalDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  handleDragOverScroll(event)
+}
 
 // 辅助函数
 const getFileIconColor = (type: string): string => {
