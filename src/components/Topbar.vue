@@ -1,20 +1,20 @@
 <template>
   <header 
     :class="[
-      'fixed top-0 right-0 h-[80px] bg-transparent flex items-center justify-between px-8 py-6 draggable-area z-10 transition-all duration-300 select-none',
+      'fixed top-0 right-0 h-[50px] bg-transparent flex items-center justify-between px-8 draggable-area z-10 transition-all duration-300 select-none',
       uiStore.isSidebarVisible ? 'left-[150px]' : 'left-0'
     ]"
   >
     <!-- 左侧 - 开始专注按钮 -->
-    <div>
+    <div class="mt-4">
       <button 
         @click="toggleFocus"
         :class="[
-          'btn-primary flex items-center gap-3 px-8 py-3 text-lg',
+          'btn-primary flex items-center gap-2 px-6 py-2 text-lg',
           isFocusing ? 'from-red-500 to-red-600' : ''
         ]"
       >
-        <PenTool :size="20" />
+        <PenTool :size="16" />
         <span>{{ isFocusing ? '停止专注' : '开始专注' }}</span>
       </button>
     </div>
@@ -24,7 +24,7 @@
       <img 
         src="/titlepic.png" 
         alt="Liteisle" 
-        class="h-12 lg:h-16 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all duration-300 hover:scale-105" 
+        class="h-8 lg:h-14 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all duration-300 hover:scale-105" 
       />
     </div>
 
@@ -32,20 +32,20 @@
     <div class="flex items-center gap-4">
       <!-- 用户头像下拉菜单 -->
       <div class="relative user-menu" @click="toggleUserMenu">
-        <div class="w-10 h-10 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors overflow-hidden">
+        <div class="w-8 h-8 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors overflow-hidden">
           <img 
             v-if="authStore.user?.picture" 
             :src="authStore.user.picture" 
             alt="用户头像" 
             class="w-full h-full object-cover"
           />
-          <User v-else :size="20" class="text-morandi-600" />
+          <User v-else :size="16" class="text-morandi-600" />
         </div>
         
         <!-- 下拉菜单 -->
         <div 
           v-if="showUserMenu"
-          class="absolute left-1/2 -translate-x-1/2 top-12 w-32 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 z-50"
+          class="absolute left-1/2 -translate-x-1/2 top-10 w-32 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 z-50"
           @click.stop
         >
           <button 

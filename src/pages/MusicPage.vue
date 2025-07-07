@@ -128,7 +128,7 @@
       </div>
 
       <!-- 桌面端布局 - 切换为更稳健的 Flexbox 布局 -->
-      <div class="hidden lg:flex gap-6 h-[calc(100vh-12rem)]">
+      <div class="hidden lg:flex gap-6 h-[calc(100vh-10rem)]">
         <!-- 左侧播放列表导航: 固定宽度，绝不压缩 -->
         <div class="w-72 flex-shrink-0">
           <div class="card h-full">

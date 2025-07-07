@@ -2,7 +2,7 @@
   <div class="h-full bg-transparent flex flex-col overflow-hidden select-none">
     <!-- 使用与网盘页面相同的高度计算方式 -->
     <div class="flex-1 flex flex-col p-2 sm:p-4 lg:p-6 min-h-0">
-      <div class="max-w-7xl mx-auto w-full h-[calc(100vh-12rem)] flex flex-col min-h-0">
+      <div class="max-w-7xl mx-auto w-full h-[calc(100vh-10rem)] flex flex-col min-h-0">
         <!-- 顶部区域 - 问候语卡片和学习卡片响应式布局 -->
         <div class="flex flex-col lg:flex-row lg:items-stretch gap-4 lg:gap-6 mb-4 lg:mb-6 flex-shrink-0">
           <!-- 左侧 - 问候语卡片 -->
@@ -105,6 +105,7 @@ const quotes: Quote[] = [
   { text: '一心一意，事半功倍' },
   { text: '专注是最美的姿态' },
   { text: '今天的专注，明天的骄傲' },
+
 
   // 谚语和格言
   { text: '宝剑锋从磨砺出，梅花香自苦寒来' },

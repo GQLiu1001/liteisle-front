@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, Tray, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+const isDev = process.argv.includes('--dev')
 
 // 设置应用数据目录
 const userDataPath = path.join(app.getPath('appData'), 'liteisle-desktop')
@@ -98,8 +98,8 @@ function createWindow() {
   
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: 1200,
+    height: 800,
     minWidth: 1200,  // 增加最小宽度，避免与 lg 断点(1024px)冲突
     minHeight: 800,  // 适当增加最小高度
     webPreferences: {
@@ -250,9 +250,4 @@ ipcMain.handle('select-directory', async () => {
   } catch (error) {
     return { canceled: true, error: error.message }
   }
-})
-
-// 只在开发环境打开DevTools
-if (isDev) {
-  mainWindow.webContents.openDevTools()
-} 
+}) 

@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-full bg-liteisle-bg p-6 select-none">
     <div class="max-w-7xl mx-auto">
-      <div class="h-[calc(100vh-12rem)]">
+      <div class="h-[calc(100vh-10rem)]">
         <!-- 主要内容区域 -->
         <div class="card h-full flex flex-col">
           <!-- 面包屑导航 -->

@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-full bg-liteisle-bg p-6 select-none">
     <div class="max-w-7xl mx-auto">
-      <div class="h-[calc(100vh-12rem)] flex gap-6">
+      <div class="h-[calc(100vh-10rem)] flex gap-6">
         <!-- 第一栏：传输分类导航 -->
         <div class="card w-64 flex-shrink-0">
           <div class="h-full flex flex-col p-4">
