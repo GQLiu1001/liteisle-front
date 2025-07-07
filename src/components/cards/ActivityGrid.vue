@@ -1,54 +1,56 @@
 <template>
-  <div class="card h-full flex flex-col min-h-0 overflow-hidden w-full p-4 lg:p-6">
-    <div class="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0">
-      <h3 class="text-lg lg:text-xl font-semibold text-morandi-900">专注记录</h3>
+  <div class="card h-full flex flex-col min-h-0 overflow-hidden w-full p-3 lg:p-4">
+    <!-- 顶部区域：专注记录标题，占15%高度 -->
+    <div class="flex items-center justify-between flex-shrink-0 h-[15%] min-h-[40px] max-h-[60px]">
+      <h3 class="text-base lg:text-lg font-semibold text-morandi-900">专注记录</h3>
       <span class="text-xs lg:text-sm text-morandi-600">{{ currentMonthName }}</span>
     </div>
     
-    <!-- 简单日历 -->
-    <div class="flex-1 min-h-0 overflow-auto mb-2">
+    <!-- 中间日历区域，占70%高度 -->
+    <div class="flex-1 min-h-0 overflow-hidden h-[70%]">
       <!-- 星期标题 -->
-      <div class="grid grid-cols-7 gap-1 mb-2 flex-shrink-0 px-1">
+      <div class="grid grid-cols-7 gap-0.5 mb-1 flex-shrink-0">
         <div v-for="day in weekDays" :key="day" 
              class="text-xs text-morandi-500 text-center py-1">
           {{ day }}
         </div>
       </div>
       
-      <!-- 日期网格 -->
-      <div class="grid grid-cols-7 gap-1 pb-2 px-1">
+      <!-- 日期网格 - 更小的方格 -->
+      <div class="grid grid-cols-7 gap-0.5 h-[calc(100%-2rem)]">
         <div v-for="(day, index) in calendarDays" :key="index"
              :class="[
-               'aspect-square flex items-center justify-center rounded-lg text-xs font-medium relative min-h-[28px] max-h-[36px]',
+               'aspect-square flex items-center justify-center rounded-md text-xs font-medium relative',
+               'min-h-[20px] max-h-[32px] w-full',
                day.date ? 'cursor-pointer transition-colors' : '',
-               day.date && day.isToday ? 'ring-2 ring-blue-400' : '',
-               day.date && day.hasFocus ? 'bg-blue-400 text-white' : day.date ? 'bg-morandi-100 text-morandi-700' : 'bg-transparent'
+               day.date && day.isToday ? 'ring-1 ring-blue-400' : '',
+               day.date && day.hasFocus ? 'bg-blue-400 text-white' : day.date ? 'bg-morandi-100 text-morandi-700 hover:bg-morandi-200' : 'bg-transparent'
              ]">
-          <span v-if="day.date" class="relative z-10">{{ day.date }}</span>
-          <!-- 专注时长提示 -->
+          <span v-if="day.date" class="relative z-10 text-xs">{{ day.date }}</span>
+          <!-- 专注时长提示 - 更小的指示器 -->
           <div v-if="day.date && day.focusMinutes > 0" 
-               class="absolute inset-0 flex items-end justify-end p-0.5">
-            <div class="w-1.5 h-1.5 bg-green-400 rounded-full" 
+               class="absolute bottom-0.5 right-0.5">
+            <div class="w-1 h-1 bg-green-400 rounded-full" 
                  :title="`专注${day.focusMinutes}分钟`"></div>
           </div>
         </div>
       </div>
     </div>
     
-    <!-- 统计信息 -->
-    <div class="mt-2 lg:mt-3 pt-2 lg:pt-3 border-t border-morandi-200 flex-shrink-0">
-      <div class="flex items-center justify-between text-xs lg:text-sm text-morandi-600 mb-2">
+    <!-- 底部统计区域，占15%高度 -->
+    <div class="flex-shrink-0 h-[15%] min-h-[40px] max-h-[80px] pt-2 border-t border-morandi-200">
+      <div class="flex items-center justify-between text-xs text-morandi-600 mb-1">
         <span>本月签到: {{ monthlyStats.checkedDays }}天</span>
         <span>总专注: {{ Math.round(monthlyStats.totalMinutes/60) }}小时</span>
       </div>
-      <!-- 图例 -->
-      <div class="hidden sm:flex items-center justify-center gap-4 text-xs text-morandi-500">
+      <!-- 图例 - 更紧凑 -->
+      <div class="flex items-center justify-center gap-3 text-xs text-morandi-500">
         <div class="flex items-center gap-1">
-          <div class="w-3 h-3 bg-morandi-100 rounded-sm border"></div>
+          <div class="w-2 h-2 bg-morandi-100 rounded-sm border"></div>
           <span>未签到</span>
         </div>
         <div class="flex items-center gap-1">
-          <div class="w-3 h-3 bg-blue-400 rounded-sm"></div>
+          <div class="w-2 h-2 bg-blue-400 rounded-sm"></div>
           <span>已签到</span>
         </div>
       </div>
@@ -138,17 +140,38 @@ const monthlyStats = computed(() => {
 </script>
 
 <style scoped>
-/* 确保日历网格适应容器 */
+/* 确保日历网格紧凑对齐 */
 .grid {
-  gap: 0.25rem;
+  gap: 0.125rem; /* 更小的间隙 */
 }
 
-/* 确保网格对齐，防止穿模 */
+/* 确保网格均匀分布 */
 .grid-cols-7 {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-/* 移除任何可能影响布局的样式 */
+/* 响应式调整 */
+@media (max-width: 1024px) {
+  .grid {
+    gap: 0.25rem;
+  }
+}
+
+/* 确保在最小窗口尺寸下的适配 */
+@media (min-width: 1200px) and (min-height: 800px) {
+  .aspect-square {
+    min-height: 24px;
+    max-height: 36px;
+  }
+}
+
+/* 小屏幕优化 */
+@media (max-width: 768px) {
+  .aspect-square {
+    min-height: 18px;
+    max-height: 28px;
+  }
+}
 </style>
 
  
