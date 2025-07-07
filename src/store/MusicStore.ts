@@ -545,6 +545,66 @@ export const useMusicStore = defineStore('music', () => {
             filePath: '/music/pop/east-wind-breaks.mp3',
             coverUrl: '',
             lyrics: '一盏离愁 孤单伫立在窗口\n我在门后 假装你人还没走'
+          },
+          {
+            id: 'pop-1',
+            name: '晴1天',
+            artist: '周杰伦',
+            album: '叶惠美',
+            duration: 269,
+            filePath: '/music/pop/sunny-day.mp3',
+            coverUrl: '',
+            lyrics: '故事的小黄花 从出生那年就飘着\n童年的荡秋千 随记忆一直摇到现在\n吹着前奏 望着天空\n我想起花瓣试着掉落'
+          },
+          {
+            id: 'pop-2',
+            name: '稻1香',
+            artist: '周杰伦',
+            album: '魔杰座',
+            duration: 222,
+            filePath: '/music/pop/rice-fragrance.mp3',
+            coverUrl: '',
+            lyrics: '对这个世界如果你有太多的抱怨\n跌倒了 就不敢继续往前走\n为什么人要这么的脆弱 堕落'
+          },
+          {
+            id: 'pop-3',
+            name: '青1花瓷',
+            artist: '周杰伦',
+            album: '我很忙',
+            duration: 237,
+            filePath: '/music/pop/blue-and-white-porcelain.mp3',
+            coverUrl: '',
+            lyrics: '素胚勾勒出青花笔锋浓转淡\n瓶身描绘的牡丹一如你初妆\n冉冉檀香透过窗心事我了然'
+          },
+          {
+            id: 'pop-4',
+            name: '七2里香',
+            artist: '周杰伦',
+            album: '七里香',
+            duration: 275,
+            filePath: '/music/pop/common-jasmin-orange.mp3',
+            coverUrl: '',
+            lyrics: '窗外的麻雀 在电线杆上多嘴\n你说这一句 很有夏天的感觉\n手中的铅笔 在纸上来来回回'
+          },
+          {
+            id: 'pop-5',
+            name: '夜3曲',
+            artist: '周杰伦',
+            album: '十一月的萧邦',
+            duration: 256,
+            filePath: '/music/pop/nocturne.mp3',
+            coverUrl: '',
+            lyrics: '一群嗜血的蚂蚁 被腐肉所吸引\n我面无表情 看孤独的风景'
+          },
+          {
+            id: 'pop-6',
+            name: '东风4破',
+            artist: '周杰伦',
+            album: '叶惠美',
+            duration: 243,
+            filePath: '/music/pop/east-wind-breaks.mp3',
+            coverUrl: '',
+            lyrics: '一盏离愁 孤单伫立在窗口\n我在门后 假装你人还没走'
           }
         ]
       },

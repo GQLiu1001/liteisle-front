@@ -111,7 +111,40 @@ export const useSettingsStore = defineStore('settings', () => {
       status: 'active',
       createdAt: '2025/03/11 21:41',
       accessCount: 3
-    }
+    },
+    {
+      id: 132,
+      name: '4coding',
+      type: 'folder',
+      shareToken: 'abc123def456ghi789',
+      sharePassword: 'xyz789',
+      expiryDate: '2025/04/25',
+      status: 'active',
+      createdAt: '2025/04/25 11:22',
+      accessCount: 17
+    },
+    {
+      id: 263, 
+      name: '4coding',
+      type: 'folder',
+      shareToken: 'def456ghi789jkl012',
+      sharePassword: 'abc123',
+      expiryDate: '2025/03/19',
+      status: 'active',
+      createdAt: '2025/03/19 15:08',
+      accessCount: 0
+    },
+    {
+      id: 78,
+      name: '4coding',
+      type: 'folder', 
+      shareToken: 'ghi789jkl012mno345',
+      sharePassword: 'def456',
+      expiryDate: '2025/03/11',
+      status: 'active',
+      createdAt: '2025/03/11 21:41',
+      accessCount: 3
+    },
   ])
 
   // 设置分类
