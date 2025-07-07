@@ -77,8 +77,16 @@ export const useSettingsStore = defineStore('settings', () => {
     total: 5    // 总容量 5GB
   })
 
-  // 分享数据
-  const shareItems = ref<ShareItem[]>([
+  // 分享数据 - 分页相关状态
+  const shareItems = ref<ShareItem[]>([])
+  const shareCurrentPage = ref(1)
+  const sharePageSize = ref(10)
+  const shareTotal = ref(0)
+  const shareLoading = ref(false)
+  const shareHasMore = ref(true)
+
+  // 模拟的完整分享数据
+  const mockShareData: ShareItem[] = [
     {
       id: 1,
       name: '4coding',
@@ -113,8 +121,8 @@ export const useSettingsStore = defineStore('settings', () => {
       accessCount: 3
     },
     {
-      id: 132,
-      name: '4coding',
+      id: 4,
+      name: '项目文档',
       type: 'folder',
       shareToken: 'abc123def456ghi789',
       sharePassword: 'xyz789',
@@ -124,8 +132,8 @@ export const useSettingsStore = defineStore('settings', () => {
       accessCount: 17
     },
     {
-      id: 263, 
-      name: '4coding',
+      id: 5, 
+      name: '设计稿',
       type: 'folder',
       shareToken: 'def456ghi789jkl012',
       sharePassword: 'abc123',
@@ -135,8 +143,8 @@ export const useSettingsStore = defineStore('settings', () => {
       accessCount: 0
     },
     {
-      id: 78,
-      name: '4coding',
+      id: 6,
+      name: '会议记录',
       type: 'folder', 
       shareToken: 'ghi789jkl012mno345',
       sharePassword: 'def456',
@@ -145,7 +153,73 @@ export const useSettingsStore = defineStore('settings', () => {
       createdAt: '2025/03/11 21:41',
       accessCount: 3
     },
-  ])
+    {
+      id: 7,
+      name: '学习资料',
+      type: 'folder',
+      shareToken: 'abc123def456ghi789',
+      sharePassword: 'xyz789',
+      expiryDate: '2025/04/25',
+      status: 'active',
+      createdAt: '2025/04/25 11:22',
+      accessCount: 17
+    },
+    {
+      id: 8, 
+      name: '音乐收藏',
+      type: 'folder',
+      shareToken: 'def456ghi789jkl012',
+      sharePassword: 'abc123',
+      expiryDate: '2025/03/19',
+      status: 'active',
+      createdAt: '2025/03/19 15:08',
+      accessCount: 0
+    },
+    {
+      id: 9,
+      name: '图片素材',
+      type: 'folder', 
+      shareToken: 'ghi789jkl012mno345',
+      sharePassword: 'def456',
+      expiryDate: '2025/03/11',
+      status: 'active',
+      createdAt: '2025/03/11 21:41',
+      accessCount: 3
+    },
+    {
+      id: 10,
+      name: '视频教程',
+      type: 'folder',
+      shareToken: 'abc123def456ghi789',
+      sharePassword: 'xyz789',
+      expiryDate: '2025/04/25',
+      status: 'active',
+      createdAt: '2025/04/25 11:22',
+      accessCount: 17
+    },
+    {
+      id: 11, 
+      name: '代码片段',
+      type: 'folder',
+      shareToken: 'def456ghi789jkl012',
+      sharePassword: 'abc123',
+      expiryDate: '2025/03/19',
+      status: 'active',
+      createdAt: '2025/03/19 15:08',
+      accessCount: 0
+    },
+    {
+      id: 12,
+      name: '工具软件',
+      type: 'folder', 
+      shareToken: 'ghi789jkl012mno345',
+      sharePassword: 'def456',
+      expiryDate: '2025/03/11',
+      status: 'active',
+      createdAt: '2025/03/11 21:41',
+      accessCount: 3
+    }
+  ]
 
   // 设置分类
   const categories = ref<SettingCategory[]>([
@@ -243,10 +317,54 @@ export const useSettingsStore = defineStore('settings', () => {
     })
   }
 
+  // 加载分享数据
+  const loadShareItems = async (page: number = 1, reset: boolean = false) => {
+    if (shareLoading.value) return
+
+    shareLoading.value = true
+    
+    try {
+      // 模拟网络请求延迟
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      const startIndex = (page - 1) * sharePageSize.value
+      const endIndex = startIndex + sharePageSize.value
+      const pageData = mockShareData.slice(startIndex, endIndex)
+      
+      if (reset) {
+        shareItems.value = pageData
+        shareCurrentPage.value = page
+      } else {
+        shareItems.value.push(...pageData)
+        shareCurrentPage.value = page
+      }
+      
+      shareTotal.value = mockShareData.length
+      shareHasMore.value = endIndex < mockShareData.length
+      
+    } catch (error) {
+      console.error('加载分享数据失败:', error)
+    } finally {
+      shareLoading.value = false
+    }
+  }
+
+  // 加载更多分享数据
+  const loadMoreShareItems = async () => {
+    if (!shareHasMore.value || shareLoading.value) return
+    await loadShareItems(shareCurrentPage.value + 1, false)
+  }
+
+  // 刷新分享数据
+  const refreshShareItems = async () => {
+    await loadShareItems(1, true)
+  }
+
   const cancelShare = (shareId: number) => {
     const index = shareItems.value.findIndex(item => item.id === shareId)
     if (index > -1) {
       shareItems.value.splice(index, 1)
+      shareTotal.value = Math.max(0, shareTotal.value - 1)
       return true
     }
     return false
@@ -289,6 +407,10 @@ export const useSettingsStore = defineStore('settings', () => {
     cloudStorage,
     categories,
     shareItems,
+    shareLoading,
+    shareHasMore,
+    shareTotal,
+    shareCurrentPage,
     
     // 计算属性
     currentCategory,
@@ -301,6 +423,9 @@ export const useSettingsStore = defineStore('settings', () => {
     logout,
     checkForUpdates,
     changePassword,
+    loadShareItems,
+    loadMoreShareItems,
+    refreshShareItems,
     cancelShare,
     generateShareLink,
     copyShareInfo

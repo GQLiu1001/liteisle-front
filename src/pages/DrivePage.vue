@@ -443,7 +443,8 @@
               placeholder="请输入文件夹名称"
               class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="confirmCreateFolder"
-              style="user-select: text !important;"
+              style="user-select: text !important; pointer-events: auto !important;"
+              ref="folderNameInput"
             />
           </div>
         </div>
@@ -533,21 +534,21 @@
       <!-- 空白区域的右键菜单 -->
       <template v-if="!selectedItem && selectedItemIds.size === 0">
         <button 
-          v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0"
+          v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0 && !driveStore.isInRecycleBin"
           @click="pasteItem"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           粘贴
         </button>
         <button 
-          v-if="getCurrentLevel() === 1"
+          v-if="getCurrentLevel() === 1 && !driveStore.isInRecycleBin"
           @click="createNewFolder"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           新建文件夹
         </button>
         <button 
-          v-if="getCurrentLevel() === 2"
+          v-if="getCurrentLevel() === 2 && !driveStore.isInRecycleBin"
           @click="uploadFiles"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
@@ -1287,8 +1288,18 @@ const createNewFolder = () => {
     alert('只能在第一级分类中创建文件夹')
     return
   }
+  hideContextMenu() // 隐藏右键菜单
   showCreateFolderDialog.value = true
   newFolderName.value = ''
+  
+  // 在下一个tick自动聚焦输入框
+  nextTick(() => {
+    const input = document.querySelector('input[placeholder="请输入文件夹名称"]') as HTMLInputElement
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  })
 }
 
 const confirmCreateFolder = () => {
@@ -1342,6 +1353,7 @@ const uploadFiles = () => {
     alert('只能在第二级文件夹中上传文件')
     return
   }
+  hideContextMenu() // 隐藏右键菜单
   showUploadDialog.value = true
   selectedFiles.value = []
 }

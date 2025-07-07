@@ -173,8 +173,9 @@
                 <!-- 列表容器 -->
                 <div 
                   class="bg-transparent rounded-lg h-full overflow-y-auto"
+                  @scroll="handleShareScroll"
                 >
-                  <div v-if="settingsStore.shareItems.length === 0" class="p-8 text-center text-morandi-500">
+                  <div v-if="settingsStore.shareItems.length === 0 && !settingsStore.shareLoading" class="p-8 text-center text-morandi-500">
                     暂无分享记录
                   </div>
                   <div v-else class="space-y-3">
@@ -231,6 +232,16 @@
                       </div>
                     </div>
                   </div>
+                  
+                  <!-- 加载更多指示器 -->
+                  <div v-if="settingsStore.shareLoading" class="flex justify-center py-4">
+                    <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  
+                  <!-- 没有更多数据提示 -->
+                  <div v-if="!settingsStore.shareHasMore && settingsStore.shareItems.length > 0" class="text-center py-4 text-sm text-morandi-500">
+                    没有更多分享记录了
+                  </div>
                 </div>
               </div>
             </div>
@@ -246,7 +257,7 @@
                   class="bg-transparent rounded-lg h-full overflow-y-auto"
                   @scroll="handleScroll"
                 >
-                  <div v-if="focusRecords.length === 0" class="p-8 text-center text-morandi-500">
+                  <div v-if="focusRecords.length === 0 && !isLoadingRecords" class="p-8 text-center text-morandi-500">
                     暂无专注记录
                   </div>
                   <div v-else class="space-y-3">
@@ -283,6 +294,11 @@
                   <!-- 加载更多指示器 -->
                   <div v-if="isLoadingRecords" class="flex justify-center py-4">
                     <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  
+                  <!-- 没有更多数据提示 -->
+                  <div v-if="!hasMoreRecords && focusRecords.length > 0" class="text-center py-4 text-sm text-morandi-500">
+                    没有更多专注记录了
                   </div>
                 </div>
               </div>
@@ -524,6 +540,17 @@ const focusRecords = ref<Array<{
 
 const isLoadingRecords = ref(false);
 const hasMoreRecords = ref(true);
+const focusCurrentPage = ref(1);
+const focusPageSize = ref(10);
+
+// 模拟的完整专注记录数据
+const mockFocusData: Array<{
+  date: string;
+  focusMinutes: number;
+  focusSessions: number;
+  longestSession: number;
+  hasCheckin: boolean;
+}> = [];
 
 // 专注统计
 const focusStats = computed(() => ({
@@ -598,50 +625,64 @@ const formatSessionTime = (timestamp: number): string => {
   });
 };
 
-// 加载专注记录
-const loadFocusRecords = () => {
-  // 从 focusStore 获取最近的专注数据
-  const records: Array<{
-    date: string;
-    focusMinutes: number;
-    focusSessions: number;
-    longestSession: number;
-    hasCheckin: boolean;
-  }> = [];
+// 初始化模拟专注数据
+const initMockFocusData = () => {
+  mockFocusData.length = 0; // 清空数组
   
-  // 获取最近30天的数据
-  for (let i = 0; i < 30; i++) {
+  // 生成最近60天的模拟数据
+  for (let i = 0; i < 60; i++) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
     
-    const dailyMinutes = focusStore.dailyFocusData.get(dateStr) || 0;
-    
-    if (dailyMinutes > 0) {
-      records.push({
+    // 随机生成一些专注记录（70%的概率有记录）
+    if (Math.random() > 0.3) {
+      const focusMinutes = Math.floor(Math.random() * 120) + 15; // 15-135分钟
+      mockFocusData.push({
         date: dateStr,
-        focusMinutes: dailyMinutes,
-        focusSessions: Math.ceil(dailyMinutes / 25), // 假设每次25分钟
-        longestSession: Math.min(dailyMinutes, 90), // 假设最长90分钟
-        hasCheckin: dailyMinutes >= 30
+        focusMinutes: focusMinutes,
+        focusSessions: Math.ceil(focusMinutes / 25), // 假设每次25分钟
+        longestSession: Math.min(focusMinutes, 90), // 假设最长90分钟
+        hasCheckin: focusMinutes >= 30
       });
     }
   }
-  
-  focusRecords.value = records;
 };
 
-const loadMoreRecords = () => {
-  if (isLoadingRecords.value || !hasMoreRecords.value) return;
-  
-  // 模拟加载更多
+// 加载专注记录
+const loadFocusRecords = async (page: number = 1, reset: boolean = false) => {
+  if (isLoadingRecords.value) return;
+
   isLoadingRecords.value = true;
-  setTimeout(() => {
-    // 这里可以加载更多数据到 focusRecords.value
-    // 现在先模拟没有更多数据
+  
+  try {
+    // 模拟网络请求延迟
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const startIndex = (page - 1) * focusPageSize.value;
+    const endIndex = startIndex + focusPageSize.value;
+    const pageData = mockFocusData.slice(startIndex, endIndex);
+    
+    if (reset) {
+      focusRecords.value = pageData;
+      focusCurrentPage.value = 1;
+    } else {
+      focusRecords.value.push(...pageData);
+      focusCurrentPage.value = page;
+    }
+    
+    hasMoreRecords.value = endIndex < mockFocusData.length;
+    
+  } catch (error) {
+    console.error('加载专注记录失败:', error);
+  } finally {
     isLoadingRecords.value = false;
-    hasMoreRecords.value = false;
-  }, 1000);
+  }
+};
+
+const loadMoreRecords = async () => {
+  if (!hasMoreRecords.value || isLoadingRecords.value) return;
+  await loadFocusRecords(focusCurrentPage.value + 1, false);
 };
 
 // 滚动加载处理
@@ -654,6 +695,19 @@ const handleScroll = (event: Event) => {
   // 当滚动到接近底部时触发加载更多（距离底部50px）
   if (scrollTop + clientHeight >= scrollHeight - 50 && hasMoreRecords.value && !isLoadingRecords.value) {
     loadMoreRecords();
+  }
+};
+
+// 分享列表滚动加载处理
+const handleShareScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  const scrollTop = target.scrollTop;
+  const scrollHeight = target.scrollHeight;
+  const clientHeight = target.clientHeight;
+  
+  // 当滚动到接近底部时触发加载更多（距离底部50px）
+  if (scrollTop + clientHeight >= scrollHeight - 50 && settingsStore.shareHasMore && !settingsStore.shareLoading) {
+    settingsStore.loadMoreShareItems();
   }
 };
 
@@ -723,9 +777,14 @@ const copyShareInfo = async (share: any) => {
   }
 };
 
-// 初始化专注记录
+// 初始化数据
 onMounted(() => {
-  loadFocusRecords();
+  // 初始化模拟数据
+  initMockFocusData();
+  // 加载第一页专注记录
+  loadFocusRecords(1, true);
+  // 初始化分享数据 - 重置为第一页的10条数据
+  settingsStore.loadShareItems(1, true);
 });
 </script>
 
