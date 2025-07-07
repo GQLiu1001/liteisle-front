@@ -13,9 +13,12 @@
               active: route.name === item.name,
               'has-active-tasks': item.name === 'transfer' && hasActiveTasks
             }"
+            draggable="false"
+            @dragstart.prevent
+            @selectstart.prevent
           >
-            <component :is="item.icon" class="sidebar-icon" />
-            <span class="sidebar-text">{{ item.label }}</span>
+            <component :is="item.icon" class="sidebar-icon" draggable="false" />
+            <span class="sidebar-text" draggable="false">{{ item.label }}</span>
           </router-link>
         </div>
       </div>
@@ -84,5 +87,30 @@ const navItems = [
 
 .sidebar-item.has-active-tasks:hover {
   @apply bg-orange-600;
+}
+
+/* 防止拖拽相关样式 */
+.sidebar-item {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.sidebar-icon,
+.sidebar-text {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none; /* 防止子元素触发拖拽 */
 }
 </style> 
