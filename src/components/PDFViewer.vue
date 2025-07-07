@@ -1,7 +1,7 @@
 <template>
-  <div class="pdf-viewer h-[calc(100vh-8rem)] flex flex-col bg-white rounded-2xl overflow-hidden">
+  <div class="pdf-viewer h-full flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 工具栏 -->
-    <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between">
+    <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-3 flex items-center justify-between">
       <div class="flex items-center gap-4 flex-1 min-w-0">
         <button @click="$emit('close')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 flex-shrink-0">
           <ChevronLeft :size="20" />
