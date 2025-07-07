@@ -188,8 +188,8 @@
                       </p>
                     </div>
                   </div>
-                                 </template>
-               </draggable>
+                </template>
+              </draggable>
 
               <!-- 空状态 -->
               <div v-if="musicStore.playlists.length === 0" class="text-center py-8">
@@ -256,17 +256,14 @@
                 <!-- 可拖动的歌曲列表 -->
                 <draggable
                   v-if="!musicStore.searchQuery"
-                  v-model="currentTracksList"
-                  @start="onDragStart"
-                  @end="onDragEnd"
+                  v-model="localTracks"
                   item-key="id"
                   class="space-y-1"
                   :animation="150"
                   ghost-class="ghost"
                   chosen-class="chosen"
                   drag-class="drag"
-                  :force-fallback="false"
-                  :disabled="false"
+                  @end="onDragEnd"
                 >
                   <template #item="{ element: track, index }">
                     <div
@@ -615,7 +612,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
 import { useMusicStore, Playlist, Track } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
@@ -633,6 +630,15 @@ const transferStore = useTransferStore()
 const contextMenuStore = useContextMenuStore()
 const toast = useToast()
 const route = useRoute()
+
+// 本地拖拽列表
+const localTracks = ref<TrackType[]>([])
+
+// 监听 Pinia store 中当前播放列表的变化，并更新本地列表
+watch(() => musicStore.currentPlaylist?.tracks, (newTracks) => {
+  // 使用 slice() 创建一个浅拷贝，避免直接引用
+  localTracks.value = newTracks ? [...newTracks] : []
+}, { immediate: true, deep: true })
 
 // 响应式状态
 const showRightPanel = ref(true)
@@ -669,24 +675,14 @@ const { progressPercentage } = storeToRefs(musicStore)
 
 // 计算属性
 const filteredTracks = computed(() => {
-  return musicStore.filteredTracks
-})
-
-// 可拖动的歌曲列表
-const currentTracksList = computed({
-  get: () => musicStore.currentPlaylist?.tracks || [],
-  set: (newTracks: TrackType[]) => {
-    if (!draggedItemId.value) return;
-
-    const oldIndex = musicStore.currentPlaylist?.tracks.findIndex((t: TrackType) => t.id === draggedItemId.value);
-    const newIndex = newTracks.findIndex((t: TrackType) => t.id === draggedItemId.value);
-
-    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
-      musicStore.reorderTracks(oldIndex, newIndex);
-    }
-    
-    draggedItemId.value = null;
+  // 搜索时，基于本地列表进行过滤，以保证拖拽搜索结果的稳定性
+  if (musicStore.searchQuery) {
+    return localTracks.value.filter((track: any) => 
+      track.name.toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
+      track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
+    )
   }
+  return localTracks.value
 })
 
 // 可拖动的播放列表  
@@ -708,15 +704,14 @@ const currentPlaylistsList = computed({
 
 // 拖动开始事件
 const onDragStart = (event: any) => {
-  if (event.item) {
-    draggedItemId.value = event.item.dataset.id;
-  }
+  // 这个函数现在可以保留为空，或者用于其他需要在拖拽开始时执行的逻辑
 };
 
 // 拖动结束事件
-const onDragEnd = (event: {oldIndex: number, newIndex: number}) => {
-  if (event.oldIndex !== event.newIndex) {
-    musicStore.reorderTracks(event.oldIndex, event.newIndex)
+const onDragEnd = (event: { oldIndex?: number; newIndex?: number }) => {
+  if (typeof event.oldIndex === 'number' && typeof event.newIndex === 'number' && event.oldIndex !== event.newIndex) {
+    // 直接在 Pinia store 中更新顺序
+    musicStore.reorderTracks(event.oldIndex, event.newIndex);
   }
 }
 
