@@ -2180,13 +2180,13 @@ const handleBreadcrumbDragOver = (event: DragEvent, path: BreadcrumbPath, index:
   dragOverBreadcrumbPath.value = path.path
   breadcrumbDropdownPath.value = path.path
 
-  // 获取该路径对应的子项用于下拉
+  // 获取该路径对应的子项用于下拉（只显示文件夹）
   let folder: DriveItem | undefined
   if (path.path === '/') {
-    breadcrumbDropdownItems.value = driveStore.driveItems
+    breadcrumbDropdownItems.value = driveStore.driveItems.filter(item => item.type === 'folder')
   } else {
     folder = findItemByPath(path.path)
-    breadcrumbDropdownItems.value = folder?.children || []
+    breadcrumbDropdownItems.value = (folder?.children || []).filter(item => item.type === 'folder')
   }
 }
 
