@@ -77,4 +77,5 @@ declare module 'lucide-vue-next' {
   export const LibraryBig: DefineComponent
   export const FileUp: DefineComponent
   export const Share2: DefineComponent
+  export const Image: DefineComponent
 } 

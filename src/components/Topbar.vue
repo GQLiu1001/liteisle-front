@@ -127,12 +127,32 @@
   </div>
 </div>
   </header>
+  <template v-if="showNewIsleDialog">
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" @click="showNewIsleDialog=false">
+      <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" @click.stop>
+        <div class="text-center mb-4">
+          <div class="w-12 h-12 mx-auto mb-3 bg-teal-100 rounded-full flex items-center justify-center">
+            <ImageIcon :size="24" class="text-teal-600" />
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">恭喜获得新岛屿！</h3>
+          <p class="text-sm text-gray-600">返回首页查看你的岛屿吧~</p>
+          <img v-if="newIsleImageUrl" :src="newIsleImageUrl" alt="isle" class="w-full rounded-lg mt-4" />
+        </div>
+        <button 
+          @click="() => { showNewIsleDialog=false; router.push({ name: 'home' }) }" 
+          class="w-full px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm">
+          返回首页
+        </button>
+      </div>
+    </div>
+  </template>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { PenTool, User, Minus, Square, X, LogOut, CircleEqual, Minimize } from 'lucide-vue-next'
+import { PenTool, User, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as ImageIcon } from 'lucide-vue-next'
+import http from '@/utils/http'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
@@ -158,9 +178,22 @@ const showCloseConfirmation = ref(false)
 
 const rememberCloseChoice = ref(false)
 
-const toggleFocus = () => {
+// 新岛屿弹窗状态
+const showNewIsleDialog = ref(false)
+const newIsleImageUrl = ref('')
+
+const toggleFocus = async () => {
   if (isFocusing.value) {
     focusStore.stopFocus()
+    try {
+      const resp = await http.post('/v1/focus/stop')
+      if (resp.data && resp.data.code === 200 && resp.data.data?.island_id) {
+        newIsleImageUrl.value = resp.data.data.image_url || ''
+        showNewIsleDialog.value = true
+      }
+    } catch (e) {
+      console.error('停止专注请求失败', e)
+    }
   } else {
     focusStore.startFocus()
   }
@@ -255,6 +288,9 @@ onMounted(() => {
   } else {
     console.warn('electronAPI 不可用，窗口控制按钮可能无法正常工作')
   }
+
+  // 临时：页面加载后自动展示新岛屿弹窗预览
+  // showNewIsleDialog.value = true
 })
 
 // 监听路由变化，自动关闭菜单

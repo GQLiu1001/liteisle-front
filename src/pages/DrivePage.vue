@@ -250,8 +250,14 @@
                   </p>
 
                   <p class="text-xs text-morandi-500 mt-1">
-                    <span v-if="item.type !== 'folder'">{{ formatFileSize(item.size) }}</span>
-                    <span v-else>{{ item.itemCount }} 项</span>
+                    <template v-if="driveStore.isInRecycleBin && viewMode === 'list'">
+                      <span class="block"> {{ getDeleteInfo(item).dateStr }}</span>
+                      <span class="block text-red-500 text-xs">{{ getDeleteInfo(item).daysLeft }} 天后清除</span>
+                    </template>
+                    <template v-else>
+                      <span v-if="item.type !== 'folder'">{{ formatFileSize(item.size) }}</span>
+                      <span v-else>{{ item.itemCount }} 项</span>
+                    </template>
                   </p>
                 </div>
               </div>
@@ -304,9 +310,12 @@
               <!-- 列表头部 -->
               <div class="flex items-center px-4 py-2 bg-morandi-50 rounded-lg text-sm font-medium text-morandi-600">
                 <div class="flex-1">名称</div>
-                <div class="w-20 text-right">大小</div>
-                <div class="w-32 text-right">修改时间</div>
-                <div class="w-32 text-right">创建时间</div>
+                <div class="w-20 text-right" v-if="!driveStore.isInRecycleBin">大小</div>
+                <div class="w-20 text-right" v-else>大小</div>
+                <div class="w-32 text-right" v-if="!driveStore.isInRecycleBin">修改时间</div>
+                <div class="w-32 text-right" v-else>删除时间</div>
+                <div class="w-32 text-right" v-if="!driveStore.isInRecycleBin">创建时间</div>
+                <div class="w-32 text-right" v-else>清除时间</div>
               </div>
               
               <!-- 现有文件和文件夹 -->
@@ -351,20 +360,27 @@
                   <span class="text-sm font-medium text-morandi-900 truncate">{{ (getCurrentLevel() === 0 && item.name === '音乐') ? '歌单' : item.name }}</span>
                 </div>
                 
-                <!-- 文件大小 -->
+                <!-- 文件大小 / 删除信息 -->
                 <div class="w-20 text-right text-xs text-morandi-500">
-                  <span v-if="item.type !== 'folder'">{{ formatFileSize(item.size) }}</span>
-                  <span v-else>{{ item.itemCount }} 项</span>
+                  <template v-if="driveStore.isInRecycleBin">
+                    <span>{{ formatFileSize(item.size) }}</span>
+                  </template>
+                  <template v-else>
+                    <span v-if="item.type !== 'folder'">{{ formatFileSize(item.size) }}</span>
+                    <span v-else>{{ item.itemCount }} 项</span>
+                  </template>
                 </div>
                 
-                <!-- 修改时间 -->
+                <!-- 修改/删除时间 -->
                 <div class="w-32 text-right text-xs text-morandi-500">
-                  {{ formatDate(item.modifiedAt) }}
+                  <template v-if="driveStore.isInRecycleBin"> {{ getDeleteInfo(item).dateStr }}</template>
+                  <template v-else>{{ formatDate(item.modifiedAt) }}</template>
                 </div>
                 
-                <!-- 创建时间 -->
+                <!-- 创建/清除时间 -->
                 <div class="w-32 text-right text-xs text-morandi-500">
-                  {{ formatDate(item.createdAt || item.modifiedAt) }}
+                  <template v-if="driveStore.isInRecycleBin">{{ getDeleteInfo(item).daysLeft }} 天后清除</template>
+                  <template v-else>{{ formatDate(item.createdAt || item.modifiedAt) }}</template>
                 </div>
               </div>
               
@@ -721,6 +737,7 @@
           </button>
           <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0">
           <button 
+            v-if="!driveStore.isInRecycleBin"
             @click="showItemDetails"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
@@ -2787,5 +2804,15 @@ const restoreMultipleItems = () => {
 onUnmounted(() => {
   clearAutoScroll()
 })
+
+// 添加辅助函数与计算
+const getDeleteInfo = (item: DriveItem) => {
+  if (!item.deletedAt) return { dateStr: '-', daysLeft: '-' }
+  const deleted = item.deletedAt
+  const expiry = new Date(deleted.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const now = new Date()
+  const daysLeft = Math.max(0, Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
+  return { dateStr: deleted.toLocaleDateString(), daysLeft }
+}
 
 </script> 
