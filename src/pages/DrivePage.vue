@@ -1570,7 +1570,7 @@ const confirmMove = () => {
   // 额外规则：文件夹只能移动到根目录固定文件夹
   const targetFolderItemCM = findItemByPath(targetPath)
   if (item.type === 'folder' && targetFolderItemCM && targetFolderItemCM.type === 'folder' && !isRootFixedFolder(targetFolderItemCM)) {
-    alert('禁止将文件夹移动到非根目录文件夹，防止嵌套')
+    alert('禁止将文件夹移动到非根目录文件夹')
     return
   }
 
