@@ -1039,14 +1039,6 @@ const sortOptions = [
   { value: 'size', label: '按大小' }
 ] as const
 
-// 预设的第一级大类目录
-const predefinedCategories = [  
-  { id: 'music', name: '音乐', icon: 'Music' },
-  { id: 'document', name: '文档', icon: 'FileText' },
-  { id: 'video', name: '视频', icon: 'Video' },
-  { id: 'image', name: '图片', icon: 'Image' }
-]
-
 // 计算属性
 const breadcrumbPaths = computed<BreadcrumbPath[]>(() => {
   if (driveStore.isInRecycleBin) {
@@ -1133,7 +1125,7 @@ const currentFolder = computed(() => {
 })
 
 // 允许拖拽/移动文件夹的根目录文件夹名单
-const fixedRootFolderNames = ['音乐', '文档', '上传', '下载', '分享']
+const fixedRootFolderNames = ['音乐', '文档', '上传', '分享']
 
 // 判断目标文件夹是否为根目录下固定允许的文件夹
 const isRootFixedFolder = (folder: DriveItem): boolean => {
