@@ -611,12 +611,7 @@
           >
             删除 ({{ selectedItemIds.size }})
           </button>
-          <button 
-            @click="showItemDetails"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            详细信息
-          </button>
+          <!-- Removed 详细信息按钮 in recycle bin multi-select context menu -->
         </template>
         
         <!-- 正常模式下的多选菜单 -->
@@ -661,12 +656,7 @@
           >
             删除
           </button>
-          <button 
-            @click="() => showItemDetails()"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            详细信息
-          </button>
+          <!-- Removed 详细信息按钮 in recycle bin single-select context menu -->
         </template>
         
         <!-- 正常模式下的右键菜单 -->
@@ -736,6 +726,7 @@
             移动到
           </button>
           <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0">
+          <!-- 回收站模式下不显示详细信息按钮 -->
           <button 
             v-if="!driveStore.isInRecycleBin"
             @click="showItemDetails"
