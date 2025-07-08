@@ -321,12 +321,12 @@ export const useDriveStore = defineStore('drive', () => {
     },
     {
       id: 3,
-      name: '下载',
+      name: '上传',
       type: 'folder',
       size: 0,
       modifiedAt: new Date('2024-01-12'),
       createdAt: new Date('2023-11-20'),
-      path: '/学习资料',
+      path: '/上传',
       parentId: 0, // 根目录
       level: 1,
       itemCount: 5,
@@ -338,7 +338,7 @@ export const useDriveStore = defineStore('drive', () => {
           size: 0,
           modifiedAt: new Date('2024-01-12'),
           createdAt: new Date('2023-12-01'),
-          path: '/学习资料/前端开发',
+          path: '/上传/前端开发',
           parentId: 3,
           level: 2,
           itemCount: 2,
@@ -350,7 +350,7 @@ export const useDriveStore = defineStore('drive', () => {
               size: 1024000,
               modifiedAt: new Date('2024-01-12'),
               createdAt: new Date('2023-12-05'),
-              path: '/学习资料/前端开发/React学习笔记.md',
+              path: '/上传/前端开发/React学习笔记.md',
               parentId: 31,
               storageId: 401
             },
@@ -361,7 +361,7 @@ export const useDriveStore = defineStore('drive', () => {
               size: 8388608,
               modifiedAt: new Date('2024-01-10'),
               createdAt: new Date('2023-12-08'),
-              path: '/学习资料/前端开发/TypeScript入门.pdf',
+              path: '/上传/前端开发/TypeScript入门.pdf',
               parentId: 31,
               storageId: 402
             }
@@ -374,7 +374,7 @@ export const useDriveStore = defineStore('drive', () => {
           size: 104857600,
           modifiedAt: new Date('2024-01-08'),
           createdAt: new Date('2023-12-15'),
-          path: '/学习资料/视频教程.mp4',
+          path: '/上传/视频教程.mp4',
           parentId: 3,
           storageId: 403
         },
@@ -385,7 +385,7 @@ export const useDriveStore = defineStore('drive', () => {
           size: 2097152,
           modifiedAt: new Date('2024-01-05'),
           createdAt: new Date('2023-12-20'),
-          path: '/学习资料/编程练习.zip',
+          path: '/上传/编程练习.zip',
           parentId: 3,
           storageId: 404
         },
@@ -396,7 +396,7 @@ export const useDriveStore = defineStore('drive', () => {
           size: 1536000,
           modifiedAt: new Date('2024-01-03'),
           createdAt: new Date('2023-12-25'),
-          path: '/学习资料/算法题解.md',
+          path: '/上传/算法题解.md',
           parentId: 3,
           storageId: 405
         },
@@ -407,7 +407,7 @@ export const useDriveStore = defineStore('drive', () => {
           size: 2048000,
           modifiedAt: new Date('2024-01-01'),
           createdAt: new Date('2023-12-30'),
-          path: '/学习资料/面试准备.docx',
+          path: '/上传/面试准备.docx',
           parentId: 3,
           storageId: 406
         }

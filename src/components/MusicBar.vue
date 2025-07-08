@@ -91,13 +91,13 @@
               <VolumeX v-else :size="16" />
             </button>
 
-            <!-- 播放列表按钮（移动端） -->
+            <!-- 歌单按钮（移动端） -->
             <button 
               @click="togglePlaylistPanel" 
               class="w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
               :class="{ 'bg-white/60': showPlaylistPanel }"
               data-playlist-button
-              title="播放列表"
+              title="歌单"
             >
               <List :size="16" />
             </button>
@@ -201,13 +201,13 @@
             <Repeat1 v-else :size="20" />
           </button>
           
-          <!-- 播放列表按钮 -->
+          <!-- 歌单按钮 -->
           <button 
             @click="togglePlaylistPanel" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
             :class="{ 'bg-white/60': showPlaylistPanel }"
             data-playlist-button
-            title="播放列表"
+            title="歌单"
           >
             <List :size="20" />
           </button>
@@ -215,7 +215,7 @@
       </div>
     </div>
 
-    <!-- 播放列表展开面板 - 响应式调整 -->
+    <!-- 歌单展开面板 - 响应式调整 -->
     <div 
       v-if="showPlaylistPanel"
       ref="playlistRef"
@@ -224,7 +224,7 @@
       <!-- 面板头部 - 快速切换歌单 -->
       <div class="p-4 border-b border-morandi-200">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold text-morandi-900">播放列表</h3>
+          <h3 class="font-semibold text-morandi-900">歌单</h3>
           <button 
             @click="showPlaylistSelector = !showPlaylistSelector"
             class="px-3 py-1 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
@@ -252,7 +252,7 @@
         </div>
         
         <p class="text-sm text-morandi-600">
-          {{ musicStore.currentPlaylist?.name || '未选择播放列表' }} · {{ musicStore.currentPlaylist?.tracks.length || 0 }} 首歌曲
+          {{ musicStore.currentPlaylist?.name || '未选择歌单' }} · {{ musicStore.currentPlaylist?.tracks.length || 0 }} 首歌曲
         </p>
       </div>
       
@@ -279,7 +279,7 @@
         <!-- 空状态 -->
         <div v-if="!musicStore.currentPlaylist?.tracks.length" class="text-center py-8">
           <Music :size="32" class="mx-auto mb-2 text-morandi-400" />
-          <p class="text-sm text-morandi-500">播放列表为空</p>
+          <p class="text-sm text-morandi-500">歌单为空</p>
         </div>
       </div>
     </div>
@@ -324,7 +324,7 @@ const handleClickOutside = (event: MouseEvent) => {
 
   // 音量菜单通过鼠标悬停控制，不需要点击检测
 
-  // 检查播放列表面板 - 点击面板内部不关闭，只有点击外部才关闭
+  // 检查歌单面板 - 点击面板内部不关闭，只有点击外部才关闭
   if (showPlaylistPanel.value) {
     const playlistButtons = document.querySelectorAll('[data-playlist-button]')
     let isPlaylistButtonClick = false
@@ -334,7 +334,7 @@ const handleClickOutside = (event: MouseEvent) => {
       }
     })
     
-    // 如果点击的是播放列表按钮，不处理（让按钮自己的点击事件处理）
+    // 如果点击的是歌单按钮，不处理（让按钮自己的点击事件处理）
     if (isPlaylistButtonClick) {
       return
     }
@@ -408,7 +408,7 @@ const getPlayModeText = () => {
   }
 }
 
-// 播放列表面板方法
+// 歌单面板方法
 const togglePlaylistPanel = () => {
   showPlaylistPanel.value = !showPlaylistPanel.value
   showPlaylistSelector.value = false
@@ -427,7 +427,7 @@ const selectPlaylist = (playlist: any, event?: MouseEvent) => {
 const playTrackFromPanel = (index: number) => {
   musicStore.setCurrentTrack(index)
   musicStore.play()
-  // 选择歌曲后自动关闭播放列表
+  // 选择歌曲后自动关闭歌单
   showPlaylistPanel.value = false
   showPlaylistSelector.value = false
 }
@@ -440,7 +440,7 @@ const toggleMusicBar = () => {
 // 跳转到音乐页面
 const goToMusicPage = () => {
   if (musicStore.currentPlaylist && musicStore.currentTrack) {
-    // 传递当前播放列表和歌曲信息到音乐页面
+    // 传递当前歌单和歌曲信息到音乐页面
     router.push({
       name: 'music',
       query: {
@@ -449,7 +449,7 @@ const goToMusicPage = () => {
       }
     })
   } else {
-    // 如果没有当前播放，直接跳转到音乐页面
+      // 如果没有当前歌单，直接跳转到音乐页面
     router.push({ name: 'music' })
   }
 }

@@ -236,14 +236,17 @@
 
                 <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <FolderLock v-if="item.type === 'folder' && getCurrentLevel() === 0" :size="48" class="text-gray-500" />
+                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '音乐'" :size="48" class="text-blue-500" />
+                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '文档'" :size="48" class="text-red-500" />
+                    <FileUp v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '上传'" :size="48" class="text-green-500" />
+                    <Share2 v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '分享'" :size="48" class="text-purple-500" />
                     <FolderClosed v-else-if="item.type === 'folder'" :size="48" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="48" class="text-green-500" />
                     <FileText v-else :size="48" class="text-morandi-500" />
                   </div>
 
                   <p class="text-sm text-center font-medium text-morandi-900 truncate w-full">
-                    {{ item.name }}
+                    {{ (getCurrentLevel() === 0 && item.name === '音乐') ? '歌单' : item.name }}
                   </p>
 
                   <p class="text-xs text-morandi-500 mt-1">
@@ -337,12 +340,15 @@
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3 pointer-events-none">
                   <div class="w-8 h-8 flex items-center justify-center">
-                    <FolderLock v-if="item.type === 'folder' && getCurrentLevel() === 0" :size="20" class="text-gray-500" />
+                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '音乐'" :size="20" class="text-blue-500" />
+                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '文档'" :size="20" class="text-red-500" />
+                    <FileUp v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '上传'" :size="20" class="text-green-500" />
+                    <Share2 v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '分享'" :size="20" class="text-purple-500" />
                     <FolderClosed v-else-if="item.type === 'folder'" :size="20" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="20" class="text-green-500" />
                     <FileText v-else :size="20" class="text-morandi-500" />
                   </div>
-                  <span class="text-sm font-medium text-morandi-900 truncate">{{ item.name }}</span>
+                  <span class="text-sm font-medium text-morandi-900 truncate">{{ (getCurrentLevel() === 0 && item.name === '音乐') ? '歌单' : item.name }}</span>
                 </div>
                 
                 <!-- 文件大小 -->
@@ -971,7 +977,8 @@ import { useSettingsStore } from '../store/SettingsStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import {
-  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, FolderLock
+  Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, 
+  FileMusic, LibraryBig, FileUp, Share2
 } from 'lucide-vue-next'
 
 const toast = useToast()
@@ -1570,7 +1577,7 @@ const confirmMove = () => {
   // 额外规则：文件夹只能移动到根目录固定文件夹
   const targetFolderItemCM = findItemByPath(targetPath)
   if (item.type === 'folder' && targetFolderItemCM && targetFolderItemCM.type === 'folder' && !isRootFixedFolder(targetFolderItemCM)) {
-    alert('禁止将文件夹移动到非根目录文件夹')
+    alert('禁止将文件夹移动到非根目录文件夹，防止嵌套')
     return
   }
 
@@ -2121,7 +2128,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
       
       // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
       if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
         return
       }
       
@@ -2150,7 +2157,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     if (itemToMove) {
       // 单文件夹拖拽，同样只允许目标为根目录固定文件夹
       if (itemToMove.type === 'folder' && !isRootFixedFolder(targetItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
         return
       }
       selectedItem.value = itemToMove
@@ -2254,7 +2261,7 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
       // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
       const targetFolderItem = findItemByPath(path.path)
       if (targetFolderItem && targetFolderItem.type === 'folder' && itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolderItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
         return
       }
       
@@ -2358,7 +2365,7 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
       
       // 包含文件夹且目标不是根目录固定文件夹 -> 禁止
       if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolder)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
         return
       }
       

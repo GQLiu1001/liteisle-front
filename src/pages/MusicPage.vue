@@ -42,10 +42,10 @@
           </div>
         </div>
 
-        <!-- 播放列表选择器 - 移动端 -->
+        <!-- 歌单选择器 - 移动端 -->
         <div class="card">
           <div class="p-4">
-            <h3 class="text-lg font-bold text-morandi-900 mb-4">播放列表</h3>
+            <h3 class="text-lg font-bold text-morandi-900 mb-4">歌单</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div
                 v-for="playlist in musicStore.playlists.slice(0, 4)"
@@ -74,7 +74,7 @@
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h2 class="text-lg font-bold text-morandi-900">
-                  {{ musicStore.currentPlaylist?.name || '选择播放列表' }}
+                  {{ musicStore.currentPlaylist?.name || '选择歌单' }}
                 </h2>
                 <p class="text-sm text-morandi-500">{{ filteredTracks.length }} 首歌曲</p>
               </div>
@@ -129,7 +129,7 @@
 
       <!-- 桌面端布局 - 切换为更稳健的 Flexbox 布局 -->
       <div class="hidden lg:flex gap-6 h-[calc(100vh-10rem)]">
-        <!-- 左侧播放列表导航: 固定宽度，绝不压缩 -->
+        <!-- 左侧歌单导航: 固定宽度，绝不压缩 -->
         <div class="w-72 flex-shrink-0">
           <div class="card h-full flex flex-col">
             <!-- 搜索框 -->
@@ -142,18 +142,18 @@
               />
             </div>
 
-            <!-- 播放列表 -->
+            <!-- 歌单 -->
             <div class="flex-1 overflow-auto" ref="playlistScrollContainer">
               <div class="space-y-2">
               <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-bold text-morandi-900">播放列表</h3>
+                <h3 class="text-lg font-bold text-morandi-900">歌单</h3>
                 <button
                   @click="showCreatePlaylistDialog = true"
                   class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
-                  title="添加列表"
+                  title="添加歌单"
                 >
                   <Plus :size="16" />
-                  添加列表
+                  添加歌单
                 </button>
               </div>
               <draggable
@@ -195,7 +195,7 @@
               <!-- 空状态 -->
               <div v-if="musicStore.playlists.length === 0" class="text-center py-8">
                 <Music :size="32" class="mx-auto mb-3 text-morandi-400" />
-                <p class="text-sm text-morandi-500">暂无播放列表</p>
+                <p class="text-sm text-morandi-500">暂无歌单</p>
                 <p class="text-xs text-morandi-400 mt-1">请先在云盘中上传音乐文件</p>
               </div>
               </div>
@@ -210,7 +210,7 @@
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="font-bold text-morandi-900 lg:text-lg xl:text-xl">
-                  {{ musicStore.currentPlaylist?.name || '选择播放列表' }}
+                    {{ musicStore.currentPlaylist?.name || '选择歌单' }}
                 </h2>
                 <p class="text-sm text-morandi-500">
                   {{ filteredTracks.length }} 首歌曲
@@ -380,10 +380,10 @@
                 <div class="text-center">
                   <Music :size="48" class="mx-auto mb-4 text-morandi-400" />
                   <h3 class="text-lg font-medium text-morandi-700 mb-2">
-                    {{ musicStore.searchQuery ? '未找到匹配的歌曲' : '播放列表为空' }}
+                    {{ musicStore.searchQuery ? '未找到匹配的歌曲' : '歌单为空' }}
                   </h3>
                   <p class="text-morandi-500">
-                    {{ musicStore.searchQuery ? '尝试其他搜索词' : '请先选择一个播放列表' }}
+                    {{ musicStore.searchQuery ? '尝试其他搜索词' : '请先选择一个歌单' }}
                   </p>
                 </div>
               </div>
@@ -448,17 +448,17 @@
       </div>
     </div>
 
-    <!-- 新建播放列表对话框 -->
+    <!-- 新建歌单对话框 -->
     <div v-if="showCreatePlaylistDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-96">
-        <h3 class="text-lg font-bold mb-4">新建播放列表</h3>
+        <h3 class="text-lg font-bold mb-4">新建歌单</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-morandi-700 mb-2">播放列表名称</label>
+            <label class="block text-sm font-medium text-morandi-700 mb-2">歌单名称</label>
             <input
               v-model="newPlaylistName"
               type="text"
-              placeholder="请输入播放列表名称"
+              placeholder="请输入歌单名称"
               class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
               @keydown.enter="createNewPlaylist"
               style="user-select: text !important;"
@@ -579,10 +579,10 @@
     </div>
   </div>
 
-  <!-- 重命名播放列表对话框 -->
+  <!-- 重命名歌单对话框 -->
   <div v-if="showRenamePlaylistDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click="cancelRenamePlaylist">
     <div class="bg-white rounded-lg p-6 w-96" @click.stop>
-      <h3 class="text-lg font-bold mb-4">重命名播放列表</h3>
+      <h3 class="text-lg font-bold mb-4">重命名歌单</h3>
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-morandi-700 mb-2">新名称</label>
@@ -640,7 +640,7 @@ const route = useRoute()
 // 本地拖拽列表
 const localTracks = ref<TrackType[]>([])
 
-// 监听 Pinia store 中当前播放列表的变化，并更新本地列表
+// 监听 Pinia store 中当前歌单的变化，并更新本地列表
 watch(() => musicStore.currentPlaylist?.tracks, (newTracks) => {
   // 使用 slice() 创建一个浅拷贝，避免直接引用
   localTracks.value = newTracks ? [...newTracks] : []
@@ -663,7 +663,7 @@ const showRenameTrackDialog = ref(false)
 const renameTrackValue = ref('')
 const renameTrackInput = ref<HTMLInputElement | null>(null)
 
-// 播放列表重命名相关
+// 歌单重命名相关
 const showRenamePlaylistDialog = ref(false)
 const renamePlaylistValue = ref('')
 const renamePlaylistInput = ref<HTMLInputElement | null>(null)
@@ -697,7 +697,7 @@ const filteredTracks = computed(() => {
   return localTracks.value
 })
 
-// 可拖动的播放列表  
+// 可拖动的歌单  
 const currentPlaylistsList = computed({
   get: () => musicStore.playlists || [],
   set: (newPlaylists: Playlist[]) => {
@@ -730,21 +730,21 @@ const onDragEnd = (event: { oldIndex?: number; newIndex?: number }) => {
   stopGlobalDragListening();
 }
 
-// 播放列表拖动开始事件
+// 歌单拖动开始事件
 const onPlaylistDragStart = (event: any) => {
   if (event.item) {
     draggedPlaylistId.value = event.item.dataset.id;
   }
-  // 开始播放列表的全局拖拽监听
+  // 开始歌单的全局拖拽监听
   startPlaylistGlobalDragListening()
 };
 
-// 播放列表拖动结束事件
+// 歌单拖动结束事件
 const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
     musicStore.reorderPlaylists(event.oldIndex, event.newIndex)
   }
-  // 停止播放列表的全局拖拽监听
+  // 停止歌单的全局拖拽监听
   stopPlaylistGlobalDragListening()
 }
 
@@ -817,7 +817,7 @@ const getPlaylistDisplayCount = (playlist: any) => {
     return playlist.tracks.length
   }
   
-  // 如果有搜索条件，显示该播放列表中匹配的数量
+    // 如果有搜索条件，显示该歌单中匹配的数量
   return playlist.tracks.filter((track: any) => 
     track.name.toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
     track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
@@ -912,7 +912,7 @@ const handleGlobalDragOver = (event: DragEvent) => {
   handleDragOverScroll(event)
 }
 
-// 播放列表全局拖拽监听
+// 歌单全局拖拽监听
 const startPlaylistGlobalDragListening = () => {
   // 添加全局dragover事件监听
   document.addEventListener('dragover', handlePlaylistGlobalDragOver, { passive: false })
@@ -932,7 +932,7 @@ const handlePlaylistGlobalDragOver = (event: DragEvent) => {
   handlePlaylistDragOverScroll(event)
 }
 
-// 播放列表拖拽滚动处理
+// 歌单拖拽滚动处理
 const handlePlaylistDragOverScroll = (event: DragEvent) => {
   if (!playlistScrollContainer.value) return
   
@@ -988,14 +988,14 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// 新建播放列表的方法
+// 新建歌单的方法
 const createNewPlaylist = () => {
   const playlistName = newPlaylistName.value.trim()
   if (!playlistName) return
 
-  // 这里调用创建播放列表的逻辑，相当于在云盘音乐目录下创建文件夹
+  // 这里调用创建歌单的逻辑，相当于在云盘音乐目录下创建文件夹
   // 实际实现需要与DriveStore配合
-  console.log('创建新播放列表:', playlistName)
+  console.log('创建新歌单:', playlistName)
   
   showCreatePlaylistDialog.value = false
   newPlaylistName.value = ''
@@ -1005,7 +1005,7 @@ const createNewPlaylist = () => {
 const uploadMusicFiles = async () => {
   if (selectedMusicFiles.value.length === 0) return
   
-  // 获取当前播放列表的路径，如果没有则上传到音乐根目录
+  // 获取当前歌单的路径，如果没有则上传到音乐根目录
   const currentPlaylist = musicStore.currentPlaylist
   const targetPath = currentPlaylist ? `/音乐/${currentPlaylist.name}` : '/音乐'
   
@@ -1060,7 +1060,7 @@ const handleTrackContextMenu = (event: MouseEvent, track: TrackType) => {
 
 const openTrack = () => {
   if (selectedTrack.value) {
-    // 找到当前播放列表中的索引
+    // 找到当前歌单中的索引
     const index = musicStore.currentPlaylist?.tracks.findIndex((t: TrackType) => t.id === selectedTrack.value?.id) ?? -1
     if (index !== -1) {
       playTrackImmediately(index)
@@ -1131,7 +1131,7 @@ const deleteTrack = () => {
   }
 }
 
-// 播放列表右键菜单相关方法
+// 歌单右键菜单相关方法
 const handlePlaylistContextMenu = (event: MouseEvent, playlist: Playlist) => {
   selectedPlaylist.value = playlist
   
@@ -1206,7 +1206,7 @@ const confirmRenamePlaylist = () => {
   
   showRenamePlaylistDialog.value = false
   renamePlaylistValue.value = ''
-  toast.success(`播放列表 "${oldName}" 已重命名为 "${newName}"`)
+  toast.success(`歌单 "${oldName}" 已重命名为 "${newName}"`)
 }
 
 const cancelRenamePlaylist = () => {
@@ -1217,10 +1217,10 @@ const cancelRenamePlaylist = () => {
 const deletePlaylist = () => {
   if (selectedPlaylist.value) {
     const playlistName = selectedPlaylist.value.name
-    if (confirm(`确定要删除播放列表 "${playlistName}" 吗？`)) {
+    if (confirm(`确定要删除歌单 "${playlistName}" 吗？`)) {
       // 调用MusicStore的删除方法
       musicStore.deletePlaylist(selectedPlaylist.value.id)
-      toast.success(`播放列表 "${playlistName}" 已删除`)
+      toast.success(`歌单 "${playlistName}" 已删除`)
     }
   }
 }
