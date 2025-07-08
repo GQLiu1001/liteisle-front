@@ -2121,7 +2121,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
       
       // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
       if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹')
         return
       }
       
@@ -2150,7 +2150,7 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
     if (itemToMove) {
       // 单文件夹拖拽，同样只允许目标为根目录固定文件夹
       if (itemToMove.type === 'folder' && !isRootFixedFolder(targetItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹')
         return
       }
       selectedItem.value = itemToMove
@@ -2254,7 +2254,7 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
       // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
       const targetFolderItem = findItemByPath(path.path)
       if (targetFolderItem && targetFolderItem.type === 'folder' && itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolderItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹')
         return
       }
       
@@ -2358,7 +2358,7 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
       
       // 包含文件夹且目标不是根目录固定文件夹 -> 禁止
       if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolder)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        toast.error('禁止将文件夹拖拽到非根目录文件夹')
         return
       }
       
