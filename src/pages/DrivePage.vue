@@ -1132,9 +1132,26 @@ const currentFolder = computed(() => {
   return findItemByPath(driveStore.currentPath)
 })
 
+// 允许拖拽/移动文件夹的根目录文件夹名单
+const fixedRootFolderNames = ['音乐', '文档', '上传', '下载', '分享']
+
+// 判断目标文件夹是否为根目录下固定允许的文件夹
+const isRootFixedFolder = (folder: DriveItem): boolean => {
+  const depth = folder.path.split('/').filter(Boolean).length
+  return depth === 1 && fixedRootFolderNames.includes(folder.name)
+}
+
 const availableFolders = computed(() => {
+  // 文件夹：返回固定目录
+  if (selectedItem.value?.type === 'folder') {
+    return driveStore.driveItems
+      .filter((item: DriveItem) => item.type === 'folder' && fixedRootFolderNames.includes(item.name))
+      .map((item: DriveItem) => ({ ...item, level: 1 }))
+  }
+
+  // 文件：返回所有可用文件夹（排除自己）
   const allFolders: DriveItem[] = []
-  
+
   const collectFolders = (items: DriveItem[], level: number = 1) => {
     items.forEach(item => {
       if (item.type === 'folder' && item.id !== selectedItem.value?.id) {
@@ -1145,7 +1162,7 @@ const availableFolders = computed(() => {
       }
     })
   }
-  
+
   collectFolders(driveStore.driveItems)
   return allFolders
 })
@@ -1555,6 +1572,13 @@ const confirmMove = () => {
   // 不能移动到自己或子目录
   if (targetPath.startsWith(item.path)) {
     alert('不能移动到自己或子目录中')
+    return
+  }
+
+  // 额外规则：文件夹只能移动到根目录固定文件夹
+  const targetFolderItemCM = findItemByPath(targetPath)
+  if (item.type === 'folder' && targetFolderItemCM && targetFolderItemCM.type === 'folder' && !isRootFixedFolder(targetFolderItemCM)) {
+    alert('禁止将文件夹移动到非根目录文件夹，防止嵌套')
     return
   }
 
@@ -2103,6 +2127,12 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
       
       if (itemsToMove.length === 0) return
       
+      // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
+      if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetItem)) {
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        return
+      }
+      
       // 检查是否有任何项目拖拽到自己身上
       if (itemsToMove.some((item: DriveItem) => item.id === targetItem.id)) return
       
@@ -2126,6 +2156,11 @@ const handleDrop = (event: DragEvent, targetItem: DriveItem) => {
 
     const itemToMove = findItemInStore(draggedItemId)
     if (itemToMove) {
+      // 单文件夹拖拽，同样只允许目标为根目录固定文件夹
+      if (itemToMove.type === 'folder' && !isRootFixedFolder(targetItem)) {
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        return
+      }
       selectedItem.value = itemToMove
       moveTargetPath.value = targetItem.path
       confirmMove()
@@ -2224,6 +2259,13 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
       
       if (itemsToMove.length === 0) return
       
+      // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
+      const targetFolderItem = findItemByPath(path.path)
+      if (targetFolderItem && targetFolderItem.type === 'folder' && itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolderItem)) {
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        return
+      }
+      
       // 直接移动所有选中的项目
       itemsToMove.forEach((item: DriveItem) => {
         // 检查是否拖动到自己的父目录（无效操作）
@@ -2321,6 +2363,12 @@ const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) =>
         .filter((item: DriveItem | null) => item !== null && item.id !== targetFolder.id)
       
       if (itemsToMove.length === 0) return
+      
+      // 包含文件夹且目标不是根目录固定文件夹 -> 禁止
+      if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolder)) {
+        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
+        return
+      }
       
       // 移动所有选中的项目
       itemsToMove.forEach((item: DriveItem) => {
