@@ -431,18 +431,7 @@
               </div>
             </div>
 
-            <!-- 歌词区域 -->
-            <div class="flex-1 overflow-auto">
-              <div class="text-center">
-                <h4 class="font-medium text-morandi-700 mb-3">歌词</h4>
-                <div v-if="musicStore.currentTrackInfo.lyrics" class="text-sm text-morandi-600 leading-relaxed select-text">
-                  {{ musicStore.currentTrackInfo.lyrics }}
-                </div>
-                <div v-else class="text-sm text-morandi-500">
-                  暂无歌词
-                </div>
-              </div>
-            </div>
+            <!-- 歌词区域已移除 -->
           </div>
         </div>
       </div>
