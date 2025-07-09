@@ -34,12 +34,10 @@
       <div class="relative user-menu" @click="toggleUserMenu">
         <div class="w-8 h-8 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors overflow-hidden">
           <img 
-            v-if="authStore.user?.picture" 
-            :src="authStore.user.picture" 
+            :src="authStore.user?.picture || defaultUserPic" 
             alt="用户头像" 
             class="w-full h-full object-cover"
           />
-          <User v-else :size="16" class="text-morandi-600" />
         </div>
         
         <!-- 下拉菜单 -->
@@ -151,7 +149,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { PenTool, User, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as ImageIcon } from 'lucide-vue-next'
+import { PenTool, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as ImageIcon } from 'lucide-vue-next'
+// 默认用户头像
+import defaultUserPic from '../../public/defaultuserpic (2).png'
 import http from '@/utils/http'
 import { useFocusStore } from '@/store/FocusStore'
 import { useUIStore } from '@/store/UIStore'

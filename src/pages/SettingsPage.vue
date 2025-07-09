@@ -82,12 +82,10 @@
                   class="w-32 h-32 bg-teal-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-teal-200 transition-colors relative overflow-hidden"
                 >
                   <img 
-                    v-if="authStore.user?.picture" 
-                    :src="authStore.user.picture" 
+                    :src="authStore.user?.picture || defaultUserPic" 
                     alt="用户头像" 
                     class="w-full h-full object-cover"
                   />
-                  <User v-else :size="64" class="text-teal-600" />
                   
                   <!-- 悬浮提示 -->
                   <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -306,8 +304,8 @@
 
             <!-- 关于 -->
             <div v-else-if="settingsStore.currentCategoryId === 'about'" class="h-full flex flex-col items-center justify-center text-center">
-              <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center">
-                <FileText :size="40" class="text-teal-600" />
+              <div class="w-20 h-20 mb-4 bg-teal-100 rounded-full flex items-center justify-center overflow-hidden">
+                <img :src="logoPic" alt="LiteIsle Logo" class="h-16 w-16 object-contain" />
               </div>
               
               <h3 class="text-xl font-bold text-morandi-900 mb-2">轻屿记 LiteIsle</h3>
@@ -401,7 +399,10 @@ import { useSettingsStore } from '@/store/SettingsStore';
 import { useFocusStore } from '@/store/FocusStore';
 import { useAuthStore } from '@/store/AuthStore';
 import { ref, computed, onMounted } from 'vue';
-import { User, HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
+import { HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
+// 默认用户头像
+import defaultUserPic from '../../public/defaultuserpic (2).png';
+import logoPic from '../../public/logopic.png';
 
 const settingsStore = useSettingsStore();
 const focusStore = useFocusStore();

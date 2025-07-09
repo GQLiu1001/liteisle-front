@@ -151,7 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
               id: 1,
               username: 'admin',
               email: 'admin@example.com',
-              picture: undefined
+              picture: 'https://pub-061d1fd03ea74e68849f186c401fde40.r2.dev/liteisledefaultuserpic.png'
             },
             expiresIn: tokenExpiresIn
           }
@@ -355,9 +355,11 @@ export const useAuthStore = defineStore('auth', () => {
         if (convertedResponse.success || convertedResponse.code === 200) {
           // 更新用户信息
           const pictureUrl = convertedResponse.data?.pictureUrl || convertedResponse.pictureUrl
-          user.value = {
-            ...user.value,
-            picture: pictureUrl
+          if (user.value) {
+            user.value = {
+              ...user.value,
+              picture: pictureUrl
+            }
           }
           
           // 更新本地存储
@@ -369,18 +371,24 @@ export const useAuthStore = defineStore('auth', () => {
         // 如果 API 调用失败，回退到演示模式
         console.warn('API 调用失败，使用演示模式:', apiError)
         
-        // 创建本地预览URL
-        const localUrl = URL.createObjectURL(file)
-        
-        // 更新用户信息
-        user.value = {
-          ...user.value,
-          picture: localUrl
+        // 将文件转换为base64
+        const reader = new FileReader()
+        reader.onload = () => {
+          const base64String = reader.result as string
+          
+          // 更新用户信息
+          if (user.value) {
+            user.value = {
+              ...user.value,
+              picture: base64String
+            }
+            
+            // 更新本地存储
+            localStorage.setItem('user_info', JSON.stringify(user.value))
+          }
         }
         
-        // 更新本地存储
-        localStorage.setItem('user_info', JSON.stringify(user.value))
-        
+        reader.readAsDataURL(file)
         console.log('头像上传成功（演示模式）')
       }
     } catch (error) {
