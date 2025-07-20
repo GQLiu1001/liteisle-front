@@ -58,16 +58,11 @@
                     <input 
                       type="text" 
                       v-model="settingsStore.settings.downloadDirectory" 
-                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
-                      placeholder="选择下载目录"
+                      @change="settingsStore.saveSettings()"
+                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-80"
+                      placeholder="例如: C:\Users\Username\Downloads"
                       style="user-select: text !important;"
                     />
-                    <button 
-                      @click="selectDownloadDirectory"
-                      class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                    >
-                      浏览
-                    </button>
                   </div>
                 </div>
               </div>
@@ -93,23 +88,17 @@
                 <div class="flex items-center justify-between">
                   <div>
                     <h4 class="font-medium text-morandi-900">PicGo应用路径</h4>
-                    <p class="text-sm text-morandi-600">选择PicGo应用的exe文件路径</p>
+                    <p class="text-sm text-morandi-600">输入PicGo应用的exe文件完整路径</p>
                   </div>
                   <div class="flex items-center gap-2">
                     <input 
                       type="text" 
                       v-model="settingsStore.settings.picgoPath" 
                       @change="settingsStore.saveSettings()"
-                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
-                      placeholder="选择PicGo应用路径"
+                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-80"
+                      placeholder="例如: C:\Program Files\PicGo\PicGo.exe"
                       style="user-select: text !important;"
                     />
-                    <button 
-                      @click="selectPicGoPath"
-                      class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-                    >
-                      浏览
-                    </button>
                   </div>
                 </div>
                 
@@ -476,50 +465,7 @@
 
 
 
-  <!-- 下载目录输入对话框 -->
-  <div 
-    v-if="showDownloadDirDialog" 
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    @click="cancelDownloadDir"
-  >
-    <div 
-      class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]"
-      @click.stop
-    >
-      <h3 class="text-lg font-bold text-morandi-900 mb-4">输入下载目录路径</h3>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-morandi-700 mb-2">下载目录完整路径</label>
-          <input
-            type="text"
-            v-model="downloadDirInput"
-            placeholder="例如: C:\Users\Username\Downloads"
-            class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
-            style="user-select: text !important;"
-            @keyup.enter="confirmDownloadDir"
-          />
-          <p class="text-xs text-morandi-500 mt-1">请确保路径指向一个有效的文件夹</p>
-        </div>
-      </div>
-      <div class="flex justify-end gap-3 mt-6">
-        <button 
-          type="button"
-          @click="cancelDownloadDir"
-          class="px-4 py-2 text-morandi-700 border border-morandi-300 rounded-lg hover:bg-morandi-50 transition-colors"
-        >
-          取消
-        </button>
-        <button 
-          type="button"
-          @click="confirmDownloadDir"
-          :disabled="!downloadDirInput.trim()"
-          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
-        >
-          确认
-        </button>
-      </div>
-    </div>
-  </div>
+  <!-- 移除了下载目录输入对话框（已改为直接输入） -->
 </template>
 
 <script setup lang="ts">
@@ -561,9 +507,7 @@ const isTestingConnection = ref(false);
 // PicGo路径输入对话框状态
 
 
-// 下载目录输入对话框状态
-const showDownloadDirDialog = ref(false);
-const downloadDirInput = ref('');
+// 移除了下载目录输入对话框状态（已改为直接输入）
 
 // 触发文件选择
 const triggerFileSelect = () => {
@@ -841,113 +785,11 @@ const handleShareScroll = (event: Event) => {
   }
 };
 
-// 选择下载目录
-const selectDownloadDirectory = async () => {
-  try {
-    // 检查是否在 Electron 环境中
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      const result = await (window as any).electronAPI.selectDirectory();
-      
-      if (result && !result.canceled && result.filePaths && result.filePaths.length > 0) {
-        const selectedPath = result.filePaths[0];
-        settingsStore.updateSetting('downloadDirectory', selectedPath);
-        settingsStore.saveSettings();
-        alert('下载目录已更新: ' + selectedPath);
-        return;
-      } else if (result && result.canceled) {
-        return; // 用户取消选择
-      }
-    }
-    
-    // 在浏览器环境中或选择失败时，使用模态对话框输入
-    downloadDirInput.value = settingsStore.settings.downloadDirectory || '';
-    showDownloadDirDialog.value = true;
-  } catch (error) {
-    alert(`选择目录失败: ${error instanceof Error ? error.message : '未知错误'}`);
-  }
-};
+// 移除了选择下载目录函数（已改为直接输入）
 
-// 选择PicGo路径
-const selectPicGoPath = async () => {
-  try {
-    
-    // 尝试使用HTML file input来选择文件
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.exe';
-    fileInput.style.display = 'none';
-    
-    // 创建一个Promise来处理文件选择结果
-    const fileSelectionPromise = new Promise<string | null>((resolve) => {
-      fileInput.onchange = (event) => {
-        const target = event.target as HTMLInputElement;
-        if (target.files && target.files.length > 0) {
-          const file = target.files[0];
-          
-          // 由于浏览器安全限制，我们无法获取完整路径
-          // 但可以使用文件名来帮助用户
-          const fileName = file.name;
-          resolve(fileName);
-        } else {
-          resolve(null);
-        }
-        document.body.removeChild(fileInput);
-      };
-      
-      fileInput.oncancel = () => {
-        resolve(null);
-        document.body.removeChild(fileInput);
-      };
-    });
-    
-    // 将文件输入框添加到页面并触发点击
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    
-    // 等待用户选择文件
-    const selectedFileName = await fileSelectionPromise;
-    
-    if (selectedFileName) {
-      // 根据选择的文件名，提供常见的路径建议
-      const commonPaths = [
-        `C:\\Program Files\\PicGo\\${selectedFileName}`,
-        `C:\\Users\\${navigator.userAgent.includes('Windows') ? 'YourUsername' : 'User'}\\AppData\\Local\\Programs\\PicGo\\${selectedFileName}`,
-        `D:\\Software\\PicGo\\${selectedFileName}`,
-        `C:\\Software\\PicGo\\${selectedFileName}`
-      ];
-      
-      // 直接使用第一个常见路径并保存
-      const selectedPath = commonPaths[0];
-      settingsStore.updateSetting('picgoPath', selectedPath);
-      settingsStore.saveSettings();
-      
-      // 显示确认消息
-      alert(`✅ 已设置PicGo路径: ${selectedPath}\n\n💡 如果路径不正确，请重新选择文件`);
-    } else {
-      // 用户取消选择
-    }
-    
-  } catch (error) {
-    // 发生错误时的处理
-    alert(`文件选择器出错: ${error instanceof Error ? error.message : '未知错误'}\n\n请尝试以下路径之一：\n• C:\\Program Files\\PicGo\\PicGo.exe\n• C:\\Users\\用户名\\AppData\\Local\\Programs\\PicGo\\PicGo.exe`);
-  }
-};
+// 移除了选择PicGo路径函数（已改为直接输入）
 
-// 确认下载目录输入
-const confirmDownloadDir = () => {
-  if (downloadDirInput.value && downloadDirInput.value.trim()) {
-    settingsStore.updateSetting('downloadDirectory', downloadDirInput.value.trim());
-    settingsStore.saveSettings();
-    showDownloadDirDialog.value = false;
-    alert('下载目录已更新');
-  }
-};
-
-// 取消下载目录输入
-const cancelDownloadDir = () => {
-  showDownloadDirDialog.value = false;
-  downloadDirInput.value = '';
-};
+// 移除了下载目录确认和取消函数（已改为直接输入）
 
 // 测试PicGo上传
 const testPicGoUpload = async () => {
