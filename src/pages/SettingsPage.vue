@@ -73,6 +73,87 @@
               </div>
             </div>
 
+            <!-- PicGo图片上传设置 -->
+            <div v-else-if="settingsStore.currentCategoryId === 'picgo'">
+              <h3 class="text-xl font-bold text-morandi-900 mb-6">图片上传设置</h3>
+              <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-medium text-morandi-900">启用PicGo上传</h4>
+                    <p class="text-sm text-morandi-600">开启后在Markdown编辑器中粘贴图片将自动上传</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    v-model="settingsStore.settings.picgoEnabled" 
+                    @change="settingsStore.saveSettings()"
+                    class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500" 
+                  />
+                </div>
+                
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-medium text-morandi-900">PicGo应用路径</h4>
+                    <p class="text-sm text-morandi-600">选择PicGo应用的exe文件路径</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      v-model="settingsStore.settings.picgoPath" 
+                      @change="settingsStore.saveSettings()"
+                      class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-64"
+                      placeholder="选择PicGo应用路径"
+                      style="user-select: text !important;"
+                    />
+                    <button 
+                      @click="selectPicGoPath"
+                      class="px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                    >
+                      浏览
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- 测试上传 -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-medium text-morandi-900">测试上传</h4>
+                    <p class="text-sm text-morandi-600">测试PicGo是否能正常上传图片（需要先配置图床）</p>
+                  </div>
+                  <button 
+                    @click="testPicGoUpload"
+                    :disabled="isTestingConnection"
+                    class="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {{ isTestingConnection ? '测试中...' : '测试上传' }}
+                  </button>
+                </div>
+                
+                <!-- 使用说明 -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+                  <div class="flex">
+                    <div class="flex-shrink-0">
+                      <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <h3 class="text-sm font-medium text-blue-800">使用说明</h3>
+                      <div class="mt-2 text-sm text-blue-700">
+                        <ul class="list-disc list-inside space-y-1">
+                          <li>下载并安装PicGo应用：<a href="https://molunerfinn.com/PicGo/" target="_blank" class="text-blue-600 hover:underline">https://molunerfinn.com/PicGo/</a></li>
+                          <li>在PicGo中配置你喜欢的图床（如七牛云、阿里云OSS、腾讯云COS等）</li>
+                          <li>选择PicGo应用的安装路径（通常是PicGo.exe文件）</li>
+                          <li>启用PicGo上传后，在Markdown编辑器中按Ctrl+V粘贴图片将自动上传</li>
+                          <li>上传成功后会自动获取图片URL并插入到编辑器中</li>
+                          <li>无需额外配置，就像在Typora中使用一样简单</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 账户与云盘设置 -->
             <div v-else-if="settingsStore.currentCategoryId === 'account'" class="h-full flex flex-col items-center justify-center text-center">
               <!-- 用户头像 -->
@@ -392,6 +473,53 @@
       </form>
     </div>
   </div>
+
+
+
+  <!-- 下载目录输入对话框 -->
+  <div 
+    v-if="showDownloadDirDialog" 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    @click="cancelDownloadDir"
+  >
+    <div 
+      class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]"
+      @click.stop
+    >
+      <h3 class="text-lg font-bold text-morandi-900 mb-4">输入下载目录路径</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-morandi-700 mb-2">下载目录完整路径</label>
+          <input
+            type="text"
+            v-model="downloadDirInput"
+            placeholder="例如: C:\Users\Username\Downloads"
+            class="w-full px-3 py-2 border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text"
+            style="user-select: text !important;"
+            @keyup.enter="confirmDownloadDir"
+          />
+          <p class="text-xs text-morandi-500 mt-1">请确保路径指向一个有效的文件夹</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-6">
+        <button 
+          type="button"
+          @click="cancelDownloadDir"
+          class="px-4 py-2 text-morandi-700 border border-morandi-300 rounded-lg hover:bg-morandi-50 transition-colors"
+        >
+          取消
+        </button>
+        <button 
+          type="button"
+          @click="confirmDownloadDir"
+          :disabled="!downloadDirInput.trim()"
+          class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+        >
+          确认
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -426,6 +554,16 @@ const isCheckingUpdates = ref(false);
 
 // 头像上传相关
 const fileInput = ref<HTMLInputElement | null>(null);
+
+// PicGo连接测试状态
+const isTestingConnection = ref(false);
+
+// PicGo路径输入对话框状态
+
+
+// 下载目录输入对话框状态
+const showDownloadDirDialog = ref(false);
+const downloadDirInput = ref('');
 
 // 触发文件选择
 const triggerFileSelect = () => {
@@ -721,15 +859,211 @@ const selectDownloadDirectory = async () => {
       }
     }
     
-    // 在浏览器环境中或选择失败时，使用手动输入
-    const newPath = prompt('请输入下载目录路径:', settingsStore.settings.downloadDirectory);
-    if (newPath && newPath.trim()) {
-      settingsStore.updateSetting('downloadDirectory', newPath.trim());
-      settingsStore.saveSettings();
-      alert('下载目录已更新');
-    }
+    // 在浏览器环境中或选择失败时，使用模态对话框输入
+    downloadDirInput.value = settingsStore.settings.downloadDirectory || '';
+    showDownloadDirDialog.value = true;
   } catch (error) {
     alert(`选择目录失败: ${error instanceof Error ? error.message : '未知错误'}`);
+  }
+};
+
+// 选择PicGo路径
+const selectPicGoPath = async () => {
+  try {
+    // 检查是否在 Electron 环境中
+    console.log('检查Electron环境:', {
+      hasWindow: typeof window !== 'undefined',
+      hasElectronAPI: typeof (window as any).electronAPI !== 'undefined',
+      hasSelectFile: typeof (window as any).electronAPI?.selectFile !== 'undefined',
+      electronAPIKeys: (window as any).electronAPI ? Object.keys((window as any).electronAPI) : [],
+      electronAPIObject: (window as any).electronAPI
+    });
+    
+    // 尝试使用HTML file input来选择文件
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.exe';
+    fileInput.style.display = 'none';
+    
+    // 创建一个Promise来处理文件选择结果
+    const fileSelectionPromise = new Promise<string | null>((resolve) => {
+      fileInput.onchange = (event) => {
+        const target = event.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+          const file = target.files[0];
+          console.log('用户选择的文件:', file.name);
+          
+          // 由于浏览器安全限制，我们无法获取完整路径
+          // 但可以使用文件名来帮助用户
+          const fileName = file.name;
+          resolve(fileName);
+        } else {
+          resolve(null);
+        }
+        document.body.removeChild(fileInput);
+      };
+      
+      fileInput.oncancel = () => {
+        console.log('用户取消了文件选择');
+        resolve(null);
+        document.body.removeChild(fileInput);
+      };
+    });
+    
+    // 将文件输入框添加到页面并触发点击
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    
+    // 等待用户选择文件
+    const selectedFileName = await fileSelectionPromise;
+    
+    if (selectedFileName) {
+      // 根据选择的文件名，提供常见的路径建议
+      const commonPaths = [
+        `C:\\Program Files\\PicGo\\${selectedFileName}`,
+        `C:\\Users\\${navigator.userAgent.includes('Windows') ? 'YourUsername' : 'User'}\\AppData\\Local\\Programs\\PicGo\\${selectedFileName}`,
+        `D:\\Software\\PicGo\\${selectedFileName}`,
+        `C:\\Software\\PicGo\\${selectedFileName}`
+      ];
+      
+      // 直接使用第一个常见路径并保存
+      const selectedPath = commonPaths[0];
+      settingsStore.updateSetting('picgoPath', selectedPath);
+      settingsStore.saveSettings();
+      
+      // 显示确认消息
+      alert(`✅ 已设置PicGo路径: ${selectedPath}\n\n💡 如果路径不正确，请重新选择文件`);
+    } else {
+      // 用户取消选择
+      console.log('用户取消了文件选择');
+    }
+    
+  } catch (error) {
+    console.error('选择PicGo路径时发生错误:', error);
+    
+    // 发生错误时的处理
+    console.log('文件选择器出错:', error);
+    alert(`文件选择器出错: ${error instanceof Error ? error.message : '未知错误'}\n\n请尝试以下路径之一：\n• C:\\Program Files\\PicGo\\PicGo.exe\n• C:\\Users\\用户名\\AppData\\Local\\Programs\\PicGo\\PicGo.exe`);
+  }
+};
+
+// 确认下载目录输入
+const confirmDownloadDir = () => {
+  if (downloadDirInput.value && downloadDirInput.value.trim()) {
+    settingsStore.updateSetting('downloadDirectory', downloadDirInput.value.trim());
+    settingsStore.saveSettings();
+    showDownloadDirDialog.value = false;
+    alert('下载目录已更新');
+  }
+};
+
+// 取消下载目录输入
+const cancelDownloadDir = () => {
+  showDownloadDirDialog.value = false;
+  downloadDirInput.value = '';
+};
+
+// 测试PicGo上传
+const testPicGoUpload = async () => {
+  if (!settingsStore.settings.picgoPath) {
+    alert('请先选择PicGo应用路径');
+    return;
+  }
+  
+  isTestingConnection.value = true;
+  
+  try {
+    // 简单验证：检查路径是否看起来是PicGo
+    const path = settingsStore.settings.picgoPath.toLowerCase();
+    if (!path.includes('picgo') || !path.endsWith('.exe')) {
+      alert('⚠️ 路径可能不正确\n请确保选择的是 PicGo.exe 文件');
+      return;
+    }
+    
+    // 测试PicGo HTTP服务连接
+    console.log('测试PicGo HTTP服务连接...');
+    const port = 36677; // PicGo默认端口
+    
+    // 尝试POST到/upload端点测试连接（这是PicGo的正确端点和方法）
+    try {
+      console.log('测试PicGo upload端点...');
+      const response = await fetch(`http://127.0.0.1:${port}/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}), // 发送空请求测试PicGo服务连接
+        signal: AbortSignal.timeout(5000) // 5秒超时
+      });
+      
+      console.log('PicGo响应状态:', response.status);
+      
+      // 即使返回错误状态码，但不是404说明服务正在运行
+      if (response.status !== 404) {
+        // 尝试读取响应内容来确认这是PicGo
+        const responseText = await response.text();
+        console.log('PicGo响应内容:', responseText);
+        
+        alert(`✅ PicGo连接测试成功！
+
+🎉 PicGo HTTP服务正在运行
+📁 路径: ${settingsStore.settings.picgoPath}
+🌐 服务地址: http://127.0.0.1:${port}/upload
+📊 响应状态: ${response.status}
+
+✨ 现在可以在Markdown编辑器中使用Ctrl+V粘贴图片自动上传了！
+
+📋 使用步骤:
+1. 复制图片到剪贴板（截图或复制文件）
+2. 在Markdown编辑器中按Ctrl+V
+3. 图片将自动上传并插入链接
+
+⚠️ 重要提醒：
+• 请确保已在PicGo中配置好图床设置
+• 如使用Gitee图床，请检查Token权限和仓库访问
+• 建议图片大小控制在1MB以内
+• 如遇上传失败，系统会自动重试并提供备选方案`);
+      } else {
+        throw new Error('PicGo服务未响应 (404)');
+      }
+    } catch (error) {
+      console.log('PicGo连接测试失败:', error);
+      
+      // 如果是网络错误，说明端口没有服务在运行
+      if (error instanceof Error && error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error(`❌ 无法连接到PicGo服务
+
+🔧 解决方案:
+1. 启动PicGo应用程序
+2. 在PicGo设置中开启"HTTP监听服务"
+3. 确认端口号为36677（默认）
+4. 检查防火墙是否阻止了连接
+
+📂 当前PicGo路径: ${settingsStore.settings.picgoPath}`);
+              } else {
+          throw new Error(`连接测试失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        }
+    }
+    
+  } catch (error) {
+    console.error('PicGo连接测试失败:', error);
+    
+    alert(`❌ PicGo连接测试失败
+
+🔍 可能的原因：
+1. PicGo应用没有运行
+2. PicGo的HTTP服务器功能未开启
+3. 端口36677被占用或被防火墙阻止
+
+📋 解决步骤：
+1. 确保PicGo应用正在运行
+2. 在PicGo中开启"开启服务器"功能
+3. 检查端口36677是否可用
+4. 关闭防火墙或添加端口例外
+
+💡 提示：在PicGo设置中找到"Server"或"服务器"选项并启用`);
+  } finally {
+    isTestingConnection.value = false;
   }
 };
 
@@ -771,6 +1105,8 @@ const copyShareInfo = async (share: any) => {
 
 // 初始化数据
 onMounted(() => {
+  // 加载保存的设置
+  settingsStore.loadSettings();
   // 初始化模拟数据
   initMockFocusData();
   // 加载第一页专注记录

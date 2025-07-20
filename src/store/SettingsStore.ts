@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
-import { Settings, User, FileText, Clock, Share2 } from 'lucide-vue-next'
+import { Settings, User, FileText, Clock, Share2, Image } from 'lucide-vue-next'
 
 // 设置接口定义
 interface AppSettings {
@@ -27,6 +27,10 @@ interface AppSettings {
   avatar: string
   storageUsed: number
   storageTotal: number
+  
+  // PicGo设置
+  picgoEnabled: boolean
+  picgoPath: string
 }
 
 export interface SettingCategory {
@@ -68,7 +72,9 @@ export const useSettingsStore = defineStore('settings', () => {
     username: 'admin',
     avatar: '',
     storageUsed: 2.1 * 1024 * 1024 * 1024, // 2.1GB
-    storageTotal: 5 * 1024 * 1024 * 1024   // 5GB
+    storageTotal: 5 * 1024 * 1024 * 1024,   // 5GB
+    picgoEnabled: false,
+    picgoPath: ''
   })
 
   // 云盘信息
@@ -236,6 +242,12 @@ export const useSettingsStore = defineStore('settings', () => {
       icon: shallowRef(User)
     },
     {
+      id: 'picgo',
+      name: '图片上传',
+      description: 'PicGo图片上传设置',
+      icon: shallowRef(Image)
+    },
+    {
       id: 'shares',
       name: '我的分享',
       description: '分享文件管理',
@@ -283,6 +295,18 @@ export const useSettingsStore = defineStore('settings', () => {
       localStorage.setItem('liteisle-settings', JSON.stringify(settings.value))
     } catch (error) {
       console.error('Failed to save settings:', error)
+    }
+  }
+
+  const loadSettings = () => {
+    try {
+      const savedSettings = localStorage.getItem('liteisle-settings')
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings)
+        Object.assign(settings.value, parsedSettings)
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
     }
   }
 
@@ -420,6 +444,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setCurrentCategoryId,
     updateSetting,
     saveSettings,
+    loadSettings,
     logout,
     checkForUpdates,
     changePassword,

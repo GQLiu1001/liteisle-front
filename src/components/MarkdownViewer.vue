@@ -111,6 +111,9 @@
           
           <div class="font-medium text-gray-700">重置缩放:</div>
           <div class="text-gray-600">Ctrl+0</div>
+          
+          <div class="font-medium text-gray-700">图片粘贴:</div>
+          <div class="text-gray-600">Ctrl+V (需启用PicGo)</div>
         </div>
       </div>
     </div>
@@ -118,8 +121,22 @@
     <!-- 主内容区 -->
     <div class="flex-1 flex overflow-hidden" @contextmenu="handleContextMenu">
       <!-- 编辑器容器 -->
-      <div class="flex-1 overflow-hidden">
+      <div class="flex-1 overflow-hidden relative">
         <div ref="vditorElement" class="h-full w-full"></div>
+        
+        <!-- PicGo上传状态提示 -->
+        <div 
+          v-if="isUploadingImage" 
+          class="absolute top-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-50 min-w-[250px]"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-800">PicGo图片上传</div>
+              <div class="text-xs text-gray-600">{{ uploadProgress }}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 右键菜单 -->
@@ -167,6 +184,8 @@ import CheckIcon from 'lucide-vue-next/dist/esm/icons/check'
 import Vditor from 'vditor'
 import 'vditor/dist/index.css'
 import { useVditorStore } from '@/store/VditorStore'
+import { useSettingsStore } from '@/store/SettingsStore'
+import { uploadClipboardImageToPicGo } from '@/utils/picgo'
 
 // 组件属性
 interface Props {
@@ -197,6 +216,7 @@ const vditorElement = ref<HTMLElement>()
 // Vditor 实例和Store
 let vditor: Vditor | null = null
 const vditorStore = useVditorStore()
+const settingsStore = useSettingsStore()
 
 // 右键菜单相关状态
 const showContextMenu = ref(false)
@@ -205,9 +225,15 @@ const selectedText = ref('')
 const translatedText = ref('')
 const isTranslating = ref(false)
 
+// 图片上传相关状态
+const isUploadingImage = ref(false)
+const uploadProgress = ref('')
+
 // 快捷键状态跟踪（保留以备将来使用）
 // const lastShortcutKey = ref<string | null>(null)
 // const lastShortcutTime = ref<number>(0)
+
+// 注意：图片粘贴上传现在通过Vditor的upload配置处理，不再需要单独的粘贴事件处理函数
 
 // 初始化 Vditor
 const initVditor = async () => {
@@ -262,6 +288,208 @@ const initVditor = async () => {
         position: 'left'
       },
       tab: '\t', // 设置 Tab 键行为
+      
+      // 配置上传功能来处理图片粘贴
+      upload: {
+        accept: 'image/*',
+        multiple: false,
+        fieldName: 'file',
+        async handler(files: File[]) {
+          console.log('Vditor上传处理器被触发，文件:', files)
+          
+          // 检查是否启用了PicGo功能
+          if (!settingsStore.settings.picgoEnabled) {
+            console.log('PicGo功能未启用，使用默认上传行为')
+            return null
+          }
+          
+          if (!files || files.length === 0) {
+            console.log('没有文件需要上传')
+            return null
+          }
+          
+          const file = files[0]
+          console.log('准备上传文件:', file.name, file.type, file.size)
+          
+          try {
+            // 显示上传状态
+            isUploadingImage.value = true
+            uploadProgress.value = '正在通过PicGo上传图片...'
+            
+            // 将图片复制到剪贴板，然后让PicGo从剪贴板读取
+            console.log('将图片复制到剪贴板...')
+            
+            // 使用Clipboard API将图片复制到剪贴板
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+            const img = new Image()
+            
+            // 创建一个Promise来处理图片加载
+            const imageLoadPromise = new Promise<void>((resolve, reject) => {
+              img.onload = () => {
+                canvas.width = img.width
+                canvas.height = img.height
+                ctx?.drawImage(img, 0, 0)
+                
+                canvas.toBlob(async (blob) => {
+                  if (blob) {
+                    try {
+                      await navigator.clipboard.write([
+                        new ClipboardItem({ [blob.type]: blob })
+                      ])
+                      console.log('图片已复制到剪贴板')
+                      resolve()
+                    } catch (clipboardError) {
+                      console.error('复制到剪贴板失败:', clipboardError)
+                      reject(clipboardError)
+                    }
+                  } else {
+                    reject(new Error('无法生成图片blob'))
+                  }
+                }, file.type)
+              }
+              img.onerror = () => {
+                reject(new Error('图片加载失败'))
+              }
+            })
+            
+            // 加载图片
+            const fileURL = URL.createObjectURL(file)
+            img.src = fileURL
+            
+            // 等待图片处理完成
+            await imageLoadPromise
+            
+            // 释放URL
+            URL.revokeObjectURL(fileURL)
+            
+            // 等待更长时间确保剪贴板状态稳定
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            
+            uploadProgress.value = '图片已复制到剪贴板，正在上传...'
+            
+            // 现在让PicGo从剪贴板上传，带重试机制
+            let imageUrl: string = ''
+            let uploadSuccess = false
+            const maxRetries = 2
+            
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                console.log(`第${attempt}次尝试PicGo上传...`)
+                uploadProgress.value = `第${attempt}次尝试上传...`
+                
+                imageUrl = await uploadClipboardImageToPicGo()
+                console.log('PicGo上传成功，URL:', imageUrl)
+                uploadSuccess = true
+                break
+                
+              } catch (uploadError) {
+                console.error(`第${attempt}次上传失败:`, uploadError)
+                
+                if (attempt < maxRetries) {
+                  // 如果是剪贴板问题且还有重试机会，等待后重试
+                  const errorMsg = uploadError instanceof Error ? uploadError.message : '未知错误'
+                  if (errorMsg.includes('image not found in clipboard')) {
+                    console.log(`第${attempt}次失败，等待2秒后重试...`)
+                    uploadProgress.value = `第${attempt}次失败，等待重试...`
+                    await new Promise(resolve => setTimeout(resolve, 2000))
+                    continue
+                  }
+                }
+                
+                // 最后一次尝试失败或不是剪贴板问题，抛出错误
+                throw uploadError
+              }
+            }
+            
+            if (!uploadSuccess || !imageUrl) {
+              throw new Error('所有上传尝试都失败了')
+            }
+            
+            // 验证URL
+            if (!imageUrl || imageUrl.startsWith('data:') || imageUrl.includes('base64')) {
+              throw new Error('PicGo返回的不是有效的图片URL')
+            }
+            
+            uploadProgress.value = '上传成功！'
+            
+            // 3秒后清除状态提示
+            setTimeout(() => {
+              isUploadingImage.value = false
+              uploadProgress.value = ''
+            }, 3000)
+            
+            // 返回成功的结果给Vditor
+            return {
+              msg: '上传成功',
+              code: 0,
+              data: {
+                succMap: {
+                  [file.name]: imageUrl
+                }
+              }
+            }
+            
+          } catch (error) {
+            console.error('PicGo上传失败:', error)
+            uploadProgress.value = `上传失败: ${error instanceof Error ? error.message : '未知错误'}`
+            
+            // 上传失败时，生成base64作为备选
+            try {
+              console.log('PicGo上传失败，使用base64备选方案')
+              uploadProgress.value = 'PicGo上传失败，使用本地预览...'
+              
+              const reader = new FileReader()
+              const readPromise = new Promise<string>((resolve) => {
+                reader.onload = (e) => {
+                  const base64 = e.target?.result as string
+                  resolve(base64)
+                }
+              })
+              
+              reader.readAsDataURL(file)
+              const base64URL = await readPromise
+              
+              uploadProgress.value = '已插入本地预览（建议修复PicGo配置）'
+              
+              // 10秒后清除提示
+              setTimeout(() => {
+                isUploadingImage.value = false
+                uploadProgress.value = ''
+              }, 10000)
+              
+              // 返回base64结果给Vditor
+              return {
+                msg: '使用本地预览',
+                code: 0,
+                data: {
+                  succMap: {
+                    [file.name]: base64URL
+                  }
+                }
+              }
+              
+            } catch (fallbackError) {
+              console.error('备选方案也失败了:', fallbackError)
+              uploadProgress.value = `图片处理失败: ${error instanceof Error ? error.message : '未知错误'}`
+              
+              // 10秒后清除错误提示
+              setTimeout(() => {
+                isUploadingImage.value = false
+                uploadProgress.value = ''
+              }, 10000)
+              
+              // 返回错误给Vditor
+              return {
+                msg: error instanceof Error ? error.message : '上传失败',
+                code: 1,
+                data: {}
+              }
+            }
+          }
+        }
+      },
+      
       // IR 模式特有的优化
       hint: {
         delay: 200, // 快速提示
@@ -390,7 +618,7 @@ const initVditor = async () => {
           const interval = setInterval(setWhiteBackground, 500)
           setTimeout(() => clearInterval(interval), 5000)
           
-          // 在 Vditor 初始化完成后添加滚轮事件监听
+          // 在 Vditor 初始化完成后添加事件监听
           if (vditorElement.value) {
             // 监听整个编辑器区域的滚轮事件
             const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
@@ -400,6 +628,9 @@ const initVditor = async () => {
             if (targetElement) {
               targetElement.addEventListener('wheel', handleZoom, { passive: false })
             }
+            
+            // 注意：图片粘贴现在通过Vditor的upload配置处理，不需要额外的事件监听器
+            console.log('Vditor已配置upload处理器，将自动处理图片粘贴')
           }
         }, 100)
       }
@@ -951,6 +1182,10 @@ onMounted(async () => {
   if (vditorElement.value) {
     vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
   }
+  
+  // 注意：现在使用Vditor内置的upload处理器来处理图片粘贴
+  console.log('使用Vditor内置upload处理器处理图片粘贴')
+  
   document.addEventListener('click', handleClickOutside)
 })
 
@@ -958,6 +1193,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
   if (vditorElement.value) {
     vditorElement.value.removeEventListener('wheel', handleZoom)
+    
     // 清理内容区域的事件监听器
     const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
     const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
@@ -967,6 +1203,7 @@ onBeforeUnmount(() => {
       targetElement.removeEventListener('wheel', handleZoom)
     }
   }
+  // 注意：不再需要清理粘贴事件监听器，因为现在使用Vditor内置处理器
   vditor?.destroy()
   document.removeEventListener('click', handleClickOutside)
 })
