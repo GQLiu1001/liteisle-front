@@ -56,7 +56,7 @@ export const useVditorStore = defineStore('vditor', () => {
             toc: true,
             footnotes: true,
             paragraphBeginningSpace: false,
-            listStyle: false,
+            listStyle: true,
             linkBase: '',
             linkPrefix: '',
             mark: true
@@ -183,7 +183,7 @@ export const useVditorStore = defineStore('vditor', () => {
           toc: true,
           footnotes: true,
           paragraphBeginningSpace: false,
-          listStyle: false,
+          listStyle: true,
           linkBase: '',
           linkPrefix: '',
           mark: true
@@ -278,4 +278,4 @@ export const useVditorStore = defineStore('vditor', () => {
     createVditorInstance,
     destroyVditor
   }
-}) 
+})

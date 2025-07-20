@@ -71,7 +71,7 @@
       <div class="space-y-2 text-sm">
         <div class="grid grid-cols-2 gap-2">
           <div class="font-medium text-gray-700">标题:</div>
-          <div class="text-gray-600">Ctrl+1-6</div>
+          <div class="text-gray-600">Ctrl+1-6 (切换标题/文本)</div>
           
           <div class="font-medium text-gray-700">粗体:</div>
           <div class="text-gray-600">Ctrl+B</div>
@@ -205,6 +205,10 @@ const selectedText = ref('')
 const translatedText = ref('')
 const isTranslating = ref(false)
 
+// 快捷键状态跟踪（保留以备将来使用）
+// const lastShortcutKey = ref<string | null>(null)
+// const lastShortcutTime = ref<number>(0)
+
 // 初始化 Vditor
 const initVditor = async () => {
   if (!vditorElement.value) return
@@ -240,7 +244,7 @@ const initVditor = async () => {
           toc: true, // 支持目录
           footnotes: true, // 支持脚注
           paragraphBeginningSpace: false, // 段落开头不自动空格
-          listStyle: false, // 不为列表添加样式
+          listStyle: true, // 启用列表样式以正确显示列表标记
           linkBase: '',
           linkPrefix: '',
           mark: true // 支持标记高亮
@@ -580,14 +584,34 @@ const insertHeading = (level: number) => {
   const selectedText = (vditor as any).getSelection()
   
   if (selectedText) {
-    // 如果有选中文本，将选中文本转换为标题
-    const cleanText = selectedText.replace(/^(#{1,6})\s*/, '').trim() || '标题文本'
-    const headingText = '#'.repeat(level) + ' ' + cleanText
-    ;(vditor as any).deleteValue()
-    vditor.insertValue(headingText)
+    // 如果有选中文本，处理选中文本
+    const headerRegex = /^(#{1,6})\s*/
+    const existingHeaderMatch = selectedText.match(headerRegex)
+    
+    if (existingHeaderMatch) {
+      const existingLevel = existingHeaderMatch[1].length
+      if (existingLevel === level) {
+        // 如果已经是相同级别的标题，变回普通文本
+        const cleanText = selectedText.replace(headerRegex, '').trim()
+        ;(vditor as any).deleteValue()
+        vditor.insertValue(cleanText)
+      } else {
+        // 如果是不同级别的标题，改为指定级别
+        const cleanText = selectedText.replace(headerRegex, '').trim()
+        const headingText = '#'.repeat(level) + ' ' + cleanText
+        ;(vditor as any).deleteValue()
+        vditor.insertValue(headingText)
+      }
+    } else {
+      // 不是标题，设置为指定级别标题
+      const cleanText = selectedText.trim() || '标题文本'
+      const headingText = '#'.repeat(level) + ' ' + cleanText
+      ;(vditor as any).deleteValue()
+      vditor.insertValue(headingText)
+    }
   } else {
     // 如果没有选中文本，操作当前行
-    // 使用插入标记的方法来定位光标位置
+    // 使用简单的标记方法来定位当前行
     const marker = '||CURSOR_MARKER||'
     
     // 在光标位置插入标记
@@ -617,15 +641,28 @@ const insertHeading = (level: number) => {
       // 获取当前行（移除标记）
       const currentLine = lines[currentLineIndex].replace(marker, '')
       
-      // 移除现有标题标记
+      // 检查当前行是否已经是标题
       const headerRegex = /^(#{1,6})\s*/
-      const cleanLine = currentLine.replace(headerRegex, '').trim() || '标题文本'
+      const existingHeaderMatch = currentLine.match(headerRegex)
       
-      // 创建新的标题文本
-      const newHeaderText = '#'.repeat(level) + ' ' + cleanLine
-      
-      // 替换当前行
-      lines[currentLineIndex] = newHeaderText
+      if (existingHeaderMatch) {
+        const existingLevel = existingHeaderMatch[1].length
+        if (existingLevel === level) {
+          // 如果已经是相同级别的标题，变回普通文本
+          const cleanLine = currentLine.replace(headerRegex, '').trim()
+          lines[currentLineIndex] = cleanLine
+        } else {
+          // 如果是不同级别的标题，改为指定级别
+          const cleanLine = currentLine.replace(headerRegex, '').trim()
+          const newHeaderText = '#'.repeat(level) + ' ' + cleanLine
+          lines[currentLineIndex] = newHeaderText
+        }
+      } else {
+        // 不是标题，设置为指定级别标题
+        const cleanLine = currentLine.trim() || '标题文本'
+        const newHeaderText = '#'.repeat(level) + ' ' + cleanLine
+        lines[currentLineIndex] = newHeaderText
+      }
       
       // 更新编辑器内容（移除标记）
       const newContent = lines.join('\n')
@@ -637,12 +674,12 @@ const insertHeading = (level: number) => {
       vditor.setValue(cleanContent)
       vditor.insertValue(headingText)
     }
+    
+    // 重新聚焦编辑器
+    setTimeout(() => {
+      vditor?.focus()
+    }, 50)
   }
-  
-  // 重新聚焦编辑器
-  setTimeout(() => {
-    vditor?.focus()
-  }, 50)
 }
 
 const toggleBold = () => {
@@ -1261,13 +1298,62 @@ onBeforeUnmount(() => {
 :deep(ul), :deep(ol) {
   padding-left: 1.5em;
   margin: 0.5em 0;
+  list-style: inherit !important;
+}
+
+:deep(ul) {
+  list-style-type: disc !important;
+}
+
+:deep(ol) {
+  list-style-type: decimal !important;
 }
 
 :deep(li) {
   margin: 0.25em 0;
+  display: list-item !important;
+  list-style: inherit !important;
 }
 
 :deep(ul ul), :deep(ol ol), :deep(ul ol), :deep(ol ul) {
   margin: 0.25em 0;
+}
+
+:deep(ul ul) {
+  list-style-type: circle !important;
+}
+
+:deep(ul ul ul) {
+  list-style-type: square !important;
+}
+
+/* 确保Vditor编辑器中的列表样式正确显示 */
+:deep(.vditor-ir .vditor-reset ul),
+:deep(.vditor-content .vditor-reset ul) {
+  list-style-type: disc !important;
+  padding-left: 1.5em !important;
+}
+
+:deep(.vditor-ir .vditor-reset ol),
+:deep(.vditor-content .vditor-reset ol) {
+  list-style-type: decimal !important;
+  padding-left: 1.5em !important;
+}
+
+:deep(.vditor-ir .vditor-reset li),
+:deep(.vditor-content .vditor-reset li) {
+  display: list-item !important;
+  list-style: inherit !important;
+  margin: 0.25em 0 !important;
+}
+
+:deep(.vditor-ir .vditor-reset ul ul),
+:deep(.vditor-content .vditor-reset ul ul) {
+  list-style-type: circle !important;
+}
+
+:deep(.vditor-ir .vditor-reset ul ul ul),
+:deep(.vditor-content .vditor-reset ul ul ul) {
+  list-style-type: square !important;
 }
 </style>
