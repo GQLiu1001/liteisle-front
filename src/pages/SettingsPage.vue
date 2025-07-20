@@ -870,14 +870,6 @@ const selectDownloadDirectory = async () => {
 // 选择PicGo路径
 const selectPicGoPath = async () => {
   try {
-    // 检查是否在 Electron 环境中
-    console.log('检查Electron环境:', {
-      hasWindow: typeof window !== 'undefined',
-      hasElectronAPI: typeof (window as any).electronAPI !== 'undefined',
-      hasSelectFile: typeof (window as any).electronAPI?.selectFile !== 'undefined',
-      electronAPIKeys: (window as any).electronAPI ? Object.keys((window as any).electronAPI) : [],
-      electronAPIObject: (window as any).electronAPI
-    });
     
     // 尝试使用HTML file input来选择文件
     const fileInput = document.createElement('input');
@@ -891,7 +883,6 @@ const selectPicGoPath = async () => {
         const target = event.target as HTMLInputElement;
         if (target.files && target.files.length > 0) {
           const file = target.files[0];
-          console.log('用户选择的文件:', file.name);
           
           // 由于浏览器安全限制，我们无法获取完整路径
           // 但可以使用文件名来帮助用户
@@ -904,7 +895,6 @@ const selectPicGoPath = async () => {
       };
       
       fileInput.oncancel = () => {
-        console.log('用户取消了文件选择');
         resolve(null);
         document.body.removeChild(fileInput);
       };
@@ -935,14 +925,10 @@ const selectPicGoPath = async () => {
       alert(`✅ 已设置PicGo路径: ${selectedPath}\n\n💡 如果路径不正确，请重新选择文件`);
     } else {
       // 用户取消选择
-      console.log('用户取消了文件选择');
     }
     
   } catch (error) {
-    console.error('选择PicGo路径时发生错误:', error);
-    
     // 发生错误时的处理
-    console.log('文件选择器出错:', error);
     alert(`文件选择器出错: ${error instanceof Error ? error.message : '未知错误'}\n\n请尝试以下路径之一：\n• C:\\Program Files\\PicGo\\PicGo.exe\n• C:\\Users\\用户名\\AppData\\Local\\Programs\\PicGo\\PicGo.exe`);
   }
 };
@@ -981,12 +967,10 @@ const testPicGoUpload = async () => {
     }
     
     // 测试PicGo HTTP服务连接
-    console.log('测试PicGo HTTP服务连接...');
     const port = 36677; // PicGo默认端口
     
     // 尝试POST到/upload端点测试连接（这是PicGo的正确端点和方法）
     try {
-      console.log('测试PicGo upload端点...');
       const response = await fetch(`http://127.0.0.1:${port}/upload`, {
         method: 'POST',
         headers: {
@@ -996,13 +980,10 @@ const testPicGoUpload = async () => {
         signal: AbortSignal.timeout(5000) // 5秒超时
       });
       
-      console.log('PicGo响应状态:', response.status);
-      
       // 即使返回错误状态码，但不是404说明服务正在运行
       if (response.status !== 404) {
         // 尝试读取响应内容来确认这是PicGo
         const responseText = await response.text();
-        console.log('PicGo响应内容:', responseText);
         
         alert(`✅ PicGo连接测试成功！
 
@@ -1027,7 +1008,6 @@ const testPicGoUpload = async () => {
         throw new Error('PicGo服务未响应 (404)');
       }
     } catch (error) {
-      console.log('PicGo连接测试失败:', error);
       
       // 如果是网络错误，说明端口没有服务在运行
       if (error instanceof Error && error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -1046,8 +1026,6 @@ const testPicGoUpload = async () => {
     }
     
   } catch (error) {
-    console.error('PicGo连接测试失败:', error);
-    
     alert(`❌ PicGo连接测试失败
 
 🔍 可能的原因：

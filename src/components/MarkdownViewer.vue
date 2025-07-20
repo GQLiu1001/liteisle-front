@@ -289,27 +289,22 @@ const initVditor = async () => {
       },
       tab: '\t', // 设置 Tab 键行为
       
-      // 配置上传功能来处理图片粘贴
+            // 配置上传功能来处理图片粘贴 - 完全被动模式
       upload: {
         accept: 'image/*',
         multiple: false,
         fieldName: 'file',
         async handler(files: File[]) {
-          console.log('Vditor上传处理器被触发，文件:', files)
-          
           // 检查是否启用了PicGo功能
           if (!settingsStore.settings.picgoEnabled) {
-            console.log('PicGo功能未启用，使用默认上传行为')
             return null
           }
           
           if (!files || files.length === 0) {
-            console.log('没有文件需要上传')
             return null
           }
           
           const file = files[0]
-          console.log('准备上传文件:', file.name, file.type, file.size)
           
           try {
             // 显示上传状态
@@ -317,8 +312,6 @@ const initVditor = async () => {
             uploadProgress.value = '正在通过PicGo上传图片...'
             
             // 将图片复制到剪贴板，然后让PicGo从剪贴板读取
-            console.log('将图片复制到剪贴板...')
-            
             // 使用Clipboard API将图片复制到剪贴板
             const canvas = document.createElement('canvas')
             const ctx = canvas.getContext('2d')
@@ -337,10 +330,8 @@ const initVditor = async () => {
                       await navigator.clipboard.write([
                         new ClipboardItem({ [blob.type]: blob })
                       ])
-                      console.log('图片已复制到剪贴板')
                       resolve()
                     } catch (clipboardError) {
-                      console.error('复制到剪贴板失败:', clipboardError)
                       reject(clipboardError)
                     }
                   } else {
@@ -375,22 +366,17 @@ const initVditor = async () => {
             
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
               try {
-                console.log(`第${attempt}次尝试PicGo上传...`)
                 uploadProgress.value = `第${attempt}次尝试上传...`
                 
                 imageUrl = await uploadClipboardImageToPicGo()
-                console.log('PicGo上传成功，URL:', imageUrl)
                 uploadSuccess = true
                 break
                 
               } catch (uploadError) {
-                console.error(`第${attempt}次上传失败:`, uploadError)
-                
                 if (attempt < maxRetries) {
                   // 如果是剪贴板问题且还有重试机会，等待后重试
                   const errorMsg = uploadError instanceof Error ? uploadError.message : '未知错误'
                   if (errorMsg.includes('image not found in clipboard')) {
-                    console.log(`第${attempt}次失败，等待2秒后重试...`)
                     uploadProgress.value = `第${attempt}次失败，等待重试...`
                     await new Promise(resolve => setTimeout(resolve, 2000))
                     continue
@@ -431,12 +417,10 @@ const initVditor = async () => {
             }
             
           } catch (error) {
-            console.error('PicGo上传失败:', error)
             uploadProgress.value = `上传失败: ${error instanceof Error ? error.message : '未知错误'}`
             
             // 上传失败时，生成base64作为备选
             try {
-              console.log('PicGo上传失败，使用base64备选方案')
               uploadProgress.value = 'PicGo上传失败，使用本地预览...'
               
               const reader = new FileReader()
@@ -470,7 +454,6 @@ const initVditor = async () => {
               }
               
             } catch (fallbackError) {
-              console.error('备选方案也失败了:', fallbackError)
               uploadProgress.value = `图片处理失败: ${error instanceof Error ? error.message : '未知错误'}`
               
               // 10秒后清除错误提示
@@ -490,60 +473,13 @@ const initVditor = async () => {
         }
       },
       
-      // IR 模式特有的优化
+      // 禁用提示功能以避免剪贴板访问
       hint: {
-        delay: 200, // 快速提示
-        emoji: {
-          '+1': '👍',
-          '-1': '👎', 
-          'heart': '❤️',
-          'smile': '😊',
-          'laughing': '😆',
-          'blush': '😊',
-          'smiley': '😃',
-          'relaxed': '😌',
-          'smirk': '😏',
-          'heart_eyes': '😍',
-          'kissing_heart': '😘',
-          'kissing_closed_eyes': '😚',
-          'flushed': '😳',
-          'relieved': '😌',
-          'satisfied': '😆',
-          'grin': '😁',
-          'wink': '😉',
-          'stuck_out_tongue_winking_eye': '😜',
-          'stuck_out_tongue_closed_eyes': '😝',
-          'grinning': '😀',
-          'kissing': '😗',
-          'kissing_smiling_eyes': '😙',
-          'stuck_out_tongue': '😛',
-          'sleeping': '😴',
-          'worried': '😟',
-          'frowning': '😦',
-          'anguished': '😧',
-          'open_mouth': '😮',
-          'grimacing': '😬',
-          'confused': '😕',
-          'hushed': '😯',
-          'expressionless': '😑',
-          'unamused': '😒',
-          'sweat_smile': '😅',
-          'sweat': '😓',
-          'disappointed_relieved': '😥',
-          'weary': '😩',
-          'pensive': '😔',
-          'disappointed': '😞',
-          'confounded': '😖',
-          'fearful': '😨',
-          'cold_sweat': '😰',
-          'persevere': '😣',
-          'cry': '😢',
-          'sob': '😭',
-          'joy': '😂',
-          'astonished': '😲',
-          'scream': '😱'
-        },
-        emojiPath: 'https://unpkg.com/vditor/dist/images/emoji'
+        delay: 0,
+        emoji: false,
+        emojiPath: '',
+        parse: false,
+        extend: []
       },
       // 自定义快捷键
       keydown: (event: KeyboardEvent) => {
@@ -600,8 +536,7 @@ const initVditor = async () => {
         emit('update:content', value)
       },
       after: () => {
-        console.log('Vditor IR 模式初始化完成 - 享受类似 Typora 的优雅编辑体验')
-        // 设置编辑器背景
+        // 设置编辑器背景并确保焦点正确
         setTimeout(() => {
           const setWhiteBackground = () => {
             const elements = document.querySelectorAll('.vditor-content, .vditor-ir, .vditor-ir .vditor-reset')
@@ -618,8 +553,8 @@ const initVditor = async () => {
           const interval = setInterval(setWhiteBackground, 500)
           setTimeout(() => clearInterval(interval), 5000)
           
-          // 在 Vditor 初始化完成后添加事件监听
-          if (vditorElement.value) {
+          // 确保编辑器获得焦点和显示光标
+          if (vditor && vditorElement.value) {
             // 监听整个编辑器区域的滚轮事件
             const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
             const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
@@ -629,8 +564,39 @@ const initVditor = async () => {
               targetElement.addEventListener('wheel', handleZoom, { passive: false })
             }
             
-            // 注意：图片粘贴现在通过Vditor的upload配置处理，不需要额外的事件监听器
-            console.log('Vditor已配置upload处理器，将自动处理图片粘贴')
+                      // 延迟设置焦点确保编辑器完全加载，避免剪贴板访问干扰
+          setTimeout(() => {
+            try {
+              // 尝试聚焦到编辑器
+              vditor?.focus()
+              
+              // 如果仍然没有焦点，尝试直接聚焦到编辑区域
+              const editableArea = vditorElement.value?.querySelector('.vditor-ir .vditor-reset') || 
+                                 vditorElement.value?.querySelector('.vditor-content .vditor-reset')
+              if (editableArea && editableArea instanceof HTMLElement) {
+                editableArea.focus()
+                
+                // 确保光标可见
+                if (editableArea.getAttribute('contenteditable') !== 'true') {
+                  editableArea.setAttribute('contenteditable', 'true')
+                }
+                
+                // 如果有内容，将光标移动到内容末尾
+                if (currentContent.value) {
+                  const range = document.createRange()
+                  const selection = window.getSelection()
+                  if (selection && editableArea.lastChild) {
+                    range.setStartAfter(editableArea.lastChild)
+                    range.collapse(true)
+                    selection.removeAllRanges()
+                    selection.addRange(range)
+                  }
+                }
+              }
+            } catch (error) {
+              // 如果焦点设置失败，不影响正常使用
+            }
+          }, 500) // 增加延迟时间，确保所有初始化完成后再设置焦点
           }
         }, 100)
       }
@@ -1182,9 +1148,6 @@ onMounted(async () => {
   if (vditorElement.value) {
     vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
   }
-  
-  // 注意：现在使用Vditor内置的upload处理器来处理图片粘贴
-  console.log('使用Vditor内置upload处理器处理图片粘贴')
   
   document.addEventListener('click', handleClickOutside)
 })

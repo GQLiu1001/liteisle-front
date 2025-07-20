@@ -40,21 +40,25 @@ import GlobalContextMenu from '@/components/GlobalContextMenu.vue'
 import { useUIStore } from '@/store/UIStore'
 import { useAuthStore } from '@/store/AuthStore'
 import { useVditorStore } from '@/store/VditorStore'
+import { useSettingsStore } from '@/store/SettingsStore'
 
 const route = useRoute()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
 const vditorStore = useVditorStore()
+const settingsStore = useSettingsStore()
 
-// 应用启动时初始化认证状态和Vditor
+// 应用启动时初始化认证状态、设置和Vditor
 onMounted(async () => {
   try {
+    // 先加载设置（同步）
+    settingsStore.loadSettings()
+    
     // 并行初始化认证状态和Vditor
     await Promise.all([
       authStore.initializeAuth(),
       vditorStore.initializeVditor()
     ])
-    console.log('应用初始化完成')
   } catch (error) {
     console.warn('应用初始化过程中出现错误:', error)
   }

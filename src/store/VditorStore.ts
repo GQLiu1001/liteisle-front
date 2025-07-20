@@ -128,7 +128,6 @@ export const useVditorStore = defineStore('vditor', () => {
           emojiPath: 'https://unpkg.com/vditor/dist/images/emoji'
         },
         after: () => {
-          console.log('全局Vditor实例预初始化完成')
           // 清理隐藏容器
           document.body.removeChild(hiddenContainer)
           isInitialized.value = true
@@ -202,58 +201,11 @@ export const useVditorStore = defineStore('vditor', () => {
       },
       tab: '\t',
       hint: {
-        delay: 200,
-        emoji: {
-          '+1': '👍',
-          '-1': '👎', 
-          'heart': '❤️',
-          'smile': '😊',
-          'laughing': '😆',
-          'blush': '😊',
-          'smiley': '😃',
-          'relaxed': '😌',
-          'smirk': '😏',
-          'heart_eyes': '😍',
-          'kissing_heart': '😘',
-          'kissing_closed_eyes': '😚',
-          'flushed': '😳',
-          'relieved': '😌',
-          'satisfied': '😆',
-          'grin': '😁',
-          'wink': '😉',
-          'stuck_out_tongue_winking_eye': '😜',
-          'stuck_out_tongue_closed_eyes': '😝',
-          'grinning': '😀',
-          'kissing': '😗',
-          'kissing_smiling_eyes': '😙',
-          'stuck_out_tongue': '😛',
-          'sleeping': '😴',
-          'worried': '😟',
-          'frowning': '😦',
-          'anguished': '😧',
-          'open_mouth': '😮',
-          'grimacing': '😬',
-          'confused': '😕',
-          'hushed': '😯',
-          'expressionless': '😑',
-          'unamused': '😒',
-          'sweat_smile': '😅',
-          'sweat': '😓',
-          'disappointed_relieved': '😥',
-          'weary': '😩',
-          'pensive': '😔',
-          'disappointed': '😞',
-          'confounded': '😖',
-          'fearful': '😨',
-          'cold_sweat': '😰',
-          'persevere': '😣',
-          'cry': '😢',
-          'sob': '😭',
-          'joy': '😂',
-          'astonished': '😲',
-          'scream': '😱'
-        },
-        emojiPath: 'https://unpkg.com/vditor/dist/images/emoji'
+        delay: 0,
+        emoji: false,
+        emojiPath: '',
+        parse: false,
+        extend: []
       }
     }
 

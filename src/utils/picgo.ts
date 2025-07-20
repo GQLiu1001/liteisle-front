@@ -32,7 +32,6 @@ export const uploadClipboardImageToPicGo = async (): Promise<string> => {
     
     // 根据PicGo官方文档，上传剪贴板图片应该发送空的POST请求
     // PicGo会自动从系统剪贴板读取图片
-    console.log('发送空POST请求到PicGo，让其从剪贴板读取图片')
     const response = await fetch(`http://127.0.0.1:${port}/upload`, {
       method: 'POST',
       headers: {
@@ -42,19 +41,15 @@ export const uploadClipboardImageToPicGo = async (): Promise<string> => {
       signal: AbortSignal.timeout(30000) // 30秒超时
     })
     
-    console.log('PicGo响应状态:', response.status)
-    
     if (!response.ok) {
       throw new Error(`PicGo服务器响应错误: ${response.status}`)
     }
     
     const result = await response.json()
-    console.log('PicGo上传结果:', result)
     
     if (!result.success) {
       // 如果PicGo返回了错误信息，使用它
       const errorMsg = result.message || result.error || 'PicGo上传失败'
-      console.error('PicGo上传失败，错误信息:', errorMsg)
       
       // 提供更详细的错误信息和解决建议
       let detailedError = errorMsg
@@ -75,12 +70,10 @@ export const uploadClipboardImageToPicGo = async (): Promise<string> => {
     }
     
     if (!result.result || result.result.length === 0) {
-      console.error('PicGo返回空结果')
       throw new Error('PicGo上传结果为空，请检查剪贴板中是否有图片')
     }
     
     const imageUrl = result.result[0]
-    console.log('最终获得的图片URL:', imageUrl)
     
     // 验证返回的URL
     if (!imageUrl || typeof imageUrl !== 'string') {
