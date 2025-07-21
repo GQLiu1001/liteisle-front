@@ -34,7 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShowCloseConfirmation: (callback) => ipcRenderer.on('show-close-confirmation', callback),
   
   // 文件系统操作
-  selectDirectory: () => ipcRenderer.invoke('select-directory')
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  
+  // 系统信息
+  getUsername: () => ipcRenderer.invoke('get-username')
 })
 
 console.log('=== Preload 脚本执行完成，electronAPI 已暴露 ===')

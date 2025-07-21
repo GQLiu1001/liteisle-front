@@ -298,15 +298,38 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  const loadSettings = () => {
+  const getDefaultPicGoPath = async () => {
+    try {
+      // 使用 Electron API 获取系统用户名
+      const username = await (window as any).electronAPI?.getUsername?.() || 'YourUsername'
+      return `C:\\Users\\${username}\\AppData\\Local\\Programs\\PicGo\\PicGo.exe`
+    } catch (error) {
+      console.error('获取用户名失败:', error)
+      return 'C:\\Users\\YourUsername\\AppData\\Local\\Programs\\PicGo\\PicGo.exe'
+    }
+  }
+
+  const loadSettings = async () => {
     try {
       const savedSettings = localStorage.getItem('liteisle-settings')
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings)
         Object.assign(settings.value, parsedSettings)
+        
+        // 如果 picgoPath 为空，设置默认路径
+        if (!settings.value.picgoPath) {
+          settings.value.picgoPath = await getDefaultPicGoPath()
+        }
+      } else {
+        // 首次加载时设置默认路径
+        settings.value.picgoPath = await getDefaultPicGoPath()
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
+      // 即使出错也设置默认路径
+      if (!settings.value.picgoPath) {
+        settings.value.picgoPath = await getDefaultPicGoPath()
+      }
     }
   }
 

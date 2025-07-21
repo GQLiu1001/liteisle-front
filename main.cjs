@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog, Tray, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 const isDev = process.argv.includes('--dev')
 
 // 设置应用数据目录
@@ -249,5 +250,15 @@ ipcMain.handle('select-directory', async () => {
     }
   } catch (error) {
     return { canceled: true, error: error.message }
+  }
+})
+
+// 获取系统用户名
+ipcMain.handle('get-username', () => {
+  try {
+    return os.userInfo().username
+  } catch (error) {
+    console.error('获取用户名失败:', error)
+    return 'YourUsername'
   }
 }) 

@@ -96,7 +96,7 @@
                       v-model="settingsStore.settings.picgoPath" 
                       @change="settingsStore.saveSettings()"
                       class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-80"
-                      placeholder="例如: C:\Program Files\PicGo\PicGo.exe"
+                      placeholder="例如: C:\Users\YourUsername\AppData\Local\Programs\PicGo\PicGo.exe"
                       style="user-select: text !important;"
                     />
                   </div>
@@ -924,9 +924,9 @@ const copyShareInfo = async (share: any) => {
 };
 
 // 初始化数据
-onMounted(() => {
+onMounted(async () => {
   // 加载保存的设置
-  settingsStore.loadSettings();
+  await settingsStore.loadSettings();
   // 初始化模拟数据
   initMockFocusData();
   // 加载第一页专注记录
