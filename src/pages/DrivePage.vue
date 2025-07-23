@@ -174,7 +174,7 @@
                         <!-- 内容视图 -->
           <div
             class="flex-1 overflow-auto select-none relative"
-            @contextmenu.prevent="showEmptyContextMenu"
+
             @mousedown="startSelection"
             @click="hideContextMenu"
             ref="scrollContainer"
@@ -540,189 +540,155 @@
       class="fixed z-50 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[120px]"
       @click.stop="preventHide"
     >
-
-      <!-- 空白区域的右键菜单 -->
-      <template v-if="!selectedItem && selectedItemIds.size === 0">
-        <button
-          v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0 && !driveStore.isInRecycleBin"
-          @click.stop="pasteItem"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          粘贴
-        </button>
-        <button
-          v-if="getCurrentLevel() === 1 && !driveStore.isInRecycleBin"
-          @click.stop="() => { hideContextMenu(); createNewFolder(); }"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          新建文件夹
-        </button>
-        <button
-          v-if="getCurrentLevel() === 2 && !driveStore.isInRecycleBin"
-          @click.stop="() => { hideContextMenu(); uploadFiles(); }"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          上传文件
-        </button>
-        <button
-          @click.stop="refreshAndHide"
-          class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-        >
-          刷新
-        </button>
-      </template>
-      
-      <!-- 多选状态下的右键菜单 -->
-      <template v-else-if="selectedItemIds.size > 1">
-        <!-- 回收站模式下的多选菜单 -->
-        <template v-if="driveStore.isInRecycleBin">
-          <button
-            @click.stop="restoreMultipleItems"
-            class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
-          >
-            恢复 ({{ selectedItemIds.size }})
-          </button>
-          <button
-            @click.stop="deleteMultipleItems"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            删除 ({{ selectedItemIds.size }})
-          </button>
-          <!-- Removed 详细信息按钮 in recycle bin multi-select context menu -->
+        <!-- 统一的右键菜单 - 根据选中状态动态调整 -->
+        <template v-if="selectedItem || selectedItemIds.size > 0">
+          <!-- 回收站模式 -->
+          <template v-if="driveStore.isInRecycleBin">
+            <button
+              @click.stop="selectedItemIds.size === 1 ? restoreItem() : restoreMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+            >
+              恢复{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+            <button
+              @click.stop="selectedItemIds.size === 1 ? deleteItem() : deleteMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            >
+              删除{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+          </template>
+          
+          <!-- 云盘正常模式 -->
+          <template v-else>
+            <!-- 打开 - 多选时禁用 -->
+            <button
+              :disabled="selectedItemIds.size > 1"
+              @click.stop="selectedItemIds.size === 1 ? openItem() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              打开
+            </button>
+            
+            <!-- 下载 - 支持多选 -->
+            <button
+              @click.stop="selectedItemIds.size === 1 ? downloadItem() : downloadMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+            >
+              下载{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+            
+            <!-- 分享 - 多选时禁用，一级文件夹也禁用 -->
+            <button
+              :disabled="selectedItemIds.size > 1 || isFirstLevelFolder(selectedItem)"
+              @click.stop="selectedItemIds.size === 1 && !isFirstLevelFolder(selectedItem) ? showShareDialog() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 || isFirstLevelFolder(selectedItem)
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              分享
+            </button>
+            
+            <hr class="my-1 border-morandi-200">
+            
+            <!-- 复制 - 支持多选，根目录不显示 -->
+            <button
+              v-if="getCurrentLevel() !== 0"
+              @click.stop="selectedItemIds.size === 1 ? copyItem() : copyMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+            >
+              复制{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+            
+            <!-- 剪切 - 支持多选，但锁定项目时禁用，根目录不显示 -->
+            <button
+              v-if="!hasLockedItems() && getCurrentLevel() !== 0"
+              @click.stop="selectedItemIds.size === 1 ? cutItem() : cutMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+            >
+              剪切{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+            
+            <!-- 粘贴 - 多选时禁用 -->
+            <button
+              v-if="clipboard.length && clipboardAction"
+              :disabled="selectedItemIds.size > 1"
+              @click.stop="selectedItemIds.size === 1 ? pasteItem() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              粘贴
+            </button>
+            
+            <hr class="my-1 border-morandi-200" v-if="!hasLockedItems() && getCurrentLevel() !== 0">
+            
+            <!-- 删除 - 支持多选，但锁定项目时禁用，根目录不显示 -->
+            <button
+              v-if="!hasLockedItems() && getCurrentLevel() !== 0"
+              @click.stop="selectedItemIds.size === 1 ? showDeleteConfirm() : deleteMultipleItems()"
+              class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            >
+              删除{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
+            </button>
+            
+            <!-- 重命名 - 多选时禁用，根目录不显示 -->
+            <button
+              v-if="getCurrentLevel() !== 0"
+              :disabled="selectedItemIds.size > 1"
+              @click.stop="selectedItemIds.size === 1 ? showRenameDialog() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              重命名
+            </button>
+            
+            <!-- 移动到 - 多选时禁用，根目录不显示 -->
+            <button
+              v-if="getCurrentLevel() !== 0"
+              :disabled="selectedItemIds.size > 1"
+              @click.stop="selectedItemIds.size === 1 ? showMoveDialog() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              移动到
+            </button>
+            
+            <hr class="my-1 border-morandi-200">
+            
+            <!-- 详细信息 - 多选时禁用 -->
+            <button
+              :disabled="selectedItemIds.size > 1"
+              @click.stop="selectedItemIds.size === 1 ? showItemDetails() : null"
+              :class="[
+                'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
+                selectedItemIds.size > 1 
+                  ? 'text-morandi-400 cursor-not-allowed' 
+                  : 'text-morandi-700 hover:bg-morandi-50'
+              ]"
+            >
+              详细信息
+            </button>
+          </template>
         </template>
-        
-        <!-- 根目录多选只显示刷新 -->
-        <template v-else-if="getCurrentLevel() === 0">
-          <button
-            @click.stop="refreshAndHide"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            刷新
-          </button>
-        </template>
-        
-        <!-- 正常模式下的多选菜单 -->
-        <template v-else>
-          <button
-            @click.stop="copyMultipleItems"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            复制 ({{ selectedItemIds.size }})
-          </button>
-          <button
-            v-if="!hasLockedItems()"
-            @click.stop="cutMultipleItems"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            剪切 ({{ selectedItemIds.size }})
-          </button>
-          <hr class="my-1 border-morandi-200" v-if="!hasLockedItems()">
-          <button
-            v-if="!hasLockedItems()"
-            @click.stop="deleteMultipleItems"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            删除 ({{ selectedItemIds.size }})
-          </button>
-        </template>
-      </template>
-      
-      <!-- 单选状态下的右键菜单 -->
-      <template v-else>
-        <!-- 回收站模式下的右键菜单 -->
-        <template v-if="driveStore.isInRecycleBin">
-          <button
-            @click.stop="() => restoreItem()"
-            class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
-          >
-            恢复
-          </button>
-          <button
-            @click.stop="() => deleteItem()"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            删除
-          </button>
-          <!-- Removed 详细信息按钮 in recycle bin single-select context menu -->
-        </template>
-        
-        <!-- 正常模式下的右键菜单 -->
-        <template v-else>
-          <button
-            v-if="driveStore.isInRecycleBin || getCurrentLevel() <= 2"
-            @click.stop="refreshAndHide"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            刷新
-          </button>
-          <button
-            @click.stop="openItem"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            打开
-          </button>
-          <button
-            @click.stop="downloadItem"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            下载
-          </button>
-          <!-- 分享功能，一级文件夹不显示 -->
-          <button
-            v-if="!isFirstLevelFolder(selectedItem)"
-            @click.stop="showShareDialog"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            分享
-          </button>
-          <hr class="my-1 border-morandi-200">
-          <button
-            v-if="getCurrentLevel() !== 0"
-            @click.stop="copyItem"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            复制
-          </button>
-          <button
-            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click.stop="cutItem"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            剪切
-          </button>
-          <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0 && !selectedItem?.isLocked">
-          <button
-            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click.stop="showDeleteConfirm"
-            class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-          >
-            删除
-          </button>
-          <button
-            v-if="getCurrentLevel() !== 0"
-            @click.stop="showRenameDialog"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            重命名
-          </button>
-          <button
-            v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click.stop="showMoveDialog"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            移动到
-          </button>
-          <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0">
-          <!-- 回收站模式下不显示详细信息按钮 -->
-          <button
-            v-if="!driveStore.isInRecycleBin"
-            @click.stop="showItemDetails"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            详细信息
-          </button>
-        </template>
-      </template>
     </div>
 
     <!-- 重命名对话框 -->
@@ -1028,6 +994,7 @@ const showSortMenu = ref(false)
 const showContextMenuState = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const selectedItem = ref<DriveItem | null>(null)
+let contextMenuLock = false
 
 // 重命名相关
 const showRenameDialogState = ref(false)
@@ -1524,16 +1491,32 @@ const getParentPath = (path: string): string => {
 
 // 右键菜单事件处理
 const showContextMenu = (event: MouseEvent, item: DriveItem) => {
+  event.preventDefault() // 阻止默认右键菜单
   event.stopPropagation() // 阻止事件冒泡
   
-  // 如果点击的项目不在选中列表中，只选中当前项目
-  if (!selectedItemIds.value.has(item.id)) {
+  // 如果已经有菜单显示或者锁定状态，直接返回，不处理
+  if (showContextMenuState.value || contextMenuLock) {
+    return
+  }
+  
+  // 加锁防止重复触发
+  contextMenuLock = true
+  
+  // 如果当前是多选状态，且右键点击的是已选中的项目之一，保持多选状态
+  if (selectedItemIds.value.size > 1 && selectedItemIds.value.has(item.id)) {
+    // 保持当前多选状态，不改变选中项
+    selectedItem.value = item // 设置为当前右键的项目，但不改变多选状态
+  } else if (!selectedItemIds.value.has(item.id)) {
+    // 如果点击的项目不在选中列表中，只选中当前项目
     selectedItemIds.value.clear()
     selectedItemIds.value.add(item.id)
     selectedItemId.value = item.id
+    selectedItem.value = item
+  } else {
+    // 如果是单选状态且点击的是已选中项目，保持当前状态
+    selectedItem.value = item
   }
   
-  selectedItem.value = item
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
   showContextMenuState.value = true
   
@@ -1543,7 +1526,8 @@ const showContextMenu = (event: MouseEvent, item: DriveItem) => {
 
 const hideContextMenu = () => {
   showContextMenuState.value = false
-  selectedItem.value = null
+  contextMenuLock = false // 解锁
+  selectedItem.value = null // 总是清空selectedItem，避免幽灵菜单
 }
 
 // 隐藏所有左键菜单
@@ -2021,22 +2005,7 @@ const toggleSortMenu = () => {
   }
 }
 
-// 空白区域右键菜单
-const showEmptyContextMenu = (event: MouseEvent) => {
-  // 如果点击的是项目本身，不清除选择
-  if ((event.target as HTMLElement).closest('.item-card')) {
-    return
-  }
 
-  selectedItem.value = null
-  selectedItemId.value = null
-  selectedItemIds.value.clear()
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-  showContextMenuState.value = true
-  
-  // 点击其他地方关闭菜单
-  document.addEventListener('click', hideContextMenu, { once: true })
-}
 
 // 粘贴功能
 const pasteItem = () => {
@@ -2623,7 +2592,9 @@ const startSelection = (event: MouseEvent) => {
   if (!event.ctrlKey && !event.metaKey) {
     selectedItemIds.value.clear()
     selectedItemId.value = null
+    selectedItem.value = null // 同时清空selectedItem，避免状态不一致
     initialSelectedIds.value.clear()
+    hideContextMenu() // 立即隐藏菜单，避免空白长方体出现
   }
 
   // 防止文字选择
