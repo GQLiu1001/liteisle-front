@@ -174,9 +174,8 @@
                         <!-- 内容视图 -->
           <div
             class="flex-1 overflow-auto select-none relative"
-
+            @contextmenu.prevent="showEmptyContextMenu"
             @mousedown="startSelection"
-            @click="hideContextMenu"
             ref="scrollContainer"
           >
             <!-- 选择框 -->
@@ -688,6 +687,37 @@
               详细信息
             </button>
           </template>
+        </template>
+
+        <!-- 空白处右键菜单 -->
+        <template v-else>
+          <button
+            v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0 && !driveStore.isInRecycleBin"
+            @click.stop="pasteItem"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            粘贴
+          </button>
+          <button
+            v-if="getCurrentLevel() === 1 && !driveStore.isInRecycleBin"
+            @click.stop="() => { hideContextMenu(); createNewFolder(); }"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            新建文件夹
+          </button>
+          <button
+            v-if="getCurrentLevel() === 2 && !driveStore.isInRecycleBin"
+            @click.stop="() => { hideContextMenu(); uploadFiles(); }"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            上传文件
+          </button>
+          <button
+            @click.stop="refreshAndHide"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            刷新
+          </button>
         </template>
     </div>
 
@@ -2005,6 +2035,35 @@ const toggleSortMenu = () => {
   }
 }
 
+// 空白区域右键菜单
+const showEmptyContextMenu = (event: MouseEvent) => {
+  // 关键检查：如果右键点击的目标是任何一个文件/文件夹项，
+  // 那么应该触发该项的右键菜单，而不是空白菜单。所以这里直接返回。
+  if ((event.target as HTMLElement).closest('.item-card')) {
+    return
+  }
+
+  // 阻止默认菜单
+  event.preventDefault()
+
+  // 如果已有菜单显示，先隐藏
+  if (showContextMenuState.value) {
+    showContextMenuState.value = false
+  }
+
+  // 核心逻辑：清空所有与"项目选择"相关的状态
+  selectedItem.value = null
+  selectedItemId.value = null
+  selectedItemIds.value.clear()
+  
+  // 设置新菜单的位置并显示
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showContextMenuState.value = true
+  
+  // 绑定一次性点击事件来关闭菜单
+  document.addEventListener('click', hideContextMenu, { once: true })
+}
+
 
 
 // 粘贴功能
@@ -2575,6 +2634,10 @@ const startSelection = (event: MouseEvent) => {
     return
   }
 
+  // 核心逻辑：只要在空白处按下鼠标，就立即隐藏右键菜单
+  // 这是杜绝所有幽灵菜单的根本方法
+  hideContextMenu()
+
   const container = event.currentTarget as HTMLElement
   const rect = container.getBoundingClientRect()
   
@@ -2594,7 +2657,6 @@ const startSelection = (event: MouseEvent) => {
     selectedItemId.value = null
     selectedItem.value = null // 同时清空selectedItem，避免状态不一致
     initialSelectedIds.value.clear()
-    hideContextMenu() // 立即隐藏菜单，避免空白长方体出现
   }
 
   // 防止文字选择
