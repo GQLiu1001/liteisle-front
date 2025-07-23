@@ -979,11 +979,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useDriveStore, type DriveItem } from '../store/DriveStore'
-import { useTransferStore } from '../store/TransferStore'
+import { useDriveStoreV5 } from '../store/DriveStoreV5'
+import { useTransferStoreV5 } from '../store/TransferStoreV5'
 import { useSettingsStore } from '../store/SettingsStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
+import type { FolderInfo, FileInfo } from '@/types/api'
 import {
   Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, 
   FileMusic, LibraryBig, FileUp, Share2
@@ -991,14 +992,24 @@ import {
 
 const toast = useToast()
 
+// 由于DriveStoreV5使用了不同的数据结构，暂时创建一个兼容的类型
+interface DriveItem {
+  id: number
+  name: string
+  type: 'folder' | 'file'
+  size?: number
+  path: string
+  // 其他必要属性...
+}
+
 interface BreadcrumbPath {
   name: string
   path: string
 }
 
 // 使用 DriveStore 和 TransferStore
-const driveStore = useDriveStore()
-const transferStore = useTransferStore()
+const driveStore = useDriveStoreV5()
+const transferStore = useTransferStoreV5()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 

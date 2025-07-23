@@ -8,52 +8,52 @@
   >
     <div class="mx-auto h-full">
       <!-- 详情视图 -->
-      <div v-if="docsStore.currentDocument" class="h-full rounded-2xl overflow-hidden bg-white shadow-lg">
+      <div v-if="docsStore.selectedDocument" class="h-full rounded-2xl overflow-hidden bg-white shadow-lg">
         <!-- PDF 展示 -->
-        <div v-if="docsStore.currentDocument.type === 'pdf'" class="h-full">
+        <div v-if="docsStore.selectedDocument.file_name.toLowerCase().endsWith('.pdf')" class="h-full">
           <PDFViewer 
-            :file-path="docsStore.currentDocument.path || ''"
-            :file-name="docsStore.currentDocument.name"
-            @close="docsStore.setCurrentDocument(null)"
+            :file-path="docsStore.selectedDocument.id?.toString() || ''"
+            :file-name="docsStore.selectedDocument.file_name"
+            @close="docsStore.selectedDocument = null"
           />
         </div>
 
         <!-- Word 展示 -->
-        <div v-else-if="docsStore.currentDocument.type === 'doc' || docsStore.currentDocument.type === 'docx'" class="h-full">
+        <div v-else-if="docsStore.selectedDocument.file_name.toLowerCase().match(/\.(doc|docx)$/) " class="h-full">
           <WordViewer 
-            :file-path="docsStore.currentDocument.path || ''"
-            :file-name="docsStore.currentDocument.name"
-            @close="docsStore.setCurrentDocument(null)"
+            :file-path="docsStore.selectedDocument.id?.toString() || ''"
+            :file-name="docsStore.selectedDocument.file_name"
+            @close="docsStore.selectedDocument = null"
           />
         </div>
 
         <!-- PowerPoint 展示 -->
-        <div v-else-if="docsStore.currentDocument.type === 'ppt' || docsStore.currentDocument.type === 'pptx'" class="h-full">
+        <div v-else-if="docsStore.selectedDocument.file_name.toLowerCase().match(/\.(ppt|pptx)$/)" class="h-full">
           <PowerPointViewer 
-            :file-path="docsStore.currentDocument.path || ''"
-            :file-name="docsStore.currentDocument.name"
-            @close="docsStore.setCurrentDocument(null)"
+            :file-path="docsStore.selectedDocument.id?.toString() || ''"
+            :file-name="docsStore.selectedDocument.file_name"
+            @close="docsStore.selectedDocument = null"
           />
         </div>
 
         <!-- Excel 展示 -->
-        <div v-else-if="docsStore.currentDocument.type === 'xls' || docsStore.currentDocument.type === 'xlsx'" class="h-full">
+        <div v-else-if="docsStore.selectedDocument.file_name.toLowerCase().match(/\.(xls|xlsx)$/)" class="h-full">
           <ExcelViewer 
-            :file-path="docsStore.currentDocument.path || ''"
-            :file-name="docsStore.currentDocument.name"
-            @close="docsStore.setCurrentDocument(null)"
+            :file-path="docsStore.selectedDocument.id?.toString() || ''"
+            :file-name="docsStore.selectedDocument.file_name"
+            @close="docsStore.selectedDocument = null"
           />
         </div>
 
         <!-- Markdown 展示 -->
-        <div v-else-if="docsStore.currentDocument.type === 'markdown'" class="h-full">
+        <div v-else-if="docsStore.selectedDocument.file_name.toLowerCase().endsWith('.md')" class="h-full">
           <MarkdownViewer 
-            :key="docsStore.currentDocument.path"
-            :file-path="docsStore.currentDocument.path || ''"
-            :file-name="docsStore.currentDocument.name"
-            v-model:content="docsStore.currentDocument.content"
-            @close="docsStore.setCurrentDocument(null)"
-            @save="docsStore.saveDocumentContent"
+            :key="docsStore.selectedDocument.id"
+            :file-path="docsStore.selectedDocument.id?.toString() || ''"
+            :file-name="docsStore.selectedDocument.file_name"
+            v-model:content="docsStore.currentMarkdownContent"
+            @close="docsStore.selectedDocument = null"
+            @save="docsStore.saveMarkdown"
           />
         </div>
 
@@ -61,7 +61,7 @@
         <div v-else class="card flex-1 flex flex-col min-h-0">
           <div class="flex items-center p-4 border-b border-morandi-200 flex-shrink-0">
             <button 
-              @click="docsStore.setCurrentDocument(null)" 
+              @click="docsStore.selectedDocument = null" 
               class="flex items-center gap-2 text-morandi-700 hover:text-teal-600 transition-colors"
             >
               <ChevronLeft :size="20" />
@@ -72,7 +72,7 @@
             <div class="h-full flex flex-col">
               <div class="flex items-center justify-between pb-4 border-b border-morandi-200 mb-4 flex-shrink-0">
                 <div>
-                  <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.currentDocument.name }}</h1>
+                  <h1 class="text-2xl font-bold text-morandi-900">{{ docsStore.selectedDocument.file_name }}</h1>
                 </div>
               </div>
               <div class="flex-1 overflow-y-auto -mr-4 -ml-4 pr-4 pl-4">
@@ -143,7 +143,7 @@
                       >
                         <BookImage :size="20" />
                         <div class="flex-1">
-                          <div class="font-medium">{{ category.name }}</div>
+                          <div class="font-medium">{{ category.folder_name }}</div>
                           <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
                         </div>
                       </button>
@@ -542,12 +542,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
-import { useDocsStore, type Document, type DocumentCategory } from '../store/DocsStore';
-import { useTransferStore } from '../store/TransferStore';
+import { useDocsStoreV5 } from '../store/DocsStoreV5';
+import { useTransferStoreV5 } from '../store/TransferStoreV5';
 import { useUIStore } from '@/store/UIStore';
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore';
 import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
+import type { FolderInfo, FileInfo } from '@/types/api';
 import { 
   Upload,
   FileText, 
@@ -563,8 +564,8 @@ import PowerPointViewer from '@/components/PowerPointViewer.vue';
 import ExcelViewer from '@/components/ExcelViewer.vue';
 import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
-const docsStore = useDocsStore();
-const transferStore = useTransferStore();
+const docsStore = useDocsStoreV5();
+const transferStore = useTransferStoreV5();
 const uiStore = useUIStore();
 const contextMenuStore = useContextMenuStore();
 const toast = useToast();
@@ -587,8 +588,8 @@ const autoScrollTimer = ref<number | null>(null);
 const scrollSpeed = ref(0);
 
 // 右键菜单相关
-const selectedDocument = ref<Document | null>(null);
-const selectedCategory = ref<DocumentCategory | null>(null);
+const selectedDocument = ref<FileInfo | null>(null);
+const selectedCategory = ref<FolderInfo | null>(null);
 
 // 重命名相关
 const showRenameDocDialog = ref(false);
@@ -651,11 +652,11 @@ const currentDocsList = computed({
   get() {
     return docsStore.filteredDocuments;
   },
-  set(newDocs: Document[]) {
+  set(newDocs: any[]) { // Changed to any[] as Document type is removed
     if (!draggedItemId.value) return;
 
-    const oldIndex = docsStore.currentCategoryData?.documents.findIndex((d: Document) => d.id === draggedItemId.value);
-    const newIndex = newDocs.findIndex((d: Document) => d.id === draggedItemId.value);
+    const oldIndex = docsStore.currentCategoryData?.documents.findIndex((d: any) => d.id === draggedItemId.value); // Changed to any
+    const newIndex = newDocs.findIndex((d: any) => d.id === draggedItemId.value); // Changed to any
 
     if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
       docsStore.reorderDocumentsInCurrentCategory(oldIndex, newIndex);
@@ -670,7 +671,7 @@ const currentCategoriesList = computed({
   get() {
     return docsStore.categoriesWithFilteredCounts;
   },
-  set(newCategories: DocumentCategory[]) {
+  set(newCategories: FolderInfo[]) {
     docsStore.reorderCategories(newCategories);
   }
 });
@@ -891,7 +892,7 @@ const handleDocumentFileSelect = (event: Event) => {
 }
 
 // 右键菜单相关方法
-const showDocumentContextMenu = (event: MouseEvent, doc: Document) => {
+const showDocumentContextMenu = (event: MouseEvent, doc: any) => { // Changed to any as Document type is removed
   selectedDocument.value = doc
   
   const menuItems: ContextMenuItem[] = [
@@ -928,7 +929,7 @@ const openDocument = () => {
 
 const showRenameDocumentDialog = () => {
   if (selectedDocument.value) {
-    renameDocValue.value = selectedDocument.value.name
+    renameDocValue.value = selectedDocument.value.file_name
     showRenameDocDialog.value = true
     
     // 在下一个tick自动聚焦并选中文本
@@ -946,7 +947,7 @@ const confirmRenameDocument = () => {
   if (!newName || !selectedDocument.value) return
 
   // 检查名称是否与原名称相同
-  if (newName === selectedDocument.value.name) {
+  if (newName === selectedDocument.value.file_name) {
     cancelRenameDocument()
     return
   }
@@ -958,10 +959,10 @@ const confirmRenameDocument = () => {
     return
   }
 
-  const oldName = selectedDocument.value.name
+  const oldName = selectedDocument.value.file_name
   
   // 调用DocsStore的重命名方法（如果有的话，或者直接修改）
-  selectedDocument.value.name = newName
+  selectedDocument.value.file_name = newName
   
   showRenameDocDialog.value = false
   renameDocValue.value = ''
@@ -975,7 +976,7 @@ const cancelRenameDocument = () => {
 
 const deleteDocument = () => {
   if (selectedDocument.value) {
-    const docName = selectedDocument.value.name
+    const docName = selectedDocument.value.file_name
     if (confirm(`确定要删除文档 "${docName}" 吗？`)) {
       // 调用DocsStore的删除方法
       docsStore.deleteDocument(selectedDocument.value.id)
@@ -985,7 +986,7 @@ const deleteDocument = () => {
 }
 
 // 分类右键菜单相关方法
-const handleCategoryContextMenu = (event: MouseEvent, category: DocumentCategory) => {
+const handleCategoryContextMenu = (event: MouseEvent, category: FolderInfo) => {
   selectedCategory.value = category
   
   const menuItems: ContextMenuItem[] = [
@@ -1022,7 +1023,7 @@ const openCategory = () => {
 
 const showRenameCategoryDialogFn = () => {
   if (selectedCategory.value) {
-    renameCategoryValue.value = selectedCategory.value.name
+    renameCategoryValue.value = selectedCategory.value.folder_name
     showRenameCategoryDialog.value = true
     
     // 在下一个tick自动聚焦并选中文本
@@ -1040,7 +1041,7 @@ const confirmRenameCategory = () => {
   if (!newName || !selectedCategory.value) return
 
   // 检查名称是否与原名称相同
-  if (newName === selectedCategory.value.name) {
+  if (newName === selectedCategory.value.folder_name) {
     cancelRenameCategory()
     return
   }
@@ -1052,25 +1053,27 @@ const confirmRenameCategory = () => {
     return
   }
 
-  const oldName = selectedCategory.value.name
+  const oldName = selectedCategory.value.folder_name
   
-  // 调用DocsStore的重命名方法（如果有的话，或者直接修改）
-  selectedCategory.value.name = newName
+  // 调用DocsStore的重命名方法
+  selectedCategory.value.folder_name = newName
   
   showRenameCategoryDialog.value = false
   renameCategoryValue.value = ''
+  selectedCategory.value = null
   toast.success(`分类 "${oldName}" 已重命名为 "${newName}"`)
 }
 
 const cancelRenameCategory = () => {
   showRenameCategoryDialog.value = false
   renameCategoryValue.value = ''
+  selectedCategory.value = null
 }
 
 const deleteCategory = () => {
   if (selectedCategory.value) {
-    const categoryName = selectedCategory.value.name
-    if (confirm(`确定要删除分类 "${categoryName}" 吗？`)) {
+    const categoryName = selectedCategory.value.folder_name
+    if (confirm(`确定要删除分类 "${categoryName}" 吗？该操作将同时删除分类下的所有文档。`)) {
       // 调用DocsStore的删除方法
       docsStore.deleteCategory(selectedCategory.value.id)
       toast.success(`分类 "${categoryName}" 已删除`)

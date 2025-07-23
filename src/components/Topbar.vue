@@ -151,19 +151,19 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { PenTool, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as ImageIcon } from 'lucide-vue-next'
 // 默认用户头像
-import defaultUserPic from '../../public/defaultuserpic (2).png'
-import http from '@/utils/http'
-import { useFocusStore } from '@/store/FocusStore'
+const defaultUserPic = '/defaultuserpic (2).png'
+import { http } from '@/utils/http'
+import { useFocusStoreV5 } from '@/store/FocusStoreV5'
 import { useUIStore } from '@/store/UIStore'
-import { useAuthStore } from '@/store/AuthStore'
+import { useAuthStoreV5 } from '@/store/AuthStoreV5'
 import { useSettingsStore } from '@/store/SettingsStore'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const route = useRoute()
-const focusStore = useFocusStore()
+const focusStore = useFocusStoreV5()
 const uiStore = useUIStore()
-const authStore = useAuthStore()
+const authStore = useAuthStoreV5()
 const settingsStore = useSettingsStore()
 const { isFocusing } = storeToRefs(focusStore)
 

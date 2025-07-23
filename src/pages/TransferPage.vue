@@ -221,8 +221,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Upload, Download, Link, Trash2, FolderOpen, File as FileIcon, Film, X } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification'
-import { useDriveStore } from '@/store/DriveStore';
-import { useTransferStore } from '@/store/TransferStore';
+import { useDriveStoreV5 } from '@/store/DriveStoreV5';
+import { useTransferStoreV5 } from '@/store/TransferStoreV5';
 import type { DriveItem } from '@/store/DriveStore';
 
 const toast = useToast()
@@ -251,8 +251,8 @@ const taskToDelete = ref<Task | null>(null);
 const linkUrl = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const driveStore = useDriveStore();
-const transferStore = useTransferStore();
+const driveStore = useDriveStoreV5();
+const transferStore = useTransferStoreV5();
 
 const categories: { type: CategoryType; label: string; icon: any; }[] = [
   { type: 'upload', label: '上传', icon: Upload },

@@ -102,7 +102,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, reactive } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { useFocusStore } from '@/store/FocusStore'
+import { useFocusStoreV5 } from '@/store/FocusStoreV5'
+import { useIslandStore } from '@/store/IslandStore'
+import { storeToRefs } from 'pinia'
 
 // 岛屿数据类型
 interface Island {
@@ -113,7 +115,10 @@ interface Island {
   min_focus_minutes: number
 }
 
-const focusStore = useFocusStore()
+const focusStore = useFocusStoreV5()
+const islandStore = useIslandStore()
+
+const { islandProgress } = storeToRefs(islandStore)
 
 // 图片加载状态管理
 const singleIsleLoading = ref(true)

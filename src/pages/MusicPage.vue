@@ -363,13 +363,13 @@
 
                     <!-- 歌曲信息 -->
                     <div class="flex-1 min-w-0" @contextmenu.prevent="handleTrackContextMenu($event, track)">
-                      <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
-                      <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
+                      <p class="font-medium text-morandi-900 truncate">{{ track.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐' }}</p>
+                      <p class="text-sm text-morandi-500 truncate">{{ track.artist || '未知艺术家' }}</p>
                     </div>
 
                     <!-- 歌曲时长 -->
                     <div class="text-sm text-morandi-500">
-                      {{ musicStore.formatTime(track.duration) }}
+                      {{ musicStore.formatTime(track.duration || 0) }}
                     </div>
                   </div>
                 </div>
@@ -609,28 +609,28 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
-import { useMusicStore, Playlist, Track } from '../store/MusicStore'
-import { useDriveStore } from '../store/DriveStore'
-import { useTransferStore } from '../store/TransferStore'
+import { useMusicStoreV5 } from '../store/MusicStoreV5'
+import { useDriveStoreV5 } from '../store/DriveStoreV5'
+import { useTransferStoreV5 } from '../store/TransferStoreV5'
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore'
 import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
-import type { Track as TrackType } from '../store/MusicStore'
+import type { MusicFileInfo } from '@/types/api'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
-const musicStore = useMusicStore()
-const driveStore = useDriveStore()
-const transferStore = useTransferStore()
+const musicStore = useMusicStoreV5()
+const driveStore = useDriveStoreV5()
+const transferStore = useTransferStoreV5()
 const contextMenuStore = useContextMenuStore()
 const toast = useToast()
 const route = useRoute()
 
 // 本地拖拽列表
-const localTracks = ref<TrackType[]>([])
+const localTracks = ref<MusicFileInfo[]>([])
 
 // 监听 Pinia store 中当前歌单的变化，并更新本地列表
-watch(() => musicStore.currentPlaylist?.tracks, (newTracks) => {
+watch(() => musicStore.currentPlaylistTracks, (newTracks) => {
   // 使用 slice() 创建一个浅拷贝，避免直接引用
   localTracks.value = newTracks ? [...newTracks] : []
 }, { immediate: true, deep: true })
@@ -644,8 +644,8 @@ const selectedMusicFiles = ref<File[]>([])
 const musicFileInput = ref<HTMLInputElement | null>(null)
 
 // 右键菜单相关
-const selectedTrack = ref<TrackType | null>(null)
-const selectedPlaylist = ref<Playlist | null>(null)
+const selectedTrack = ref<MusicFileInfo | null>(null)
+const selectedPlaylist = ref<any | null>(null) // Playlist type is not directly imported, use 'any' for now
 
 // 重命名相关
 const showRenameTrackDialog = ref(false)
@@ -689,11 +689,11 @@ const filteredTracks = computed(() => {
 // 可拖动的歌单  
 const currentPlaylistsList = computed({
   get: () => musicStore.playlists || [],
-  set: (newPlaylists: Playlist[]) => {
+  set: (newPlaylists: any[]) => { // Playlist type is not directly imported, use 'any' for now
     if (!draggedPlaylistId.value) return;
 
-    const oldIndex = musicStore.playlists.findIndex((p: Playlist) => p.id === draggedPlaylistId.value);
-    const newIndex = newPlaylists.findIndex((p: Playlist) => p.id === draggedPlaylistId.value);
+    const oldIndex = musicStore.playlists.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
+    const newIndex = newPlaylists.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
 
     if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
       musicStore.reorderPlaylists(oldIndex, newIndex);
@@ -738,7 +738,7 @@ const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
 }
 
 // 方法
-const selectPlaylist = (playlist: any) => {
+const selectPlaylist = (playlist: any) => { // Playlist type is not directly imported, use 'any' for now
   musicStore.setCurrentPlaylist(playlist)
 }
 
@@ -800,7 +800,7 @@ const startDrag = (event: MouseEvent | TouchEvent) => {
   document.addEventListener('touchend', handleEnd)
 }
 
-const getPlaylistDisplayCount = (playlist: any) => {
+const getPlaylistDisplayCount = (playlist: any) => { // Playlist type is not directly imported, use 'any' for now
   // 如果没有搜索条件，显示总数
   if (!musicStore.searchQuery) {
     return playlist.tracks.length
@@ -1017,7 +1017,7 @@ const handleMusicFileSelect = (event: Event) => {
 }
 
 // 歌曲右键菜单相关方法
-const handleTrackContextMenu = (event: MouseEvent, track: TrackType) => {
+const handleTrackContextMenu = (event: MouseEvent, track: MusicFileInfo) => {
   event.preventDefault()
   selectedTrack.value = track
   
@@ -1050,7 +1050,7 @@ const handleTrackContextMenu = (event: MouseEvent, track: TrackType) => {
 const openTrack = () => {
   if (selectedTrack.value) {
     // 找到当前歌单中的索引
-    const index = musicStore.currentPlaylist?.tracks.findIndex((t: TrackType) => t.id === selectedTrack.value?.id) ?? -1
+    const index = musicStore.currentPlaylistTracks.findIndex((t: MusicFileInfo) => t.id === selectedTrack.value?.id) ?? -1
     if (index !== -1) {
       playTrackImmediately(index)
     }
@@ -1121,7 +1121,7 @@ const deleteTrack = () => {
 }
 
 // 歌单右键菜单相关方法
-const handlePlaylistContextMenu = (event: MouseEvent, playlist: Playlist) => {
+const handlePlaylistContextMenu = (event: MouseEvent, playlist: any) => { // Playlist type is not directly imported, use 'any' for now
   selectedPlaylist.value = playlist
   
   const menuItems: ContextMenuItem[] = [

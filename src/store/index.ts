@@ -1,27 +1,38 @@
 import { createPinia } from 'pinia'
-import { useAuthStore } from './AuthStore'
+
+// 全局状态管理
 import { useUIStore } from './UIStore'
-import { useDriveStore } from './DriveStore'
-import { useDocsStore } from './DocsStore'
-import { useMusicStore } from './MusicStore'
-import { useTransferStore } from './TransferStore'
-import { useSettingsStore } from './SettingsStore'
-import { useFocusStore } from './FocusStore'
 import { useContextMenuStore } from './ContextMenuStore'
 import { useVditorStore } from './VditorStore'
+import { useShareStore } from './ShareStore'
+import { useIslandStore } from './IslandStore'
+import { useSettingsStore } from './SettingsStore'
+
+// V5版本的新Store
+import { useAuthStoreV5 } from './AuthStoreV5'
+import { useDriveStoreV5 } from './DriveStoreV5'
+import { useMusicStoreV5 } from './MusicStoreV5'
+import { useDocsStoreV5 } from './DocsStoreV5'
+import { useTransferStoreV5 } from './TransferStoreV5'
+import { useFocusStoreV5 } from './FocusStoreV5'
 
 const pinia = createPinia()
 
 export {
   pinia,
-  useAuthStore,
+  // 全局Store
   useUIStore,
-  useDriveStore,
-  useDocsStore,
-  useMusicStore,
-  useTransferStore,
-  useSettingsStore,
-  useFocusStore,
   useContextMenuStore,
-  useVditorStore
+  useVditorStore,
+  useShareStore,
+  useIslandStore,
+  useSettingsStore,
+
+  // V5版本Store
+  useAuthStoreV5,
+  useDriveStoreV5,
+  useMusicStoreV5,
+  useDocsStoreV5,
+  useTransferStoreV5,
+  useFocusStoreV5
 } 

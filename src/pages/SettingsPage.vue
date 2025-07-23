@@ -469,18 +469,23 @@
 </template>
 
 <script setup lang="ts">
+import { useFocusStoreV5 } from '@/store/FocusStoreV5';
+import { useAuthStoreV5 } from '@/store/AuthStoreV5';
 import { useSettingsStore } from '@/store/SettingsStore';
-import { useFocusStore } from '@/store/FocusStore';
-import { useAuthStore } from '@/store/AuthStore';
+import { useShareStore } from '@/store/ShareStore';
+import { useToast } from 'vue-toastification';
 import { ref, computed, onMounted } from 'vue';
 import { HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
-// 默认用户头像
-import defaultUserPic from '../../public/defaultuserpic (2).png';
-import logoPic from '../../public/logopic.png';
+// 默认用户头像  
+const defaultUserPic = '/defaultuserpic (2).png';
+const logoPic = '/logopic.png';
 
+// 使用存储
 const settingsStore = useSettingsStore();
-const focusStore = useFocusStore();
-const authStore = useAuthStore();
+const focusStore = useFocusStoreV5();
+const authStore = useAuthStoreV5();
+const shareStore = useShareStore();
+const toast = useToast();
 
 // 修改密码对话框状态
 const showChangePasswordDialog = ref(false);

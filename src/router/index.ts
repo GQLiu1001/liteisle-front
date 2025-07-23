@@ -1,12 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/store/AuthStore'
+import { useAuthStoreV5 } from '@/store/AuthStoreV5'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const authStore = useAuthStore()
+      const authStore = useAuthStoreV5()
       return authStore.isAuthenticated ? '/home' : '/login'
     }
   },
@@ -54,7 +54,7 @@ const router = createRouter({
 
 // 路由守卫：检查认证状态
 router.beforeEach(async (to: any, from: any, next: any) => {
-  const authStore = useAuthStore()
+  const authStore = useAuthStoreV5()
   
   // 初始化认证状态（只在第一次访问时）
   if (!authStore.token && localStorage.getItem('access_token')) {
@@ -71,11 +71,11 @@ router.beforeEach(async (to: any, from: any, next: any) => {
   if (!isAuthenticated && to.name !== 'login') {
     next({ name: 'login' })
   } 
-  // 如果已经登录且去登录页，重定向到首页
+  // 如果已经登录且试图访问登录页，重定向到首页
   else if (isAuthenticated && to.name === 'login') {
     next({ name: 'home' })
   } 
-  // 其他情况正常导航
+  // 其他情况正常跳转
   else {
     next()
   }

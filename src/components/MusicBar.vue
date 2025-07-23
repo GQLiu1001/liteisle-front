@@ -49,7 +49,7 @@
               <Music :size="20" class="text-white" />
             </div>
             <div class="min-w-0 flex-1">
-              <p class="font-semibold text-morandi-900 truncate text-sm">{{ musicStore.currentTrackInfo.name }}</p>
+              <p class="font-semibold text-morandi-900 truncate text-sm">{{ currentTrackInfo.name }}</p>
               <p class="text-xs text-morandi-700">{{ musicStore.formatTime(musicStore.currentTime) }} / {{ musicStore.formatTime(musicStore.duration) }}</p>
             </div>
           </div>
@@ -67,9 +67,9 @@
             <button 
               @click="musicStore.togglePlay" 
               class="w-10 h-10 rounded-full bg-white text-morandi-800 flex items-center justify-center"
-              :title="musicStore.isPlaying ? '暂停' : '播放'"
+              :title="musicStore.playState === 'playing' ? '暂停' : '播放'"
             >
-              <Play v-if="!musicStore.isPlaying" :size="18" />
+              <Play v-if="musicStore.playState !== 'playing'" :size="18" />
               <Pause v-else :size="18" />
             </button>
             
@@ -117,7 +117,7 @@
             <Music :size="24" class="text-white" />
           </div>
           <div class="min-w-0">
-            <p class="font-semibold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</p>
+            <p class="font-semibold text-morandi-900 truncate">{{ currentTrackInfo.name }}</p>
             <p class="text-sm text-morandi-700">{{ musicStore.formatTime(musicStore.currentTime) }} / {{ musicStore.formatTime(musicStore.duration) }}</p>
           </div>
         </div>
@@ -135,9 +135,9 @@
           <button 
             @click="musicStore.togglePlay" 
             class="w-12 h-12 rounded-full bg-white text-morandi-800 flex items-center justify-center"
-            :title="musicStore.isPlaying ? '暂停' : '播放'"
+            :title="musicStore.playState === 'playing' ? '暂停' : '播放'"
           >
-            <Play v-if="!musicStore.isPlaying" :size="20" />
+            <Play v-if="musicStore.playState !== 'playing'" :size="20" />
             <Pause v-else :size="20" />
           </button>
           
@@ -191,7 +191,7 @@
           
           <!-- 播放模式循环按钮 -->
           <button 
-            @click="musicStore.togglePlayMode" 
+            @click="musicStore.setPlayMode(musicStore.playMode === 'order' ? 'shuffle' : musicStore.playMode === 'shuffle' ? 'repeat' : 'order')" 
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
             :class="{ 'bg-white/60': musicStore.playMode !== 'order' }"
             :title="getPlayModeText()"
@@ -246,20 +246,20 @@
             class="p-3 hover:bg-morandi-50 cursor-pointer border-b border-morandi-100 last:border-b-0 flex items-center justify-between"
             :class="{ 'bg-teal-50 text-teal-700': musicStore.currentPlaylist?.id === playlist.id }"
           >
-            <span class="font-medium">{{ playlist.name }}</span>
-            <span class="text-sm text-morandi-500">{{ playlist.tracks.length }} 首</span>
+            <span class="font-medium">{{ playlist.folder_name }}</span>
+            <span class="text-sm text-morandi-500">{{ getPlaylistTrackCount(playlist) }} 首</span>
           </div>
         </div>
         
         <p class="text-sm text-morandi-600">
-          {{ musicStore.currentPlaylist?.name || '未选择歌单' }} · {{ musicStore.currentPlaylist?.tracks.length || 0 }} 首歌曲
+          {{ musicStore.currentPlaylist?.folder_name || '未选择歌单' }} · {{ musicStore.currentPlaylistTracks.length || 0 }} 首歌曲
         </p>
       </div>
       
       <!-- 歌曲列表 -->
       <div class="flex-1 overflow-auto p-2">
         <div
-          v-for="(track, index) in musicStore.currentPlaylist?.tracks || []"
+          v-for="(track, index) in musicStore.currentPlaylistTracks"
           :key="track.id"
           @click="playTrackFromPanel(index)"
           class="flex items-center gap-3 p-2 rounded-md hover:bg-morandi-50 cursor-pointer"
@@ -270,14 +270,14 @@
             <Music v-else :size="12" class="text-teal-600" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-morandi-900 truncate">{{ track.name }}</p>
-            <p class="text-xs text-morandi-500 truncate">{{ track.artist }}</p>
+            <p class="text-sm font-medium text-morandi-900 truncate">{{ track.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐' }}</p>
+            <p class="text-xs text-morandi-500 truncate">{{ track.artist || '未知艺术家' }}</p>
           </div>
-          <span class="text-xs text-morandi-500">{{ musicStore.formatTime(track.duration) }}</span>
+          <span class="text-xs text-morandi-500">{{ musicStore.formatTime(track.duration || 0) }}</span>
         </div>
         
         <!-- 空状态 -->
-        <div v-if="!musicStore.currentPlaylist?.tracks.length" class="text-center py-8">
+        <div v-if="!musicStore.currentPlaylistTracks.length" class="text-center py-8">
           <Music :size="32" class="mx-auto mb-2 text-morandi-400" />
           <p class="text-sm text-morandi-500">歌单为空</p>
         </div>
@@ -289,13 +289,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Repeat1, Shuffle, Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp, ChevronDown } from 'lucide-vue-next'
-import { useMusicStore } from '../store/MusicStore'
+import { useMusicStoreV5 } from '../store/MusicStoreV5'
 import { useRoute, useRouter } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
-import { useDocsStore } from '@/store/DocsStore'
+import { useDocsStoreV5 } from '@/store/DocsStoreV5'
 import { storeToRefs } from 'pinia'
 
-const musicStore = useMusicStore()
+const musicStore = useMusicStoreV5()
 const uiStore = useUIStore()
 const { progressPercentage } = storeToRefs(musicStore)
 const route = useRoute()
@@ -308,9 +308,9 @@ const showPlaylistSelector = ref(false)
 const showFullMusicBar = ref(false)
 
 // 文档页面检测 - 通过 DocsStore 检查是否有当前文档
-const docsStore = useDocsStore()
+const docsStore = useDocsStoreV5()
 const isDocumentPage = computed(() => {
-  return !!docsStore.currentDocument
+  return !!docsStore.selectedDocument
 })
 
 // 菜单引用
@@ -420,16 +420,17 @@ const selectPlaylist = (playlist: any, event?: MouseEvent) => {
     event.stopPropagation()
   }
   
-  musicStore.setCurrentPlaylist(playlist)
+  musicStore.selectPlaylist(playlist)
   showPlaylistSelector.value = false
 }
 
 const playTrackFromPanel = (index: number) => {
-  musicStore.setCurrentTrack(index)
-  musicStore.play()
-  // 选择歌曲后自动关闭歌单
-  showPlaylistPanel.value = false
-  showPlaylistSelector.value = false
+  const tracks = musicStore.currentPlaylistTracks
+  if (tracks[index]) {
+    musicStore.playTrack(tracks[index])
+    showPlaylistPanel.value = false
+    showPlaylistSelector.value = false
+  }
 }
 
 // 切换音乐栏显示状态
@@ -444,14 +445,30 @@ const goToMusicPage = () => {
     router.push({
       name: 'music',
       query: {
-        playlist: musicStore.currentPlaylist.name,
-        song: musicStore.currentTrack.name
+        playlist: musicStore.currentPlaylist.folder_name,
+        song: musicStore.currentTrack.file_name
       }
     })
   } else {
       // 如果没有当前歌单，直接跳转到音乐页面
     router.push({ name: 'music' })
   }
+}
+
+// 格式化当前播放信息
+const currentTrackInfo = computed(() => {
+  if (!musicStore.currentTrack) return { name: '暂无音乐', artist: '', album: '' }
+  
+  return {
+    name: musicStore.currentTrack.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐',
+    artist: musicStore.currentTrack.artist || '未知艺术家',
+    album: musicStore.currentPlaylist?.folder_name || '未知专辑'
+  }
+})
+
+// 获取当前歌单的歌曲数量
+const getPlaylistTrackCount = (playlist: any) => {
+  return musicStore.getPlaylistTrackCount(playlist.id)
 }
 </script>
 

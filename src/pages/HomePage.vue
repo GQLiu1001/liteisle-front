@@ -68,16 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import StudyCard from '@/components/cards/StudyCard.vue'
-import IsleCard from '@/components/cards/IsleCard.vue'
 import ActivityGrid from '@/components/cards/ActivityGrid.vue'
-import { useAuthStore } from '@/store/AuthStore'
+import { useAuthStoreV5 } from '@/store/AuthStoreV5'
 
-// 使用认证存储
-const authStore = useAuthStore()
+const authStore = useAuthStoreV5()
 
-// 励志语和名言数组
+// 名言接口
 interface Quote {
   text: string
   author?: string

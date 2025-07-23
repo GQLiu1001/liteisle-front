@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authAPI } from '@/utils/http'
+import { API } from '@/utils/api'
+import { connectWebSocket, disconnectWebSocket } from '@/utils/websocket'
+import { useToast } from 'vue-toastification'
+import type { 
+  AuthLoginReq, 
+  AuthRegisterReq, 
+  AuthForgotPasswordReq, 
+  AuthResetPasswordReq,
+  AuthCurrentUserResp 
+} from '@/types/api'
 
 interface User {
   id: number
@@ -116,7 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
           password: credentials.password
         })
         
-        const response = await authAPI.login(apiCredentials)
+        const response = await API.auth.login(apiCredentials)
         
         const convertedResponse = convertSnakeToCamel(response.data)
         
@@ -178,7 +187,7 @@ export const useAuthStore = defineStore('auth', () => {
           password: registerData.password
         })
         
-        const response = await authAPI.register(apiData)
+        const response = await API.auth.register(apiData)
         const convertedResponse = convertSnakeToCamel(response.data)
         
         if (convertedResponse.success || convertedResponse.code === 200) {

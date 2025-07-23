@@ -1,13 +1,17 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import type { ApiResponse } from '@/types/api'
 
 // 创建 axios 实例
 const http: AxiosInstance = axios.create({
-  baseURL: import.meta.env.PROD ? '/api' : 'http://localhost:8080/api',
-  timeout: 10000,
+  baseURL: import.meta.env.PROD ? '/api/v1' : 'http://localhost:8002/api/v1',
+  timeout: 30000, // 增加超时时间以支持文件操作
   headers: {
     'Content-Type': 'application/json'
   }
 })
+
+// 打印连接信息用于调试
+console.log('🌐 API Base URL:', import.meta.env.PROD ? '/api/v1' : 'http://localhost:8002/api/v1')
 
 // 请求拦截器
 http.interceptors.request.use(
@@ -17,9 +21,16 @@ http.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    
+    console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      data: config.data,
+      params: config.params
+    })
+    
     return config
   },
   (error) => {
+    console.error('📤 Request Error:', error)
     return Promise.reject(error)
   }
 )
@@ -27,57 +38,60 @@ http.interceptors.request.use(
 // 响应拦截器
 http.interceptors.response.use(
   (response: AxiosResponse) => {
+    console.log(`📥 API Response: ${response.status} ${response.config.url}`, {
+      data: response.data
+    })
+    
+    // 检查业务状态码
+    if (response.data && typeof response.data === 'object' && 'code' in response.data) {
+      const apiResponse = response.data as ApiResponse
+      if (apiResponse.code !== 200) {
+        console.warn(`⚠️ Business Error: ${apiResponse.code} - ${apiResponse.message}`)
+        return Promise.reject(new Error(apiResponse.message || '请求失败'))
+      }
+    }
+    
     return response
   },
-  async (error) => {
-    const originalRequest = error.config
+  (error) => {
+    console.error('📥 Response Error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      code: error.code
+    })
     
-    // 如果是 401 错误且不是刷新 token 的请求
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
-        try {
-          // 尝试刷新 token
-          const response = await axios.post('/api/v1/auth/refresh', {
-            refresh_token: refreshToken
-          })
-          
-          const { access_token, refresh_token } = response.data
-          
-          // 更新 token
-          localStorage.setItem('access_token', access_token)
-          if (refresh_token) {
-            localStorage.setItem('refresh_token', refresh_token)
-          }
-          
-          // 重新发送原始请求
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return http(originalRequest)
-        } catch (refreshError) {
-          // 刷新失败，清除所有认证信息
+    // 统一处理错误
+    if (error.response) {
+      // 服务器返回错误状态码
+      const status = error.response.status
+      switch (status) {
+        case 401:
+          // 未授权，清除token并跳转登录
           localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('user_info')
-          
-          // 跳转到登录页
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login'
+          if (window.location.hash !== '#/login') {
+            window.location.hash = '#/login'
           }
-          
-          return Promise.reject(refreshError)
-        }
-      } else {
-        // 没有 refresh token，直接跳转到登录页
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user_info')
-        
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
+          break
+        case 403:
+          console.error('权限不足')
+          break
+        case 404:
+          console.error('请求的资源不存在')
+          break
+        case 500:
+          console.error('服务器内部错误')
+          break
+        default:
+          console.error(`服务器错误: ${status}`)
       }
+    } else if (error.request) {
+      // 请求发出但没有收到响应
+      console.error('🔌 无法连接到服务器，请检查:', {
+        baseURL: http.defaults.baseURL,
+        message: '确保后端服务运行在 localhost:8002'
+      })
     }
     
     return Promise.reject(error)
@@ -85,7 +99,7 @@ http.interceptors.response.use(
 )
 
 // 导出 HTTP 实例
-export default http
+export { http }
 
 // 导出常用的请求方法
 export const get = (url: string, config?: AxiosRequestConfig) => {

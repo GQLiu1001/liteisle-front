@@ -19,16 +19,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Clock } from 'lucide-vue-next'
-import { useFocusStore } from '@/store/FocusStore'
+import { useFocusStoreV5 } from '@/store/FocusStoreV5'
 import { storeToRefs } from 'pinia'
 
-const focusStore = useFocusStore()
-const { formattedTotalTime, formattedCurrentTime, currentStudyTime, totalFocusCount } = storeToRefs(focusStore)
+const focusStore = useFocusStoreV5()
+const { totalFocusCount } = storeToRefs(focusStore)
 
 // 今日学习进度（假设目标是2小时=120分钟）
 const todayProgress = computed(() => {
+  // 由于V5版本暂时没有当前学习时间，先返回0
   const todayTarget = 120 // 分钟
-  const progress = Math.min((currentStudyTime.value / todayTarget) * 100, 100)
+  const progress = 0 // 暂时设为0，等待V5版本实现
   return Math.round(progress)
 })
 </script> 

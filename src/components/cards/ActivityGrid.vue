@@ -60,9 +60,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useFocusStore } from '@/store/FocusStore'
+import { useFocusStoreV5 } from '@/store/FocusStoreV5'
 
-const focusStore = useFocusStore()
+const focusStore = useFocusStoreV5()
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 

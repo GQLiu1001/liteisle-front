@@ -298,10 +298,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, Minus, Square, X } from 'lucide-vue-next'
-import { useAuthStore } from '@/store/AuthStore'
+import { useAuthStoreV5 } from '@/store/AuthStoreV5'
+import { useToast } from 'vue-toastification'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const authStore = useAuthStoreV5()
+const toast = useToast()
 
 // 活跃标签页
 const activeTab = ref<'login' | 'register' | 'forgot'>('login')
@@ -382,47 +384,62 @@ const closeWindow = () => {
   }
 }
 
-// 处理登录
+// 处理登录提交
 const handleLogin = async () => {
+  if (!loginForm.username || !loginForm.password) {
+    toast.error('请填写完整的登录信息')
+    return
+  }
+
   try {
-    await authStore.login({
-      email: loginForm.username, // 可以是邮箱或用户名
-      password: loginForm.password,
-      username: loginForm.username
+    const success = await authStore.login({
+      username: loginForm.username,
+      password: loginForm.password
     })
-    
-    // 登录成功，跳转到首页
-    router.push('/home')
-  } catch (error) {
-    alert(`登录失败：${error instanceof Error ? error.message : '未知错误'}\n请使用：admin / 123456`)
+
+    if (success) {
+      toast.success('登录成功')
+      router.push('/home')
+    }
+  } catch (error: any) {
+    console.error('登录错误:', error)
+    if (error.response?.status === 401) {
+      toast.error('用户名或密码错误')
+    } else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
+    } else {
+      toast.error(error.response?.data?.message || '登录失败，请重试')
+    }
   }
 }
 
-// 处理注册
+// 处理注册提交
 const handleRegister = async () => {
+  if (!registerForm.username || !registerForm.email || 
+      !registerForm.password || !registerForm.verificationCode) {
+    toast.error('请填写完整的注册信息')
+    return
+  }
+
   try {
-    await authStore.register({
+    const success = await authStore.register({
       username: registerForm.username,
       email: registerForm.email,
       password: registerForm.password,
-      verificationCode: registerForm.verificationCode
+      vcode: registerForm.verificationCode
     })
-    
-    alert(`注册成功！\n用户名：${registerForm.username}\n邮箱：${registerForm.email}\n请使用新账号登录`)
-    
-    // 注册成功后切换到登录页面
-    activeTab.value = 'login'
-    loginForm.username = registerForm.username
-    
-    // 清空注册表单
-    Object.assign(registerForm, {
-      username: '',
-      email: '',
-      password: '',
-      verificationCode: ''
-    })
-  } catch (error) {
-    alert(`注册失败：${error instanceof Error ? error.message : '未知错误'}\n演示验证码：123456`)
+
+    if (success) {
+      toast.success('注册成功，正在跳转...')
+      router.push('/home')
+    }
+  } catch (error: any) {
+    console.error('注册错误:', error)
+    if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
+    } else {
+      toast.error(error.response?.data?.message || '注册失败，请重试')
+    }
   }
 }
 
@@ -470,26 +487,23 @@ const handleForgotPassword = async () => {
 // 发送注册验证码
 const sendRegisterCode = async () => {
   if (!registerForm.email) {
-    alert('请先输入邮箱地址')
+    toast.error('请先填写邮箱地址')
     return
   }
-  
-  isCodeLoading.value = true
-  
+
   try {
-    await authStore.sendVerificationCode(registerForm.email, 'register')
-    alert(`验证码已发送到：${registerForm.email}\n演示验证码：123456`)
+    isCodeLoading.value = true
+    await authStore.sendVerificationCode(registerForm.email)
     
-    // 开始倒计时
-    registerCodeCountdown.value = 60
-    const timer = setInterval(() => {
-      registerCodeCountdown.value--
-      if (registerCodeCountdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
-  } catch (error) {
-    alert(`发送验证码失败：${error instanceof Error ? error.message : '未知错误'}`)
+    toast.success('验证码已发送到您的邮箱')
+    startCodeCountdown()
+  } catch (error: any) {
+    console.error('发送验证码错误:', error)
+    if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
+    } else {
+      toast.error(error.response?.data?.message || '发送验证码失败，请重试')
+    }
   } finally {
     isCodeLoading.value = false
   }
@@ -498,29 +512,45 @@ const sendRegisterCode = async () => {
 // 发送忘记密码验证码
 const sendForgotCode = async () => {
   if (!forgotForm.email) {
-    alert('请先输入邮箱地址')
+    toast.error('请先填写邮箱地址')
     return
   }
-  
-  isCodeLoading.value = true
-  
+
   try {
-    await authStore.sendVerificationCode(forgotForm.email, 'forgot')
-    alert(`验证码已发送到：${forgotForm.email}\n演示验证码：123456`)
+    isCodeLoading.value = true
+    await authStore.sendVerificationCode(forgotForm.email)
     
-    // 开始倒计时
-    forgotCodeCountdown.value = 60
-    const timer = setInterval(() => {
-      forgotCodeCountdown.value--
-      if (forgotCodeCountdown.value <= 0) {
-        clearInterval(timer)
-      }
-    }, 1000)
-  } catch (error) {
-    alert(`发送验证码失败：${error instanceof Error ? error.message : '未知错误'}`)
+    toast.success('验证码已发送到您的邮箱')
+    startCodeCountdown()
+  } catch (error: any) {
+    console.error('发送验证码错误:', error)
+    if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
+    } else {
+      toast.error(error.response?.data?.message || '发送验证码失败，请重试')
+    }
   } finally {
     isCodeLoading.value = false
   }
+}
+
+// 开始验证码倒计时
+const startCodeCountdown = () => {
+  registerCodeCountdown.value = 60
+  forgotCodeCountdown.value = 60
+  
+  const timer = setInterval(() => {
+    if (registerCodeCountdown.value > 0) {
+      registerCodeCountdown.value--
+    }
+    if (forgotCodeCountdown.value > 0) {
+      forgotCodeCountdown.value--
+    }
+    
+    if (registerCodeCountdown.value <= 0 && forgotCodeCountdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
 }
 </script>
 
