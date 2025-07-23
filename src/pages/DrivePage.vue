@@ -272,7 +272,7 @@
               <!-- 上传文件项（仅在第二级显示，非回收站模式） -->
               <div
                 v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 2"
-                @click="uploadFiles"
+                @click.stop="uploadFiles"
                 class="p-4 rounded-lg border-2 border-dashed border-green-300 hover:border-green-400 hover:bg-green-50 transition-all duration-200 cursor-pointer"
               >
                 <div class="flex flex-col items-center">
@@ -556,9 +556,9 @@
         >
           新建文件夹
         </button>
-        <button 
+        <button
           v-if="getCurrentLevel() === 2 && !driveStore.isInRecycleBin"
-          @click="uploadFiles"
+          @click.stop="uploadFiles"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           上传文件
@@ -1440,17 +1440,22 @@ const confirmCreateFolder = async () => {
   }
 }
 
-const uploadFiles = async () => {
-  if (selectedFiles.value.length === 0) return
-  
-  // 直接上传，无延迟
-  for (const file of selectedFiles.value) {
-    await transferStore.uploadFile(file, driveStore.currentFolderId)
+const uploadFiles = () => {
+  // 检查是否在正确的层级
+  const level = getCurrentLevel()
+  console.log('uploadFiles called - current level:', level, 'breadcrumb:', driveStore.breadcrumb)
+
+  if (level !== 2) {
+    toast.error(`只能在第二级文件夹中上传文件，当前层级：${level}`)
+    return
   }
-  
-  selectedFiles.value = []
-  showUploadDialog.value = false
-  driveStore.refresh()
+
+  // 隐藏右键菜单
+  hideContextMenu()
+
+  // 打开上传对话框
+  console.log('Opening upload dialog')
+  showUploadDialog.value = true
 }
 
 const handleFileSelect = (event: Event) => {
@@ -1469,17 +1474,30 @@ const confirmUpload = async () => {
 
   const level = getCurrentLevel()
   if (level !== 2) {
-    alert('只能在第二级文件夹中上传文件')
+    toast.error('只能在第二级文件夹中上传文件')
     return
   }
 
-  // 使用 TransferStore 处理上传
-  const targetPath = driveStore.currentPath
-  await transferStore.uploadFiles(selectedFiles.value, targetPath)
-  
-  showUploadDialog.value = false
-  selectedFiles.value = []
-  toast.success(`已开始上传 ${selectedFiles.value.length} 个文件`)
+  const fileCount = selectedFiles.value.length
+
+  try {
+    // 使用 TransferStore 处理上传
+    for (const file of selectedFiles.value) {
+      await transferStore.uploadFile(file, driveStore.currentFolderId)
+    }
+
+    toast.success(`已开始上传 ${fileCount} 个文件`)
+
+    // 刷新当前目录
+    await driveStore.refresh()
+  } catch (error) {
+    console.error('上传失败:', error)
+    toast.error('上传失败，请重试')
+  } finally {
+    // 清理状态
+    showUploadDialog.value = false
+    selectedFiles.value = []
+  }
 }
 
 const getFileType = (fileName: string): 'audio' | 'document' | 'other' => {
