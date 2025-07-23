@@ -1928,15 +1928,11 @@ const restoreItem = async () => {
 
 
 
-// 打开功能
+// 打开功能 - 复用双击逻辑
 const openItem = () => {
   if (selectedItem.value) {
-    if (selectedItem.value.type === 'folder') {
-      driveStore.setCurrentPath(selectedItem.value.path)
-    } else {
-      console.log('打开文件:', selectedItem.value.name)
-      toast.success(`打开文件: ${selectedItem.value.name}`)
-    }
+    // 直接调用双击处理函数，实现相同的打开逻辑
+    handleItemDoubleClick(selectedItem.value)
   }
   hideContextMenu()
 }
