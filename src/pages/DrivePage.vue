@@ -14,41 +14,17 @@
             >
               <button
                 @click="navigateToPath(index)"
-                @dragover.prevent="handleBreadcrumbDragOver($event, path, index)"
-                @dragleave="handleBreadcrumbDragLeave"
-                @drop="handleBreadcrumbDrop($event, path, index)"
                 class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
-                :class="{ 
+                :class="{
                   'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
-                  'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1,
-                  'bg-teal-100 ring-2 ring-teal-400': dragOverBreadcrumbPath === path.path
+                  'text-morandi-600 hover:text-teal-600': index !== breadcrumbPaths.length - 1
                 }"
               >
                 <span>{{ path.name }}</span>
                 <ChevronRight v-if="index < breadcrumbPaths.length - 1" :size="16" class="text-morandi-400" />
               </button>
 
-              <!-- 下拉菜单 -->
-              <div
-                v-if="breadcrumbDropdownPath === path.path && breadcrumbDropdownItems.length > 0"
-                class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-morandi-200 z-50"
-                @dragover.prevent="keepBreadcrumbDropdown"
-                @dragleave="handleBreadcrumbDragLeave"
-              >
-                <div
-                  v-for="child in breadcrumbDropdownItems"
-                  :key="child.id"
-                  @dragover.prevent="(e) => { dragOverDropdownTargetId = child.id; keepBreadcrumbDropdown() }"
-                  @dragleave="(e) => { dragOverDropdownTargetId = null; scheduleHideDropdown() }"
-                  @drop="handleBreadcrumbChildDrop($event, child)"
-                  :class="[
-                    'px-4 py-1 text-sm whitespace-nowrap cursor-pointer',
-                    dragOverDropdownTargetId === child.id ? 'bg-teal-100' : 'hover:bg-morandi-50'
-                  ]"
-                >
-                  {{ child.name }}
-                </div>
-              </div>
+
             </div>
           </nav>
 
@@ -2337,263 +2313,15 @@ const findItemInStore = (itemId: number): DriveItem | null => {
   return driveStore.recycleBinItems.find((item: DriveItem) => item.id === itemId) || null
 }
 
-// 面包屑拖拽处理
-const handleBreadcrumbDragOver = (event: DragEvent, path: BreadcrumbPath, index: number) => {
-  // 阻止放置到当前目录
-  if (index === breadcrumbPaths.value.length - 1) {
-    return
-  }
 
-  keepBreadcrumbDropdown()
-  dragOverBreadcrumbPath.value = path.path
-  breadcrumbDropdownPath.value = path.path
 
-  console.log('handleBreadcrumbDragOver:', { path, index, breadcrumbPaths: breadcrumbPaths.value })
 
-  // 清除之前的定时器
-  if (loadDropdownTimer) {
-    clearTimeout(loadDropdownTimer)
-  }
 
-  // 如果已经加载过这个路径，直接使用缓存
-  if (loadedPaths.has(path.path)) {
-    console.log('Using cached data for path:', path.path)
-    return
-  }
 
-  // 防抖：500ms后加载数据
-  loadDropdownTimer = setTimeout(async () => {
-    if (breadcrumbDropdownPath.value === path.path) {
-      console.log('Loading dropdown data for path:', path.path)
-      loadedPaths.add(path.path)
 
-      if (path.path === '/') {
-        await loadSystemFoldersForDropdown()
-      } else {
-        const breadcrumbIndex = breadcrumbPaths.value.findIndex(bp => bp.path === path.path)
-        if (breadcrumbIndex >= 0) {
-          await loadBreadcrumbDropdownItems(path.id, breadcrumbIndex)
-        }
-      }
-    }
-  }, 500)
-}
 
-// 加载系统文件夹用于下拉菜单（带缓存）
-const loadSystemFoldersForDropdown = async () => {
-  try {
-    // 检查缓存是否有效
-    const now = Date.now()
-    if (systemFoldersCache.value.length > 0 && (now - systemFoldersCacheTime.value) < CACHE_DURATION) {
-      console.log('Using cached system folders')
-      breadcrumbDropdownItems.value = systemFoldersCache.value
-      return
-    }
 
-    console.log('Loading system folders for dropdown...')
-    // 调用API获取文件夹层级
-    const response = await API.folder.getFolderHierarchy()
 
-    if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
-      const hierarchyData = (response.data as any).data
-
-      console.log('Folder hierarchy from API:', hierarchyData)
-
-      // 只显示系统文件夹（parent_id为0的文件夹）
-      const systemFolders = hierarchyData.filter((folder: any) =>
-        folder.parent_id === 0 && folder.folder_type === 'system'
-      )
-
-      const mappedFolders = systemFolders.map((folder: any) => ({
-        ...folder,
-        name: folder.folder_name,
-        type: 'folder' as const,
-        size: 0,
-        itemCount: 0,
-        createdAt: new Date(),
-        modifiedAt: new Date(),
-        isLocked: true,
-        path: `/folder/${folder.id}`
-      }))
-
-      // 更新缓存
-      systemFoldersCache.value = mappedFolders
-      systemFoldersCacheTime.value = now
-      breadcrumbDropdownItems.value = mappedFolders
-
-      console.log('breadcrumbDropdownItems after mapping:', breadcrumbDropdownItems.value)
-    }
-  } catch (error) {
-    console.error('加载系统文件夹失败:', error)
-    breadcrumbDropdownItems.value = []
-  }
-}
-
-// 加载面包屑下拉菜单项
-const loadBreadcrumbDropdownItems = async (folderId: number, breadcrumbIndex: number) => {
-  try {
-    // 获取父级文件夹ID
-    let parentFolderId = 0 // 默认为根目录
-
-    if (breadcrumbIndex > 1) {
-      // 如果不是第一级，获取上一级的文件夹ID
-      parentFolderId = breadcrumbPaths.value[breadcrumbIndex - 1].id
-    }
-
-    // 调用API获取该层级的所有文件夹
-    const response = await API.folder.getFolderContent(parentFolderId)
-
-    if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
-      const folderData = (response.data as any).data
-      const folders = folderData.folders || []
-
-      // 转换为DriveItem格式并只显示文件夹
-      breadcrumbDropdownItems.value = folders.map((folder: any) => ({
-        ...folder,
-        name: folder.folder_name,
-        type: 'folder' as const,
-        size: 0,
-        itemCount: folder.sub_count || 0,
-        createdAt: new Date(folder.create_time),
-        modifiedAt: new Date(folder.update_time),
-        isLocked: folder.folder_type === 'system',
-        path: `/folder/${folder.id}`
-      }))
-    }
-  } catch (error) {
-    console.error('加载面包屑下拉菜单失败:', error)
-    breadcrumbDropdownItems.value = []
-  }
-}
-
-const handleBreadcrumbDragLeave = () => {
-  // 清除定时器
-  if (loadDropdownTimer) {
-    clearTimeout(loadDropdownTimer)
-    loadDropdownTimer = null
-  }
-
-  dragOverBreadcrumbPath.value = null
-  scheduleHideDropdown()
-}
-
-const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: number) => {
-  dragOverBreadcrumbPath.value = null
-  // 清除面包屑下拉菜单和定时器
-  clearBreadcrumbDropdown()
-  if (dropdownHideTimer.value) {
-    clearTimeout(dropdownHideTimer.value)
-    dropdownHideTimer.value = null
-  }
-  
-  // 阻止放置到当前目录
-  if (index === breadcrumbPaths.value.length - 1) {
-    return
-  }
-
-  if (!event.dataTransfer) return
-
-  // 阻止直接拖拽到根目录（应该使用下拉菜单选择系统文件夹）
-  if (path.path === '/') {
-    toast.error('请将文件夹拖拽到下拉菜单中的系统文件夹')
-    return
-  }
-
-  const dragData = event.dataTransfer.getData('text/plain')
-
-  try {
-    const parsedData = JSON.parse(dragData)
-    
-    if (parsedData.type === 'multiple' && parsedData.ids) {
-      // 处理多选拖拽到面包屑
-      const itemsToMove = parsedData.ids
-        .map((id: number) => findItemInStore(id))
-        .filter((item: DriveItem | null) => item !== null)
-      
-      if (itemsToMove.length === 0) return
-      
-      // 若拖拽项包含文件夹，且目标不是根目录固定文件夹，则禁止
-      const targetFolderItem = findItemByPath(path.path)
-      if (targetFolderItem && targetFolderItem.type === 'folder' && itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolderItem)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
-        return
-      }
-      
-      // 直接移动所有选中的项目
-      itemsToMove.forEach((item: DriveItem) => {
-        // 检查是否拖动到自己的父目录（无效操作）
-        if (getParentPath(item.path) !== path.path) {
-          selectedItem.value = item
-          moveTargetPath.value = path.path
-          confirmMove()
-        }
-      })
-      
-      // 清空选择
-      selectedItemIds.value.clear()
-      selectedItemId.value = null
-      
-      toast.success(`已将 ${itemsToMove.length} 个项目移动到 "${path.name}"`)
-    }
-  } catch (e) {
-    // 如果不是JSON格式，按原来的单项拖拽处理
-    const draggedItemId = parseInt(dragData, 10)
-    if (isNaN(draggedItemId)) return
-    
-    const itemToMove = findItemInStore(draggedItemId)
-    
-    if (itemToMove) {
-      // 检查是否拖动到自己的父目录（无效操作）
-      if (getParentPath(itemToMove.path) === path.path) {
-          return;
-      }
-
-      selectedItem.value = itemToMove
-      moveTargetPath.value = path.path
-      confirmMove()
-      toast.success(`已将 "${itemToMove.name}" 移动到 "${path.name}"`)
-    }
-  }
-}
-
-const dragOverBreadcrumbPath = ref<string | null>(null)
-
-// 面包屑下拉显示
-const breadcrumbDropdownPath = ref<string | null>(null)
-const breadcrumbDropdownItems = ref<DriveItem[]>([])
-
-// 缓存系统文件夹数据，避免重复请求
-const systemFoldersCache = ref<any[]>([])
-const systemFoldersCacheTime = ref<number>(0)
-const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
-
-// 防抖相关
-let loadDropdownTimer: NodeJS.Timeout | null = null
-const loadedPaths = new Set<string>() // 记录已加载的路径
-
-const clearBreadcrumbDropdown = () => {
-  breadcrumbDropdownPath.value = null
-  breadcrumbDropdownItems.value = []
-}
-
-const dropdownHideTimer = ref<number | null>(null)
-
-const scheduleHideDropdown = () => {
-  if (dropdownHideTimer.value) {
-    clearTimeout(dropdownHideTimer.value)
-  }
-  dropdownHideTimer.value = window.setTimeout(() => {
-    clearBreadcrumbDropdown()
-    dropdownHideTimer.value = null
-  }, 400)
-}
-
-const keepBreadcrumbDropdown = () => {
-  if (dropdownHideTimer.value) {
-    clearTimeout(dropdownHideTimer.value)
-    dropdownHideTimer.value = null
-  }
-}
 
 // 防止快速连击导致重复打开
 const lastFolderOpenTime = ref(0)
@@ -2602,68 +2330,6 @@ const refreshAndHide = async () => {
   hideContextMenu()
   await refreshItems()
 }
-
-const handleBreadcrumbChildDrop = (event: DragEvent, targetFolder: DriveItem) => {
-  // 清除面包屑下拉菜单和定时器
-  clearBreadcrumbDropdown()
-  if (dropdownHideTimer.value) {
-    clearTimeout(dropdownHideTimer.value)
-    dropdownHideTimer.value = null
-  }
-  
-  if (!event.dataTransfer) return
-
-  const dragData = event.dataTransfer.getData('text/plain')
-  
-  try {
-    const parsedData = JSON.parse(dragData)
-    
-    if (parsedData.type === 'multiple' && parsedData.ids) {
-      // 处理多选拖拽到面包屑子项
-      const itemsToMove = parsedData.ids
-        .map((id: number) => findItemInStore(id))
-        .filter((item: DriveItem | null) => item !== null && item.id !== targetFolder.id)
-      
-      if (itemsToMove.length === 0) return
-      
-      // 包含文件夹且目标不是根目录固定文件夹 -> 禁止
-      if (itemsToMove.some((item: DriveItem) => item.type === 'folder') && !isRootFixedFolder(targetFolder)) {
-        toast.error('禁止将文件夹拖拽到非根目录文件夹，防止嵌套')
-        return
-      }
-      
-      // 移动所有选中的项目
-      itemsToMove.forEach((item: DriveItem) => {
-        selectedItem.value = item
-        moveTargetPath.value = targetFolder.path
-        confirmMove()
-      })
-      
-      // 清空选择
-      selectedItemIds.value.clear()
-      selectedItemId.value = null
-      
-      toast.success(`已将 ${itemsToMove.length} 个项目移动到 "${targetFolder.name}"`)
-    }
-  } catch (e) {
-    // 如果不是JSON格式，按原来的单项拖拽处理
-    const draggedItemId = parseInt(dragData, 10)
-    if (isNaN(draggedItemId)) return
-    
-    const itemToMove = findItemInStore(draggedItemId)
-
-    if (itemToMove && itemToMove.id !== targetFolder.id) {
-      selectedItem.value = itemToMove
-      moveTargetPath.value = targetFolder.path
-      confirmMove()
-      toast.success(`已将 "${itemToMove.name}" 移动到 "${targetFolder.name}"`)
-    }
-  }
-}
-
-// 当前悬停下拉条目
-const dragOverDropdownTargetId = ref<string | null>(null)
-
 // 拖拽自动滚动方法
 const handleDragOverScroll = (event: DragEvent) => {
   if (!scrollContainer.value) return
