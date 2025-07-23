@@ -574,18 +574,8 @@
       
       <!-- 多选状态下的右键菜单 -->
       <template v-else-if="selectedItemIds.size > 1">
-        <!-- 根目录多选只显示刷新 -->
-        <template v-if="getCurrentLevel() === 0">
-          <button
-            @click.stop="refreshAndHide"
-            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
-          >
-            刷新
-          </button>
-        </template>
-
         <!-- 回收站模式下的多选菜单 -->
-        <template v-else-if="driveStore.isInRecycleBin">
+        <template v-if="driveStore.isInRecycleBin">
           <button
             @click.stop="restoreMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
@@ -599,6 +589,16 @@
             删除 ({{ selectedItemIds.size }})
           </button>
           <!-- Removed 详细信息按钮 in recycle bin multi-select context menu -->
+        </template>
+        
+        <!-- 根目录多选只显示刷新 -->
+        <template v-else-if="getCurrentLevel() === 0">
+          <button
+            @click.stop="refreshAndHide"
+            class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
+          >
+            刷新
+          </button>
         </template>
         
         <!-- 正常模式下的多选菜单 -->
@@ -2776,19 +2776,29 @@ const deleteMultipleItems = async () => {
   hideContextMenu()
 }
 
-const restoreMultipleItems = () => {
+const restoreMultipleItems = async () => {
   const selectedItems = Array.from(selectedItemIds.value)
     .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
   
-  selectedItems.forEach((item: DriveItem) => {
-    driveStore.restoreItem(item.id)
-  })
-  
+  try {
+    // 分离文件和文件夹ID
+    const fileIds = selectedItems.filter(item => item.type !== 'folder').map(item => item.id)
+    const folderIds = selectedItems.filter(item => item.type === 'folder').map(item => item.id)
+
+    await driveStore.restoreRecycleBinItems({
+      file_ids: fileIds,
+      folder_ids: folderIds
+    })
+    // DriveStore 已经显示了成功提示
+  } catch (error) {
+    console.error('批量恢复失败:', error)
+    toast.error('批量恢复失败，请重试')
+  }
+
   selectedItemIds.value.clear()
   selectedItemId.value = null
-  toast.success(`已从回收站恢复 ${selectedItems.length} 个项目`)
   hideContextMenu()
 }
 
