@@ -13,7 +13,7 @@
               class="relative inline-flex"
             >
               <button
-                @click.stop="navigateToPath(index)"
+                @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); navigateToPath(index); }"
                 class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
                 :class="{
                   'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
@@ -60,7 +60,7 @@
               <!-- 排序按钮 -->
               <div class="relative">
                 <button
-                  @click.stop="toggleSortMenu"
+                  @click.stop="() => { hideContextMenu(); toggleSortMenu(); }"
                   class="flex items-center gap-1 px-3 py-2 rounded-lg border border-morandi-300 text-morandi-700 text-sm bg-white hover:bg-morandi-50 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-colors"
                   title="排序选项"
                 >
@@ -103,7 +103,7 @@
               <!-- 视图切换按钮 -->
               <div class="flex items-center border border-morandi-300 rounded-lg">
                 <button
-                  @click.stop="viewMode = 'grid'"
+                  @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); viewMode = 'grid'; }"
                   :class="[
                     'px-3 py-2 text-sm transition-colors',
                     viewMode === 'grid'
@@ -116,7 +116,7 @@
                   <Grid2x2 :size="16" />
                 </button>
                 <button
-                  @click.stop="viewMode = 'list'"
+                  @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); viewMode = 'list'; }"
                   :class="[
                     'px-3 py-2 text-sm transition-colors',
                     viewMode === 'list'
@@ -136,7 +136,7 @@
               <!-- 正常模式：回收站按钮 -->
               <button
                 v-if="!driveStore.isInRecycleBin"
-                @click.stop="openRecycleBin"
+                @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); openRecycleBin(); }"
                 @dragover.prevent="handleTrashDragOver"
                 @dragleave="handleTrashDragLeave"
                 @drop="handleTrashDrop"
@@ -152,7 +152,7 @@
               <!-- 回收站模式：操作按钮 -->
               <div v-if="driveStore.isInRecycleBin" class="flex items-center gap-2">
                 <button
-                  @click.stop="restoreAllItems"
+                  @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); restoreAllItems(); }"
                   class="flex items-center justify-center w-9 h-9 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="一键还原"
                   :disabled="driveStore.recycleBinItems.length === 0"
@@ -160,7 +160,7 @@
                   <RefreshCcw :size="16" />
                 </button>
                 <button
-                  @click.stop="deleteAllItems"
+                  @click.stop="() => { hideContextMenu(); hideAllLeftClickMenus(); deleteAllItems(); }"
                   class="flex items-center justify-center w-9 h-9 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="一键删除"
                   :disabled="driveStore.recycleBinItems.length === 0"
@@ -1546,6 +1546,12 @@ const hideContextMenu = () => {
   selectedItem.value = null
 }
 
+// 隐藏所有左键菜单
+const hideAllLeftClickMenus = () => {
+  showSortMenu.value = false
+  // 如果以后有其他左键菜单，可以在这里添加
+}
+
 const preventHide = () => {
   // 阻止菜单自动隐藏
 }
@@ -2001,6 +2007,12 @@ const closeSortMenu = () => {
 
 // 切换排序菜单
 const toggleSortMenu = () => {
+  // 如果要打开排序菜单，先关闭其他所有菜单
+  if (!showSortMenu.value) {
+    hideContextMenu() // 关闭右键菜单
+    // 这里不需要调用hideAllLeftClickMenus()因为当前只有排序菜单
+  }
+  
   showSortMenu.value = !showSortMenu.value
   
   if (showSortMenu.value) {
@@ -2401,6 +2413,7 @@ const lastFolderOpenTime = ref(0)
 
 const refreshAndHide = async () => {
   hideContextMenu()
+  hideAllLeftClickMenus()
   await refreshItems()
 }
 // 拖拽自动滚动方法
