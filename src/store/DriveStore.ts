@@ -111,7 +111,9 @@ export const useDriveStore = defineStore('drive', () => {
         size: 0,
         itemCount: folder.sub_count || 0,
         createdAt: createdAt,
-        modifiedAt: modifiedAt
+        modifiedAt: modifiedAt,
+        // 系统级文件夹（根目录下的文件夹）不能被重命名、移动或删除
+        isLocked: folder.folder_type === FolderTypeEnum.SYSTEM
       }
     })
 
@@ -126,7 +128,9 @@ export const useDriveStore = defineStore('drive', () => {
         type: file.file_type === FileTypeEnum.MUSIC ? 'audio' : 'document' as const,
         size: file.file_size || 0,
         createdAt: createdAt,
-        modifiedAt: modifiedAt
+        modifiedAt: modifiedAt,
+        // 文件通常不会被锁定
+        isLocked: false
       }
     })
 
@@ -241,7 +245,7 @@ export const useDriveStore = defineStore('drive', () => {
           toast.error('歌单文件夹下只能创建播放列表')
           return false
         }
-        if (parentFolder.folder_name === '文档' && data.folder_type !== FolderTypeEnum.BOOKLIST) {
+        if ((parentFolder.folder_name === '文档' || parentFolder.folder_name === '书单') && data.folder_type !== FolderTypeEnum.BOOKLIST) {
           toast.error('文档文件夹下只能创建笔记本')
           return false
         }

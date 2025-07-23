@@ -246,8 +246,8 @@
 
                 <div class="flex flex-col items-center pointer-events-none">
                   <div class="w-12 h-12 mb-3 flex items-center justify-center">
-                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '音乐'" :size="48" class="text-blue-500" />
-                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '文档'" :size="48" class="text-red-500" />
+                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && (item.name === '歌单' || item.name === '音乐')" :size="48" class="text-blue-500" />
+                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && (item.name === '书单' || item.name === '文档')" :size="48" class="text-red-500" />
                     <FileUp v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '上传'" :size="48" class="text-green-500" />
                     <Share2 v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '分享'" :size="48" class="text-purple-500" />
                     <FolderClosed v-else-if="item.type === 'folder'" :size="48" class="text-blue-500" />
@@ -256,7 +256,7 @@
                   </div>
 
                   <p class="text-sm text-center font-medium text-morandi-900 truncate w-full">
-                    {{ (getCurrentLevel() === 0 && item.name === '音乐') ? '歌单' : item.name }}
+                    {{ item.name }}
                   </p>
 
                   <p class="text-xs text-morandi-500 mt-1">
@@ -272,7 +272,7 @@
                 </div>
               </div>
 
-              <!-- 新建文件夹项（在根目录和第一级都显示，非回收站模式） -->
+              <!-- 新建文件夹项（只在第一级系统文件夹内显示，非回收站模式） -->
               <div
                 v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 1"
                 @click="createNewFolder"
@@ -359,15 +359,15 @@
                 <!-- 图标和名称 -->
                 <div class="flex items-center flex-1 gap-3 pointer-events-none">
                   <div class="w-8 h-8 flex items-center justify-center">
-                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '音乐'" :size="20" class="text-blue-500" />
-                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '文档'" :size="20" class="text-red-500" />
+                    <FileMusic v-if="item.type === 'folder' && getCurrentLevel() === 0 && (item.name === '歌单' || item.name === '音乐')" :size="20" class="text-blue-500" />
+                    <LibraryBig v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && (item.name === '书单' || item.name === '文档')" :size="20" class="text-red-500" />
                     <FileUp v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '上传'" :size="20" class="text-green-500" />
                     <Share2 v-else-if="item.type === 'folder' && getCurrentLevel() === 0 && item.name === '分享'" :size="20" class="text-purple-500" />
                     <FolderClosed v-else-if="item.type === 'folder'" :size="20" class="text-blue-500" />
                     <Music v-else-if="item.type === 'audio'" :size="20" class="text-green-500" />
                     <FileText v-else :size="20" class="text-morandi-500" />
                   </div>
-                  <span class="text-sm font-medium text-morandi-900 truncate">{{ (getCurrentLevel() === 0 && item.name === '音乐') ? '歌单' : item.name }}</span>
+                  <span class="text-sm font-medium text-morandi-900 truncate">{{ item.name }}</span>
                 </div>
                 
                 <!-- 文件大小 / 删除信息 -->
@@ -394,7 +394,7 @@
                 </div>
               </div>
               
-              <!-- 新建文件夹项（列表模式） -->
+              <!-- 新建文件夹项（列表模式，只在第一级系统文件夹内显示） -->
               <div
                 v-if="!driveStore.isInRecycleBin && !driveStore.searchQuery && getCurrentLevel() === 1"
                 @click="createNewFolder"
@@ -573,7 +573,7 @@
         >
           粘贴
         </button>
-        <button 
+        <button
           v-if="getCurrentLevel() === 1 && !driveStore.isInRecycleBin"
           @click="createNewFolder"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
@@ -995,6 +995,7 @@ import { useSettingsStore } from '../store/SettingsStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import type { FolderInfo, FileInfo } from '@/types/api'
+import { FolderTypeEnum } from '@/types/api'
 import {
   Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, 
   FileMusic, LibraryBig, FileUp, Share2
@@ -1034,6 +1035,9 @@ const showCreateFolderDialog = ref(false)
 const showUploadDialog = ref(false)
 const newFolderName = ref('')
 const selectedFiles = ref<File[]>([])
+
+// 当前文件夹信息（用于创建子文件夹时确定类型）
+const currentFolderInfo = ref<FolderInfo | null>(null)
 
 // 排序和视图相关
 const sortBy = ref<'name' | 'size' | 'modifiedAt' | 'createdAt' | 'default'>('default')
@@ -1109,13 +1113,8 @@ const currentItems = computed(() => {
     return driveStore.recycleBinItems
   }
 
-  // 对于根目录，直接返回所有driveItems
-  if (driveStore.currentPath === '/' || driveStore.currentFolderId === 0) {
-    return driveStore.driveItems
-  }
-
-  const currentFolder = findItemByPath(driveStore.currentPath)
-  return currentFolder?.children || []
+  // 直接使用DriveStore的数据，它已经根据当前文件夹ID返回了正确的内容
+  return driveStore.driveItems
 })
 
 const filteredItems = computed(() => {
@@ -1180,8 +1179,11 @@ const availableFolders = computed(() => {
 
 // 辅助函数
 const getCurrentLevel = (): number => {
-  const pathParts = driveStore.currentPath.split('/').filter((p: string) => p)
-  return pathParts.length
+  // 根据面包屑长度判断层级
+  // breadcrumb.length === 0: 根目录 (level 0)
+  // breadcrumb.length === 1: 第一级系统文件夹内 (level 1)
+  // breadcrumb.length === 2: 第二级用户文件夹内 (level 2)
+  return driveStore.breadcrumb.length
 }
 
 const getCurrentLevelTitle = (): string => {
@@ -1293,6 +1295,20 @@ const handleItemDoubleClick = (item: DriveItem) => {
   }
 
   if (item.type === 'folder') {
+    // 记录当前文件夹信息（用于后续创建子文件夹）
+    if (getCurrentLevel() === 0) {
+      // 如果是从根目录点击系统文件夹，记录系统文件夹信息
+      currentFolderInfo.value = {
+        id: item.id,
+        folder_name: item.name,
+        folder_type: item.folder_type || 'system' as any,
+        sub_count: item.itemCount || 0,
+        sorted_order: 0,
+        create_time: item.createdAt?.toISOString() || new Date().toISOString(),
+        update_time: item.modifiedAt?.toISOString() || new Date().toISOString()
+      }
+    }
+
     // 双击文件夹进入该文件夹
     driveStore.navigateToFolder(item.id)
   } else if (item.type === 'audio') {
@@ -1323,14 +1339,16 @@ const handleItemDoubleClick = (item: DriveItem) => {
 
 const createNewFolder = () => {
   const level = getCurrentLevel()
+  console.log('createNewFolder called, level:', level, 'breadcrumb:', driveStore.breadcrumb)
+
   if (level !== 1) {
-    alert('只能在第一级分类中创建文件夹')
+    toast.error('只能在第一级分类中创建文件夹')
     return
   }
   hideContextMenu() // 隐藏右键菜单
   showCreateFolderDialog.value = true
   newFolderName.value = ''
-  
+
   // 在下一个tick自动聚焦输入框
   nextTick(() => {
     const input = document.querySelector('input[placeholder="请输入文件夹名称"]') as HTMLInputElement
@@ -1341,49 +1359,58 @@ const createNewFolder = () => {
   })
 }
 
-const confirmCreateFolder = () => {
+const confirmCreateFolder = async () => {
   const folderName = newFolderName.value.trim()
   if (!folderName) return
 
   const level = getCurrentLevel()
+  console.log('confirmCreateFolder called, level:', level, 'folderName:', folderName)
+
   if (level !== 1) {
-    alert('只能在第一级分类中创建文件夹')
+    toast.error('只能在第一级分类中创建文件夹')
     return
   }
 
-  // 生成新文件夹ID
-  const newId = Date.now()
-  const newPath = driveStore.currentPath === '/' ? `/${folderName}` : `${driveStore.currentPath}/${folderName}`
-  
-  const newFolder: DriveItem = {
-    id: newId,
-    name: folderName,
-    type: 'folder',
-    size: 0,
-    modifiedAt: new Date(),
-    createdAt: new Date(),
-    path: newPath,
-    parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
-    level: level + 1,
-    itemCount: 0,
-    children: []
+  // 确定父文件夹ID和文件夹类型
+  const parentFolderId = driveStore.currentFolderId
+
+  // 使用记录的文件夹信息或面包屑信息
+  let parentFolderName = ''
+  if (currentFolderInfo.value) {
+    parentFolderName = currentFolderInfo.value.folder_name
+  } else if (driveStore.breadcrumb.length > 0) {
+    parentFolderName = driveStore.breadcrumb[driveStore.breadcrumb.length - 1].name
   }
 
-  // 添加到对应位置
-  if (driveStore.currentPath === '/') {
-    // 在根目录创建第一级大类文件夹
-    driveStore.driveItems.push(newFolder)
+  console.log('parentFolderId:', parentFolderId, 'parentFolderName:', parentFolderName, 'currentFolderInfo:', currentFolderInfo.value, 'breadcrumb:', driveStore.breadcrumb)
+
+  if (!parentFolderName) {
+    toast.error('无法确定父文件夹')
+    return
+  }
+
+  // 根据父文件夹类型确定要创建的文件夹类型
+  let folderType: FolderTypeEnum
+  if (parentFolderName === '歌单') {
+    folderType = FolderTypeEnum.PLAYLIST
+  } else if (parentFolderName === '书单' || parentFolderName === '文档') {
+    folderType = FolderTypeEnum.BOOKLIST
   } else {
-    // 在第一级大类中创建第二级文件夹
-    const parent = currentFolder.value
-    if (parent?.children) {
-      parent.children.push(newFolder)
-      parent.itemCount = (parent.itemCount || 0) + 1
-    }
+    toast.error('只能在歌单或书单文件夹下创建子文件夹')
+    return
   }
 
-  showCreateFolderDialog.value = false
-  newFolderName.value = ''
+  // 调用DriveStore的createFolder方法
+  const success = await driveStore.createFolder({
+    name: folderName,
+    parent_id: parentFolderId,
+    folder_type: folderType
+  })
+
+  if (success) {
+    showCreateFolderDialog.value = false
+    newFolderName.value = ''
+  }
 }
 
 const uploadFiles = async () => {
