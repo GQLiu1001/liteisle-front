@@ -5,7 +5,7 @@
         <!-- 主要内容区域 -->
         <div class="card h-full flex flex-col">
           <!-- 面包屑导航 -->
-          <nav class="flex items-center gap-2 text-sm mb-6 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-3 rounded-lg border border-teal-100 shadow-sm">
+          <nav class="flex items-center gap-2 text-sm mb-6 bg-gradient-to-r from-teal-50 to-blue-50 px-4 py-3 rounded-lg border border-teal-100 shadow-sm" @click="hideContextMenu">
             <div class="font-semibold text-morandi-800 mr-2 flex-shrink-0">导航栏:</div>
             <div
               v-for="(path, index) in breadcrumbPaths"
@@ -13,7 +13,7 @@
               class="relative inline-flex"
             >
               <button
-                @click="navigateToPath(index)"
+                @click.stop="navigateToPath(index)"
                 class="flex items-center gap-1 px-3 py-1 rounded-md hover:bg-white/80 transition-all duration-200 shadow-sm"
                 :class="{
                   'text-teal-700 font-semibold bg-white shadow-md': index === breadcrumbPaths.length - 1,
@@ -43,7 +43,7 @@
             <!-- 中间区域：刷新按钮 + 搜索框和控制按钮 -->
             <div class="flex-1 flex justify-center items-center gap-6">
               <button
-                @click="refreshAndHide"
+                @click.stop="refreshAndHide"
                 :disabled="isRefreshing"
                 class="p-2 rounded-lg border border-morandi-300 text-morandi-600 hover:bg-morandi-50 hover:border-morandi-400 transition-all duration-200 disabled:opacity-50"
                 title="刷新"
@@ -77,7 +77,7 @@
                   <button
                     v-for="option in sortOptions"
                     :key="option.value"
-                    @click="selectSort(option.value)"
+                    @click.stop="selectSort(option.value)"
                     :class="[
                       'w-full px-4 py-2 text-left text-sm hover:bg-morandi-50 flex items-center gap-2 transition-colors',
                       sortBy === option.value ? 'text-teal-600 bg-teal-50' : 'text-morandi-700'
@@ -91,7 +91,7 @@
 
                   <!-- 排序方向 -->
                   <button
-                    @click="toggleSortOrder"
+                    @click.stop="toggleSortOrder"
                     class="w-full px-4 py-2 text-left text-sm hover:bg-morandi-50 flex items-center gap-2 transition-colors text-morandi-700"
                   >
                     <span>{{ sortOrder === 'ASC' ? '升序' : '降序' }}</span>
@@ -103,11 +103,11 @@
               <!-- 视图切换按钮 -->
               <div class="flex items-center border border-morandi-300 rounded-lg">
                 <button
-                  @click="viewMode = 'grid'"
+                  @click.stop="viewMode = 'grid'"
                   :class="[
                     'px-3 py-2 text-sm transition-colors',
-                    viewMode === 'grid' 
-                      ? 'bg-teal-500 text-white' 
+                    viewMode === 'grid'
+                      ? 'bg-teal-500 text-white'
                       : 'text-morandi-600 hover:bg-morandi-50'
                   ]"
                   class="rounded-l-lg"
@@ -116,11 +116,11 @@
                   <Grid2x2 :size="16" />
                 </button>
                 <button
-                  @click="viewMode = 'list'"
+                  @click.stop="viewMode = 'list'"
                   :class="[
                     'px-3 py-2 text-sm transition-colors',
-                    viewMode === 'list' 
-                      ? 'bg-teal-500 text-white' 
+                    viewMode === 'list'
+                      ? 'bg-teal-500 text-white'
                       : 'text-morandi-600 hover:bg-morandi-50'
                   ]"
                   class="rounded-r-lg"
@@ -136,7 +136,7 @@
               <!-- 正常模式：回收站按钮 -->
               <button
                 v-if="!driveStore.isInRecycleBin"
-                @click="openRecycleBin"
+                @click.stop="openRecycleBin"
                 @dragover.prevent="handleTrashDragOver"
                 @dragleave="handleTrashDragLeave"
                 @drop="handleTrashDrop"
@@ -152,16 +152,16 @@
               <!-- 回收站模式：操作按钮 -->
               <div v-if="driveStore.isInRecycleBin" class="flex items-center gap-2">
                 <button
-                  @click="restoreAllItems"
-                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors"
+                  @click.stop="restoreAllItems"
+                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-green-300 text-green-600 hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="一键还原"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
                   <RefreshCcw :size="16" />
                 </button>
                 <button
-                  @click="deleteAllItems"
-                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors"
+                  @click.stop="deleteAllItems"
+                  class="flex items-center justify-center w-9 h-9 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="一键删除"
                   :disabled="driveStore.recycleBinItems.length === 0"
                 >
@@ -172,10 +172,11 @@
           </div>
 
                         <!-- 内容视图 -->
-          <div 
-            class="flex-1 overflow-auto select-none relative" 
+          <div
+            class="flex-1 overflow-auto select-none relative"
             @contextmenu.prevent="showEmptyContextMenu"
             @mousedown="startSelection"
+            @click="hideContextMenu"
             ref="scrollContainer"
           >
             <!-- 选择框 -->
@@ -542,29 +543,29 @@
 
       <!-- 空白区域的右键菜单 -->
       <template v-if="!selectedItem && selectedItemIds.size === 0">
-        <button 
+        <button
           v-if="clipboard.length && clipboardAction && getCurrentLevel() !== 0 && !driveStore.isInRecycleBin"
-          @click="pasteItem"
+          @click.stop="pasteItem"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           粘贴
         </button>
         <button
           v-if="getCurrentLevel() === 1 && !driveStore.isInRecycleBin"
-          @click="createNewFolder"
+          @click.stop="() => { hideContextMenu(); createNewFolder(); }"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           新建文件夹
         </button>
         <button
           v-if="getCurrentLevel() === 2 && !driveStore.isInRecycleBin"
-          @click.stop="uploadFiles"
+          @click.stop="() => { hideContextMenu(); uploadFiles(); }"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           上传文件
         </button>
-        <button 
-          @click="refreshAndHide"
+        <button
+          @click.stop="refreshAndHide"
           class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
         >
           刷新
@@ -575,24 +576,24 @@
       <template v-else-if="selectedItemIds.size > 1">
         <!-- 根目录多选只显示刷新 -->
         <template v-if="getCurrentLevel() === 0">
-          <button 
-            @click="refreshAndHide"
+          <button
+            @click.stop="refreshAndHide"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             刷新
           </button>
         </template>
-        
+
         <!-- 回收站模式下的多选菜单 -->
         <template v-else-if="driveStore.isInRecycleBin">
-          <button 
-            @click="restoreMultipleItems"
+          <button
+            @click.stop="restoreMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
           >
             恢复 ({{ selectedItemIds.size }})
           </button>
-          <button 
-            @click="deleteMultipleItems"
+          <button
+            @click.stop="deleteMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
             删除 ({{ selectedItemIds.size }})
@@ -602,23 +603,23 @@
         
         <!-- 正常模式下的多选菜单 -->
         <template v-else>
-          <button 
-            @click="copyMultipleItems"
+          <button
+            @click.stop="copyMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             复制 ({{ selectedItemIds.size }})
           </button>
-          <button 
+          <button
             v-if="!hasLockedItems()"
-            @click="cutMultipleItems"
+            @click.stop="cutMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             剪切 ({{ selectedItemIds.size }})
           </button>
           <hr class="my-1 border-morandi-200" v-if="!hasLockedItems()">
-          <button 
+          <button
             v-if="!hasLockedItems()"
-            @click="deleteMultipleItems"
+            @click.stop="deleteMultipleItems"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
             删除 ({{ selectedItemIds.size }})
@@ -630,14 +631,14 @@
       <template v-else>
         <!-- 回收站模式下的右键菜单 -->
         <template v-if="driveStore.isInRecycleBin">
-          <button 
-            @click="() => restoreItem()"
+          <button
+            @click.stop="() => restoreItem()"
             class="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
           >
             恢复
           </button>
-          <button 
-            @click="() => deleteItem()"
+          <button
+            @click.stop="() => deleteItem()"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
             删除
@@ -647,75 +648,75 @@
         
         <!-- 正常模式下的右键菜单 -->
         <template v-else>
-          <button 
+          <button
             v-if="driveStore.isInRecycleBin || getCurrentLevel() <= 2"
-            @click="refreshAndHide"
+            @click.stop="refreshAndHide"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             刷新
           </button>
-          <button 
-            @click="openItem"
+          <button
+            @click.stop="openItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             打开
           </button>
-          <button 
-            @click="downloadItem"
+          <button
+            @click.stop="downloadItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             下载
           </button>
           <!-- 分享功能，一级文件夹不显示 -->
-          <button 
+          <button
             v-if="!isFirstLevelFolder(selectedItem)"
-            @click="showShareDialog"
+            @click.stop="showShareDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             分享
           </button>
           <hr class="my-1 border-morandi-200">
-          <button 
+          <button
             v-if="getCurrentLevel() !== 0"
-            @click="copyItem"
+            @click.stop="copyItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             复制
           </button>
-          <button 
+          <button
             v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click="cutItem"
+            @click.stop="cutItem"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             剪切
           </button>
           <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0 && !selectedItem?.isLocked">
-          <button 
+          <button
             v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click="showDeleteConfirm"
+            @click.stop="showDeleteConfirm"
             class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
           >
             删除
           </button>
-          <button 
+          <button
             v-if="getCurrentLevel() !== 0"
-            @click="showRenameDialog"
+            @click.stop="showRenameDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             重命名
           </button>
-          <button 
+          <button
             v-if="!selectedItem?.isLocked && getCurrentLevel() !== 0"
-            @click="showMoveDialog"
+            @click.stop="showMoveDialog"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             移动到
           </button>
           <hr class="my-1 border-morandi-200" v-if="getCurrentLevel() !== 0">
           <!-- 回收站模式下不显示详细信息按钮 -->
-          <button 
+          <button
             v-if="!driveStore.isInRecycleBin"
-            @click="showItemDetails"
+            @click.stop="showItemDetails"
             class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
           >
             详细信息
@@ -1443,7 +1444,6 @@ const confirmCreateFolder = async () => {
 const uploadFiles = () => {
   // 检查是否在正确的层级
   const level = getCurrentLevel()
-  console.log('uploadFiles called - current level:', level, 'breadcrumb:', driveStore.breadcrumb)
 
   if (level !== 2) {
     toast.error(`只能在第二级文件夹中上传文件，当前层级：${level}`)
@@ -1454,7 +1454,6 @@ const uploadFiles = () => {
   hideContextMenu()
 
   // 打开上传对话框
-  console.log('Opening upload dialog')
   showUploadDialog.value = true
 }
 
@@ -1774,10 +1773,7 @@ const confirmDelete = async () => {
 
     showDeleteConfirmState.value = false
     selectedItem.value = null
-    toast.success(`"${item.name}" 已移至回收站`)
-
-    // 刷新当前目录
-    await driveStore.refresh()
+    // DriveStore.deleteItems 已经显示了成功提示，这里不需要重复显示，也不需要手动刷新
   } catch (error) {
     console.error('删除失败:', error)
     toast.error('删除失败，请重试')
@@ -1797,13 +1793,26 @@ const restoreAllItems = async () => {
   }
 
   if (confirm(`确定要恢复回收站中的所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
-    const fileIds = driveStore.recycleBinFiles.map(file => file.original_id)
-    const folderIds = driveStore.recycleBinFolders.map(folder => folder.original_id)
+    try {
+      // 从回收站数据中提取 original_id
+      const fileIds = driveStore.recycleBinFiles.map((file: any) => file.original_id).filter(id => id)
+      const folderIds = driveStore.recycleBinFolders.map((folder: any) => folder.original_id).filter(id => id)
 
-    await driveStore.restoreRecycleBinItems({
-      file_ids: fileIds,
-      folder_ids: folderIds
-    })
+      console.log('Restoring - fileIds:', fileIds, 'folderIds:', folderIds)
+
+      if (fileIds.length === 0 && folderIds.length === 0) {
+        toast.error('没有找到可恢复的项目')
+        return
+      }
+
+      await driveStore.restoreRecycleBinItems({
+        file_ids: fileIds,
+        folder_ids: folderIds
+      })
+    } catch (error) {
+      console.error('恢复失败:', error)
+      toast.error('恢复失败，请重试')
+    }
   }
 }
 
@@ -1814,35 +1823,81 @@ const deleteAllItems = async () => {
   }
 
   if (confirm('确定要永久删除回收站中的所有项目吗？此操作不可恢复。')) {
-    await driveStore.emptyRecycleBin()
+    try {
+      await driveStore.emptyRecycleBin()
+    } catch (error) {
+      console.error('清空回收站失败:', error)
+      toast.error('清空回收站失败，请重试')
+    }
   }
 }
 
-const deleteItem = (itemToDelete?: DriveItem) => {
+const deleteItem = async (itemToDelete?: DriveItem) => {
   const item = itemToDelete || selectedItem.value
   if (!item) return;
-  
-  const itemName = item.name;
-  driveStore.deleteItem(item.id);
-  showContextMenuState.value = false;
-  selectedItem.value = null;
-  selectedItemId.value = null;
-  
-  // 根据当前模式显示不同的消息
-  if (driveStore.isInRecycleBin) {
-    toast.success(`"${itemName}" 已永久删除`);
-  } else {
-    toast.success(`"${itemName}" 已移至回收站`);
+
+  try {
+    if (driveStore.isInRecycleBin) {
+      // 在回收站中，彻底删除项目
+      if (item.type === 'folder') {
+        await driveStore.deleteRecycleBinItems({
+          file_ids: [],
+          folder_ids: [item.id]
+        })
+      } else {
+        await driveStore.deleteRecycleBinItems({
+          file_ids: [item.id],
+          folder_ids: []
+        })
+      }
+      // DriveStore 已经显示了成功提示
+    } else {
+      // 正常模式下，移动到回收站
+      if (item.type === 'folder') {
+        await driveStore.deleteItems({
+          file_ids: [],
+          folder_ids: [item.id]
+        })
+      } else {
+        await driveStore.deleteItems({
+          file_ids: [item.id],
+          folder_ids: []
+        })
+      }
+      // DriveStore 已经显示了成功提示
+    }
+  } catch (error) {
+    console.error('删除失败:', error)
+    toast.error('删除失败，请重试')
   }
+
+  hideContextMenu(); // 使用统一的隐藏菜单方法
 };
 
-const restoreItem = () => {
+const restoreItem = async () => {
   if (!selectedItem.value) return;
-  const itemName = selectedItem.value!.name;
-  driveStore.restoreItem(selectedItem.value!.id);
+  const itemName = selectedItem.value.name;
+
+  try {
+    if (selectedItem.value.type === 'folder') {
+      await driveStore.restoreRecycleBinItems({
+        file_ids: [],
+        folder_ids: [selectedItem.value.id]
+      })
+    } else {
+      await driveStore.restoreRecycleBinItems({
+        file_ids: [selectedItem.value.id],
+        folder_ids: []
+      })
+    }
+    // DriveStore 已经显示了成功提示
+  } catch (error) {
+    console.error('恢复失败:', error)
+    toast.error('恢复失败，请重试')
+  }
+
   showContextMenuState.value = false;
   selectedItem.value = null;
-  toast.success(`"${itemName}" 已恢复`);
 };
 
 
@@ -2473,10 +2528,7 @@ const handleTrashDrop = async (event: DragEvent) => {
           folder_ids: folderIds
         })
 
-        toast.success(`已将 ${itemsToDelete.length} 个项目移至回收站`)
-
-        // 刷新当前目录
-        await driveStore.refresh()
+        // DriveStore.deleteItems 已经显示了成功提示，这里不需要重复显示，也不需要手动刷新
       } catch (error) {
         console.error('批量删除失败:', error)
         toast.error('删除失败，请重试')
@@ -2486,8 +2538,6 @@ const handleTrashDrop = async (event: DragEvent) => {
       // 清空选择
       selectedItemIds.value.clear()
       selectedItemId.value = null
-      
-      toast.success(`已将 ${itemsToDelete.length} 个项目移至回收站`)
     }
   } catch (e) {
     // 如果不是JSON格式，按原来的单项拖拽处理
@@ -2515,10 +2565,7 @@ const handleTrashDrop = async (event: DragEvent) => {
           })
         }
 
-        toast.success(`"${itemToDelete.name}" 已移至回收站`)
-
-        // 刷新当前目录
-        await driveStore.refresh()
+        // DriveStore.deleteItems 已经显示了成功提示，这里不需要重复显示，也不需要手动刷新
       } catch (error) {
         console.error('删除失败:', error)
         toast.error('删除失败，请重试')
@@ -2681,24 +2728,36 @@ const cutMultipleItems = () => {
   hideContextMenu()
 }
 
-const deleteMultipleItems = () => {
+const deleteMultipleItems = async () => {
   const selectedItems = Array.from(selectedItemIds.value)
     .map((id: number) => findItemInStore(id))
     .filter((item): item is DriveItem => item !== null)
   if (!selectedItems.length) return
-  
-  // 统一使用 driveStore.deleteItem 方法
-  selectedItems.forEach((item: DriveItem) => {
-    driveStore.deleteItem(item.id)
-  })
-  
-  // 根据当前模式显示不同的消息
-  if (driveStore.isInRecycleBin) {
-    toast.success(`已永久删除 ${selectedItems.length} 个项目`)
-  } else {
-    toast.success(`已将 ${selectedItems.length} 个项目移至回收站`)
+
+  try {
+    // 分离文件和文件夹ID
+    const fileIds = selectedItems.filter(item => item.type !== 'folder').map(item => item.id)
+    const folderIds = selectedItems.filter(item => item.type === 'folder').map(item => item.id)
+
+    if (driveStore.isInRecycleBin) {
+      // 在回收站中，彻底删除项目
+      await driveStore.deleteRecycleBinItems({
+        file_ids: fileIds,
+        folder_ids: folderIds
+      })
+    } else {
+      // 正常模式下，移动到回收站
+      await driveStore.deleteItems({
+        file_ids: fileIds,
+        folder_ids: folderIds
+      })
+    }
+    // DriveStore 已经显示了成功提示
+  } catch (error) {
+    console.error('批量删除失败:', error)
+    toast.error('批量删除失败，请重试')
   }
-  
+
   selectedItemIds.value.clear()
   selectedItemId.value = null
   hideContextMenu()
