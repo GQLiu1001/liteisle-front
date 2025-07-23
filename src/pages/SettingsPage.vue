@@ -184,24 +184,24 @@
                   <HardDrive :size="20" class="text-morandi-600" />
                   <h4 class="font-medium text-morandi-900">云盘容量</h4>
                 </div>
-                
+
                 <div class="space-y-2">
                   <div class="flex justify-between text-sm">
-                    <span class="text-morandi-600">{{ settingsStore.storageInfo.text }}</span>
-                    <span class="font-medium text-morandi-900">{{ settingsStore.storageInfo.percentage.toFixed(1) }}%</span>
+                    <span class="text-morandi-600">已使用 {{ authStore.getStorageInfo.used }} / {{ authStore.getStorageInfo.quota }}</span>
+                    <span class="font-medium text-morandi-900">{{ authStore.getStorageInfo.percentage.toFixed(1) }}%</span>
                   </div>
-                  
+
                   <!-- 进度条 -->
                   <div class="w-full bg-morandi-200 rounded-full h-2.5">
-                    <div 
+                    <div
                       class="bg-gradient-to-r from-teal-400 to-teal-600 h-2.5 rounded-full transition-all duration-300"
-                      :style="{ width: settingsStore.storageInfo.percentage + '%' }"
+                      :style="{ width: authStore.getStorageInfo.percentage + '%' }"
                     ></div>
                   </div>
-                  
+
                   <div class="flex justify-between text-xs text-morandi-500">
-                    <span>0 GB</span>
-                    <span>{{ settingsStore.cloudStorage.total }} GB</span>
+                    <span>0 B</span>
+                    <span>{{ authStore.getStorageInfo.quota }}</span>
                   </div>
                 </div>
               </div>
@@ -881,8 +881,12 @@ const copyShareInfo = async (share: any) => {
 onMounted(async () => {
   // 加载保存的设置
   await settingsStore.loadSettings();
-      // 初始化分享数据
-    await settingsStore.loadShareRecords(1);
+  // 初始化分享数据
+  await settingsStore.loadShareRecords(1);
+  // 确保用户信息已加载（获取最新的云盘容量信息）
+  if (authStore.isAuthenticated && !authStore.user) {
+    await authStore.getCurrentUser();
+  }
 });
 </script>
 

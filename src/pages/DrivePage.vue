@@ -1096,11 +1096,12 @@ const currentItems = computed(() => {
   if (driveStore.isInRecycleBin) {
     return driveStore.recycleBinItems
   }
-  
-  if (driveStore.currentPath === '/') {
-    return driveStore.driveItems.filter((item: DriveItem) => item.parentId === null)
+
+  // 对于根目录，直接返回所有driveItems
+  if (driveStore.currentPath === '/' || driveStore.currentFolderId === 0) {
+    return driveStore.driveItems
   }
-  
+
   const currentFolder = findItemByPath(driveStore.currentPath)
   return currentFolder?.children || []
 })
@@ -1336,8 +1337,8 @@ const handleItemDoubleClick = (item: DriveItem) => {
   }
 
   if (item.type === 'folder') {
-    const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
-    driveStore.setCurrentPath(newPath)
+    // 双击文件夹进入该文件夹
+    driveStore.navigateToFolder(item.id)
   } else if (item.type === 'audio') {
     const pathParts = item.path.split('/').filter(p => p)
     // 路径结构: /音乐/歌单名/歌曲名.mp3
@@ -1723,51 +1724,54 @@ const showDeleteConfirm = () => {
   showContextMenuState.value = false;
 }
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (!selectedItem.value) return
 
   const item = selectedItem.value
-  const parentPath = getParentPath(item.path)
 
   // 如果在回收站模式下，是真正删除
   if (driveStore.isInRecycleBin) {
-    const index = driveStore.recycleBinItems.findIndex((i: DriveItem) => i.id === item.id)
-    if (index > -1) {
-      driveStore.recycleBinItems.splice(index, 1)
+    // 根据项目类型调用相应的删除API
+    if (item.type === 'folder') {
+      await driveStore.deleteRecycleBinItems({
+        file_ids: [],
+        folder_ids: [item.original_id || item.id]
+      })
+    } else {
+      await driveStore.deleteRecycleBinItems({
+        file_ids: [item.original_id || item.id],
+        folder_ids: []
+      })
     }
     showDeleteConfirmState.value = false
     selectedItem.value = null
-    toast.success(`"${item.name}" 已永久删除`)
     return
   }
 
-  // 正常模式下移动到回收站
-  // 从父级移除
-  if (parentPath === '/') {
-    const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
-    if (index > -1) {
-      driveStore.driveItems.splice(index, 1)
+  // 正常模式下移动到回收站 - 调用API
+  try {
+    if (item.type === 'folder') {
+      await driveStore.deleteItems({
+        file_ids: [],
+        folder_ids: [item.id]
+      })
+    } else {
+      await driveStore.deleteItems({
+        file_ids: [item.id],
+        folder_ids: []
+      })
     }
-  } else {
-    const parent = findItemByPath(parentPath)
-    if (parent?.children) {
-      const index = parent.children.findIndex((i: DriveItem) => i.id === item.id)
-      if (index > -1) {
-        parent.children.splice(index, 1)
-        parent.itemCount = (parent.itemCount || 1) - 1
-      }
-    }
+
+    showDeleteConfirmState.value = false
+    selectedItem.value = null
+    toast.success(`"${item.name}" 已移至回收站`)
+
+    // 刷新当前目录
+    await driveStore.refresh()
+  } catch (error) {
+    console.error('删除失败:', error)
+    toast.error('删除失败，请重试')
   }
-
-  // 添加到回收站
-  driveStore.recycleBinItems.push({
-    ...item,
-    deletedAt: new Date()
-  })
-
-  showDeleteConfirmState.value = false
-  selectedItem.value = null
-  toast.success(`"${item.name}" 已移至回收站`)
 }
 
 const cancelDelete = () => {
@@ -1776,29 +1780,31 @@ const cancelDelete = () => {
 }
 
 // 回收站相关功能
-const restoreAllItems = () => {
+const restoreAllItems = async () => {
   if (driveStore.recycleBinItems.length === 0) {
     toast.info('回收站为空，无需恢复')
     return
   }
-  
+
   if (confirm(`确定要恢复回收站中的所有 ${driveStore.recycleBinItems.length} 个项目吗？`)) {
-    const itemCount = driveStore.recycleBinItems.length
-    driveStore.restoreAllItems()
-    toast.success(`已从回收站恢复 ${itemCount} 个项目`)
+    const fileIds = driveStore.recycleBinFiles.map(file => file.original_id)
+    const folderIds = driveStore.recycleBinFolders.map(folder => folder.original_id)
+
+    await driveStore.restoreRecycleBinItems({
+      file_ids: fileIds,
+      folder_ids: folderIds
+    })
   }
 }
 
-const deleteAllItems = () => {
+const deleteAllItems = async () => {
   if (driveStore.recycleBinItems.length === 0) {
     toast.info('回收站为空，无需清空')
     return
   }
-  
+
   if (confirm('确定要永久删除回收站中的所有项目吗？此操作不可恢复。')) {
-    const itemCount = driveStore.recycleBinItems.length
-    driveStore.emptyRecycleBin()
-    toast.success(`已永久删除 ${itemCount} 个项目`)
+    await driveStore.emptyRecycleBin()
   }
 }
 
@@ -2007,7 +2013,10 @@ const pasteItem = () => {
 }
 
 // 格式化日期
-const formatDate = (date: Date): string => {
+const formatDate = (date: Date | undefined): string => {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    return '--'
+  }
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
@@ -2553,7 +2562,7 @@ const handleTrashDragLeave = () => {
   isDraggingOverTrash.value = false
 }
 
-const handleTrashDrop = (event: DragEvent) => {
+const handleTrashDrop = async (event: DragEvent) => {
   isDraggingOverTrash.value = false
   if (!event.dataTransfer) return
 
@@ -2583,32 +2592,25 @@ const handleTrashDrop = (event: DragEvent) => {
         return
       }
       
-      // 直接删除所有选中的项目
-      itemsToDelete.forEach((item: DriveItem) => {
-        // 从父级移除
-        const parentPath = getParentPath(item.path)
-        if (parentPath === '/') {
-          const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
-          if (index > -1) {
-            driveStore.driveItems.splice(index, 1)
-          }
-        } else {
-          const parent = findItemByPath(parentPath)
-          if (parent?.children) {
-            const index = parent.children.findIndex((i: DriveItem) => i.id === item.id)
-            if (index > -1) {
-              parent.children.splice(index, 1)
-              parent.itemCount = (parent.itemCount || 1) - 1
-            }
-          }
-        }
-        
-        // 添加到回收站
-        driveStore.recycleBinItems.push({
-          ...item,
-          deletedAt: new Date()
+      // 调用API删除所有选中的项目
+      const fileIds = itemsToDelete.filter(item => item.type === 'file').map(item => item.id)
+      const folderIds = itemsToDelete.filter(item => item.type === 'folder').map(item => item.id)
+
+      try {
+        await driveStore.deleteItems({
+          file_ids: fileIds,
+          folder_ids: folderIds
         })
-      })
+
+        toast.success(`已将 ${itemsToDelete.length} 个项目移至回收站`)
+
+        // 刷新当前目录
+        await driveStore.refresh()
+      } catch (error) {
+        console.error('批量删除失败:', error)
+        toast.error('删除失败，请重试')
+        return
+      }
       
       // 清空选择
       selectedItemIds.value.clear()
@@ -2628,31 +2630,28 @@ const handleTrashDrop = (event: DragEvent) => {
         return
       }
 
-      // 从父级移除
-      const parentPath = getParentPath(itemToDelete.path)
-      if (parentPath === '/') {
-        const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === itemToDelete.id)
-        if (index > -1) {
-          driveStore.driveItems.splice(index, 1)
+      // 调用API删除单个项目
+      try {
+        if (itemToDelete.type === 'folder') {
+          await driveStore.deleteItems({
+            file_ids: [],
+            folder_ids: [itemToDelete.id]
+          })
+        } else {
+          await driveStore.deleteItems({
+            file_ids: [itemToDelete.id],
+            folder_ids: []
+          })
         }
-      } else {
-        const parent = findItemByPath(parentPath)
-        if (parent?.children) {
-          const index = parent.children.findIndex((i: DriveItem) => i.id === itemToDelete.id)
-          if (index > -1) {
-            parent.children.splice(index, 1)
-            parent.itemCount = (parent.itemCount || 1) - 1
-          }
-        }
+
+        toast.success(`"${itemToDelete.name}" 已移至回收站`)
+
+        // 刷新当前目录
+        await driveStore.refresh()
+      } catch (error) {
+        console.error('删除失败:', error)
+        toast.error('删除失败，请重试')
       }
-      
-      // 添加到回收站
-      driveStore.recycleBinItems.push({
-        ...itemToDelete,
-        deletedAt: new Date()
-      })
-      
-      toast.success(`"${itemToDelete.name}" 已移至回收站`)
     }
   }
 }
@@ -2857,12 +2856,23 @@ onUnmounted(() => {
 
 // 添加辅助函数与计算
 const getDeleteInfo = (item: DriveItem) => {
-  if (!item.deletedAt) return { dateStr: '-', daysLeft: '-' }
+  if (!item.deletedAt || !(item.deletedAt instanceof Date) || isNaN(item.deletedAt.getTime())) {
+    return { dateStr: '--', daysLeft: '--' }
+  }
+
   const deleted = item.deletedAt
-  const expiry = new Date(deleted.getTime() + 30 * 24 * 60 * 60 * 1000)
+  let expiry: Date
+
+  // 如果有expireAt字段，使用它；否则计算30天后的日期
+  if (item.expireAt && item.expireAt instanceof Date && !isNaN(item.expireAt.getTime())) {
+    expiry = item.expireAt
+  } else {
+    expiry = new Date(deleted.getTime() + 30 * 24 * 60 * 60 * 1000)
+  }
+
   const now = new Date()
   const daysLeft = Math.max(0, Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
-  return { dateStr: deleted.toLocaleDateString(), daysLeft }
+  return { dateStr: deleted.toLocaleDateString('zh-CN'), daysLeft }
 }
 
 // 用户已收集的岛屿（从后端获取）

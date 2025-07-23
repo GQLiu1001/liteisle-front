@@ -63,9 +63,65 @@ export const useDriveStore = defineStore('drive', () => {
     folders.value.filter(folder => folder.folder_type === FolderTypeEnum.SYSTEM)
   )
   
-  const customFolders = computed(() => 
+  const customFolders = computed(() =>
     folders.value.filter(folder => folder.folder_type !== FolderTypeEnum.SYSTEM)
   )
+
+  const recycleBinItems = computed(() => {
+    // 将回收站文件夹转换为 DriveItem 格式
+    const folderItems = recycleBinFolders.value.map(folder => ({
+      ...folder,
+      id: folder.original_id,
+      name: folder.original_name,
+      type: 'folder' as const,
+      size: 0,
+      itemCount: folder.sub_count || 0,
+      createdAt: new Date(folder.delete_time),
+      modifiedAt: new Date(folder.delete_time),
+      deletedAt: new Date(folder.delete_time),
+      expireAt: new Date(folder.expire_time)
+    }))
+
+    // 将回收站文件转换为 DriveItem 格式
+    const fileItems = recycleBinFiles.value.map(file => ({
+      ...file,
+      id: file.original_id,
+      name: file.original_name,
+      type: file.original_type === FileTypeEnum.MUSIC ? 'audio' : 'document' as const,
+      size: file.file_size || 0,
+      createdAt: new Date(file.delete_time),
+      modifiedAt: new Date(file.delete_time),
+      deletedAt: new Date(file.delete_time),
+      expireAt: new Date(file.expire_time)
+    }))
+
+    return [...folderItems, ...fileItems]
+  })
+
+  const driveItems = computed(() => {
+    // 将 FolderInfo 转换为 DriveItem 格式
+    const folderItems = folders.value.map(folder => ({
+      ...folder,
+      name: folder.folder_name,
+      type: 'folder' as const,
+      size: 0,
+      itemCount: folder.sub_count || 0,
+      createdAt: new Date(folder.create_time),
+      modifiedAt: new Date(folder.update_time)
+    }))
+
+    // 将 FileInfo 转换为 DriveItem 格式
+    const fileItems = files.value.map(file => ({
+      ...file,
+      name: file.file_name,
+      type: file.file_type === FileTypeEnum.MUSIC ? 'audio' : 'document' as const,
+      size: file.file_size || 0,
+      createdAt: new Date(file.create_time),
+      modifiedAt: new Date(file.update_time)
+    }))
+
+    return [...folderItems, ...fileItems]
+  })
   
   /**
    * 设置WebSocket事件监听
@@ -114,11 +170,12 @@ export const useDriveStore = defineStore('drive', () => {
       }
       
       const response = await API.folder.getFolderContent(folderId, requestParams)
-      
-      if (response.data) {
-        breadcrumb.value = response.data.breadcrumb || []
-        folders.value = response.data.folders || []
-        files.value = response.data.files || []
+
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const folderData = (response.data as any).data
+        breadcrumb.value = folderData.breadcrumb || []
+        folders.value = folderData.folders || []
+        files.value = folderData.files || []
       }
     } catch (error) {
       console.error('加载文件夹内容失败:', error)
@@ -370,9 +427,10 @@ export const useDriveStore = defineStore('drive', () => {
       isInRecycleBin.value = true
       
       const response = await API.recycleBin.getContent(searchQuery.value || undefined)
-      if (response.data) {
-        recycleBinFolders.value = response.data.folders || []
-        recycleBinFiles.value = response.data.files || []
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const recycleBinData = (response.data as any).data
+        recycleBinFolders.value = recycleBinData.folders || []
+        recycleBinFiles.value = recycleBinData.files || []
       }
     } catch (error) {
       console.error('加载回收站失败:', error)
@@ -558,6 +616,8 @@ export const useDriveStore = defineStore('drive', () => {
     hasItems,
     systemFolders,
     customFolders,
+    recycleBinItems,
+    driveItems,
     
     // 方法
     loadFolderContent,
