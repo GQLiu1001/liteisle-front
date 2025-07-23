@@ -100,25 +100,35 @@ export const useDriveStore = defineStore('drive', () => {
 
   const driveItems = computed(() => {
     // 将 FolderInfo 转换为 DriveItem 格式
-    const folderItems = folders.value.map(folder => ({
-      ...folder,
-      name: folder.folder_name,
-      type: 'folder' as const,
-      size: 0,
-      itemCount: folder.sub_count || 0,
-      createdAt: new Date(folder.create_time),
-      modifiedAt: new Date(folder.update_time)
-    }))
+    const folderItems = folders.value.map(folder => {
+      const createdAt = new Date(folder.create_time)
+      const modifiedAt = new Date(folder.update_time)
+
+      return {
+        ...folder,
+        name: folder.folder_name,
+        type: 'folder' as const,
+        size: 0,
+        itemCount: folder.sub_count || 0,
+        createdAt: createdAt,
+        modifiedAt: modifiedAt
+      }
+    })
 
     // 将 FileInfo 转换为 DriveItem 格式
-    const fileItems = files.value.map(file => ({
-      ...file,
-      name: file.file_name,
-      type: file.file_type === FileTypeEnum.MUSIC ? 'audio' : 'document' as const,
-      size: file.file_size || 0,
-      createdAt: new Date(file.create_time),
-      modifiedAt: new Date(file.update_time)
-    }))
+    const fileItems = files.value.map(file => {
+      const createdAt = new Date(file.create_time)
+      const modifiedAt = new Date(file.update_time)
+
+      return {
+        ...file,
+        name: file.file_name,
+        type: file.file_type === FileTypeEnum.MUSIC ? 'audio' : 'document' as const,
+        size: file.file_size || 0,
+        createdAt: createdAt,
+        modifiedAt: modifiedAt
+      }
+    })
 
     return [...folderItems, ...fileItems]
   })

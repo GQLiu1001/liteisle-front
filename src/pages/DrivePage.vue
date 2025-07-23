@@ -1119,79 +1119,23 @@ const currentItems = computed(() => {
 })
 
 const filteredItems = computed(() => {
-  // 安全地获取当前项目 - 使用DriveStoreV5的实际属性
-  const getCurrentItems = () => {
-    if (driveStore.isInRecycleBin) {
-      // 回收站项目（如果有的话）
-      return []
-    } else {
-      // 合并文件夹和文件
-      const folders = Array.isArray(driveStore.folders) ? driveStore.folders : []
-      const files = Array.isArray(driveStore.files) ? driveStore.files : []
-      
-      // 转换为DriveItem格式
-      const folderItems: DriveItem[] = folders.map((folder: any) => ({
-        id: folder.id,
-        name: folder.folder_name,
-        type: 'folder' as const,
-        path: '',
-        size: 0,
-        itemCount: folder.sub_count || 0
-      }))
-      
-      const fileItems: DriveItem[] = files.map((file: any) => ({
-        id: file.id,
-        name: file.file_name,
-        type: 'file' as const,
-        path: '',
-        size: file.file_size || 0
-      }))
-      
-      return [...folderItems, ...fileItems]
-    }
-  }
-  
-  let itemsToDisplay: DriveItem[] = getCurrentItems()
+  // 使用currentItems，它已经包含了正确的时间字段映射
+  let itemsToDisplay: DriveItem[] = currentItems.value
 
   // 搜索过滤
-  if (driveStore.searchQuery && !driveStore.isInRecycleBin) {
+  if (driveStore.searchQuery) {
     const query = driveStore.searchQuery.toLowerCase()
-    const searchInItems = (items: DriveItem[]): DriveItem[] => {
-      const results: DriveItem[] = []
-      for (const item of items) {
-        if (item.name.toLowerCase().includes(query)) {
-          results.push(item)
-        }
-        if (item.type === 'folder' && item.children) {
-          results.push(...searchInItems(item.children))
-        }
-      }
-      return results
-    }
-    itemsToDisplay = searchInItems(driveStore.driveItems)
-  } else if (driveStore.searchQuery && driveStore.isInRecycleBin) {
-    itemsToDisplay = driveStore.recycleBinItems.filter((item: DriveItem) =>
-      item.name.toLowerCase().includes(driveStore.searchQuery.toLowerCase())
+    itemsToDisplay = itemsToDisplay.filter((item: DriveItem) =>
+      item.name.toLowerCase().includes(query)
     )
   }
 
-  // 排序
+  // 注意：排序现在由后端处理，所以我们不需要在前端再次排序
+  // 但是我们仍然保持文件夹在前的逻辑
   return [...itemsToDisplay].sort((a: DriveItem, b: DriveItem) => {
     if (a.type === 'folder' && b.type !== 'folder') return -1
     if (a.type !== 'folder' && b.type === 'folder') return 1
-
-    switch (sortBy.value) {
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'size':
-        return (b.size || 0) - (a.size || 0) // 通常大文件在前
-      case 'modifiedAt':
-        return (b.modifiedAt?.getTime() || 0) - (a.modifiedAt?.getTime() || 0)
-      case 'createdAt':
-        return (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-      default:
-        return 0
-    }
+    return 0 // 保持后端排序
   })
 })
 
@@ -2066,8 +2010,10 @@ const pasteItem = () => {
 // 格式化日期
 const formatDate = (date: Date | undefined): string => {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    console.log('formatDate: invalid date received:', date)
     return '--'
   }
+
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
