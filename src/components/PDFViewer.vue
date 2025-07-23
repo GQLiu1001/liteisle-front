@@ -192,7 +192,7 @@
         📋 复制{{ translatedText ? '译文' : '' }}
       </button>
       <button
-        @click.stop="translateText"
+        @click.stop="translateSelection"
         :disabled="isTranslating"
         class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
       >
@@ -219,6 +219,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ChevronLeft, ChevronRight, Minus, FileText } from 'lucide-vue-next'
+import { API } from '@/utils/api' // 假设API模块在src/api/index.ts
 
 interface Props {
   filePath: string
@@ -357,25 +358,24 @@ const copyText = async () => {
 }
 
 // 翻译文本
-const translateText = async () => {
-  if (selectedText.value) {
-    isTranslating.value = true
-    translatedText.value = ''
-    
-    try {
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 这里应该调用真实的翻译API
-      // 现在先用模拟翻译结果
-      const mockTranslation = `翻译结果: ${selectedText.value}`
-      translatedText.value = mockTranslation
-      
-    } catch (error) {
-      translatedText.value = '翻译失败，请重试'
-    } finally {
-      isTranslating.value = false
+const translateSelection = async () => {
+  if (!selectedText.value) return
+  
+  isTranslating.value = true
+  try {
+           const response = await API.translate.translate({
+         file_name: 'selected_text.txt',
+         text: selectedText.value,
+         target_lang: 'zh-CN'
+       })
+    if (response.data) {
+      translatedText.value = response.data.translated_text
     }
+  } catch (error) {
+    console.error('翻译失败:', error)
+    translatedText.value = '翻译服务暂不可用'
+  } finally {
+    isTranslating.value = false
   }
 }
 

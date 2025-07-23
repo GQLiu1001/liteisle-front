@@ -38,13 +38,13 @@ import Topbar from '@/components/Topbar.vue'
 import MusicBar from '@/components/MusicBar.vue'
 import GlobalContextMenu from '@/components/GlobalContextMenu.vue'
 import { useUIStore } from '@/store/UIStore'
-import { useAuthStoreV5 } from '@/store/AuthStoreV5'
+import { useAuthStore } from '@/store/AuthStore'
 import { useVditorStore } from '@/store/VditorStore'
 import { useSettingsStore } from '@/store/SettingsStore'
 
 const route = useRoute()
 const uiStore = useUIStore()
-const authStore = useAuthStoreV5()
+const authStore = useAuthStore()
 const vditorStore = useVditorStore()
 const settingsStore = useSettingsStore()
 
@@ -53,8 +53,14 @@ onMounted(async () => {
   // 初始化认证状态
   await authStore.initializeAuth()
   
-  // 预加载 Vditor 依赖
-  vditorStore.preloadDependencies()
+  // 预加载 Vditor 依赖（如果方法存在）
+  try {
+    if (typeof vditorStore.preloadDependencies === 'function') {
+      vditorStore.preloadDependencies()
+    }
+  } catch (error) {
+    console.warn('Vditor预加载失败:', error)
+  }
   
   // 加载设置
   await settingsStore.loadSettings()

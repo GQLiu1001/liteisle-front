@@ -10,9 +10,9 @@
               <Music :size="32" class="text-white" />
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
-              <p class="text-xs text-morandi-500 truncate mb-1">{{ musicStore.currentTrackInfo.album || '未知专辑' }}</p>
-              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
+              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
+              <p class="text-xs text-morandi-500 truncate mb-1">{{ musicStore.currentTrackInfo?.album || '未知专辑' }}</p>
+              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.artist || '未知艺术家' }}</p>
               <div class="flex items-center justify-between text-xs text-morandi-500 mt-2">
                 <span>{{ musicStore.formatTime(musicStore.currentTime) }}</span>
                 <span>{{ musicStore.formatTime(musicStore.duration) }}</span>
@@ -115,7 +115,7 @@
                   <span v-else class="text-sm text-morandi-500">{{ index + 1 }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="font-medium text-morandi-900 truncate text-sm">{{ track.name }}</p>
+                  <p class="font-medium text-morandi-900 truncate text-sm">{{ track.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐' }}</p>
                   <p class="text-xs text-morandi-500 truncate">{{ track.artist }}</p>
                 </div>
                 <div class="text-xs text-morandi-500">
@@ -314,7 +314,7 @@
                         @dblclick="playTrackImmediately(index)"
                         @contextmenu.prevent="handleTrackContextMenu($event, track)"
                       >
-                        <p class="font-medium text-morandi-900 truncate">{{ track.name }}</p>
+                        <p class="font-medium text-morandi-900 truncate">{{ track.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐' }}</p>
                         <p class="text-sm text-morandi-500 truncate">{{ track.artist }}</p>
                       </div>
 
@@ -400,9 +400,9 @@
               <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-400 to-teal-500 flex items-center justify-center">
                 <Music :size="48" class="text-white" />
               </div>
-              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo.name }}</h3>
-              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.album || '未知专辑' }}</p>
-              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo.artist }}</p>
+              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
+                              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.album || '未知专辑' }}</p>
+                <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.artist || '未知艺术家' }}</p>
             </div>
 
             <!-- 播放进度 -->
@@ -609,9 +609,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { Music, DiscAlbum, Play, Upload, Plus } from 'lucide-vue-next'
-import { useMusicStoreV5 } from '../store/MusicStoreV5'
-import { useDriveStoreV5 } from '../store/DriveStoreV5'
-import { useTransferStoreV5 } from '../store/TransferStoreV5'
+import { useMusicStore } from '../store/MusicStore'
+import { useDriveStore } from '../store/DriveStore'
+import { useTransferStore } from '../store/TransferStore'
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore'
 import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
@@ -619,9 +619,9 @@ import type { MusicFileInfo } from '@/types/api'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
-const musicStore = useMusicStoreV5()
-const driveStore = useDriveStoreV5()
-const transferStore = useTransferStoreV5()
+const musicStore = useMusicStore()
+const driveStore = useDriveStore()
+const transferStore = useTransferStore()
 const contextMenuStore = useContextMenuStore()
 const toast = useToast()
 const route = useRoute()
@@ -808,7 +808,7 @@ const getPlaylistDisplayCount = (playlist: any) => { // Playlist type is not dir
   
     // 如果有搜索条件，显示该歌单中匹配的数量
   return playlist.tracks.filter((track: any) => 
-    track.name.toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
+    (track.file_name || '').toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
     track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
   ).length
 }
@@ -827,7 +827,7 @@ onMounted(() => {
     playlist && song &&
     typeof playlist === 'string' &&
     typeof song === 'string' &&
-    (!musicStore.currentTrack || musicStore.currentTrackInfo.name !== song)
+    (!musicStore.currentTrack || musicStore.currentTrackInfo?.file_name !== song)
   ) {
     musicStore.playSongFromDrive(playlist, song)
   }
@@ -1059,7 +1059,7 @@ const openTrack = () => {
 
 const showRenameTrackDialogFn = () => {
   if (selectedTrack.value) {
-    renameTrackValue.value = selectedTrack.value.name
+    renameTrackValue.value = selectedTrack.value.file_name?.replace(/\.[^/.]+$/, '') || ''
     showRenameTrackDialog.value = true
     
     // 隐藏右键菜单
@@ -1080,7 +1080,7 @@ const confirmRenameTrack = () => {
   if (!newName || !selectedTrack.value) return
 
   // 检查名称是否与原名称相同
-  if (newName === selectedTrack.value.name) {
+  if (newName === (selectedTrack.value.file_name?.replace(/\.[^/.]+$/, '') || '')) {
     cancelRenameTrack()
     return
   }
@@ -1092,10 +1092,13 @@ const confirmRenameTrack = () => {
     return
   }
 
-  const oldName = selectedTrack.value.name
+  const oldName = selectedTrack.value.file_name?.replace(/\.[^/.]+$/, '') || ''
   
-  // 调用MusicStore的重命名方法（如果有的话，或者直接修改）
-  selectedTrack.value.name = newName
+  // 调用MusicStore的重命名方法（如果有的话，或者直接修改文件名）
+  if (selectedTrack.value.file_name) {
+    const ext = selectedTrack.value.file_name.split('.').pop()
+    selectedTrack.value.file_name = ext ? `${newName}.${ext}` : newName
+  }
   
   showRenameTrackDialog.value = false
   renameTrackValue.value = ''
@@ -1111,7 +1114,7 @@ const cancelRenameTrack = () => {
 
 const deleteTrack = () => {
   if (selectedTrack.value) {
-    const trackName = selectedTrack.value.name
+    const trackName = selectedTrack.value.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐'
     if (confirm(`确定要删除音乐 "${trackName}" 吗？`)) {
       // 调用MusicStore的删除方法
       musicStore.deleteTrack(selectedTrack.value.id)

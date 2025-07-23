@@ -1,13 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuthStoreV5 } from '@/store/AuthStoreV5'
+import { useAuthStore } from '@/store/AuthStore'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const authStore = useAuthStoreV5()
-      return authStore.isAuthenticated ? '/home' : '/login'
+      const authStore = useAuthStore()
+      return authStore.isAuthenticated ? '/drive' : '/login'
     }
   },
   {
@@ -54,7 +54,7 @@ const router = createRouter({
 
 // 路由守卫：检查认证状态
 router.beforeEach(async (to: any, from: any, next: any) => {
-  const authStore = useAuthStoreV5()
+  const authStore = useAuthStore()
   
   // 初始化认证状态（只在第一次访问时）
   if (!authStore.token && localStorage.getItem('access_token')) {

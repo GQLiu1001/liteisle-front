@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
 import { Settings, User, FileText, Clock, Share2, Image } from 'lucide-vue-next'
+import { API } from '@/utils/api'
+import { useToast } from 'vue-toastification'
+import type { ShareRecordItem, FocusRecordItem } from '@/types/api'
 
 // 设置接口定义
 interface AppSettings {
@@ -52,7 +55,29 @@ export interface ShareItem {
   accessCount: number
 }
 
+export interface ShareRecord {
+  id: number
+  name: string
+  type: 'file' | 'folder'
+  shareToken: string
+  sharePassword: string
+  expiryDate: string
+  status: 'active' | 'expired' | 'disabled'
+  createdAt: string
+  accessCount: number
+}
+
+export interface FocusRecord {
+  id: number
+  date: string
+  focusTime: number
+  breakTime: number
+  totalTime: number
+  createdAt: string
+}
+
 export const useSettingsStore = defineStore('settings', () => {
+  const toast = useToast()
   // 状态
   const currentCategoryId = ref('general')
   
@@ -83,149 +108,21 @@ export const useSettingsStore = defineStore('settings', () => {
     total: 5    // 总容量 5GB
   })
 
-  // 分享数据 - 分页相关状态
-  const shareItems = ref<ShareItem[]>([])
+  // === 分享管理状态 ===
+  const shareRecords = ref<ShareRecordItem[]>([])
   const shareCurrentPage = ref(1)
   const sharePageSize = ref(10)
   const shareTotal = ref(0)
-  const shareLoading = ref(false)
   const shareHasMore = ref(true)
+  const isLoadingShare = ref(false)
 
-  // 模拟的完整分享数据
-  const mockShareData: ShareItem[] = [
-    {
-      id: 1,
-      name: '4coding',
-      type: 'folder',
-      shareToken: 'abc123def456ghi789',
-      sharePassword: 'xyz789',
-      expiryDate: '2025/04/25',
-      status: 'active',
-      createdAt: '2025/04/25 11:22',
-      accessCount: 17
-    },
-    {
-      id: 2, 
-      name: '4coding',
-      type: 'folder',
-      shareToken: 'def456ghi789jkl012',
-      sharePassword: 'abc123',
-      expiryDate: '2025/03/19',
-      status: 'active',
-      createdAt: '2025/03/19 15:08',
-      accessCount: 0
-    },
-    {
-      id: 3,
-      name: '4coding',
-      type: 'folder', 
-      shareToken: 'ghi789jkl012mno345',
-      sharePassword: 'def456',
-      expiryDate: '2025/03/11',
-      status: 'active',
-      createdAt: '2025/03/11 21:41',
-      accessCount: 3
-    },
-    {
-      id: 4,
-      name: '项目文档',
-      type: 'folder',
-      shareToken: 'abc123def456ghi789',
-      sharePassword: 'xyz789',
-      expiryDate: '2025/04/25',
-      status: 'active',
-      createdAt: '2025/04/25 11:22',
-      accessCount: 17
-    },
-    {
-      id: 5, 
-      name: '设计稿',
-      type: 'folder',
-      shareToken: 'def456ghi789jkl012',
-      sharePassword: 'abc123',
-      expiryDate: '2025/03/19',
-      status: 'active',
-      createdAt: '2025/03/19 15:08',
-      accessCount: 0
-    },
-    {
-      id: 6,
-      name: '会议记录',
-      type: 'folder', 
-      shareToken: 'ghi789jkl012mno345',
-      sharePassword: 'def456',
-      expiryDate: '2025/03/11',
-      status: 'active',
-      createdAt: '2025/03/11 21:41',
-      accessCount: 3
-    },
-    {
-      id: 7,
-      name: '学习资料',
-      type: 'folder',
-      shareToken: 'abc123def456ghi789',
-      sharePassword: 'xyz789',
-      expiryDate: '2025/04/25',
-      status: 'active',
-      createdAt: '2025/04/25 11:22',
-      accessCount: 17
-    },
-    {
-      id: 8, 
-      name: '音乐收藏',
-      type: 'folder',
-      shareToken: 'def456ghi789jkl012',
-      sharePassword: 'abc123',
-      expiryDate: '2025/03/19',
-      status: 'active',
-      createdAt: '2025/03/19 15:08',
-      accessCount: 0
-    },
-    {
-      id: 9,
-      name: '图片素材',
-      type: 'folder', 
-      shareToken: 'ghi789jkl012mno345',
-      sharePassword: 'def456',
-      expiryDate: '2025/03/11',
-      status: 'active',
-      createdAt: '2025/03/11 21:41',
-      accessCount: 3
-    },
-    {
-      id: 10,
-      name: '视频教程',
-      type: 'folder',
-      shareToken: 'abc123def456ghi789',
-      sharePassword: 'xyz789',
-      expiryDate: '2025/04/25',
-      status: 'active',
-      createdAt: '2025/04/25 11:22',
-      accessCount: 17
-    },
-    {
-      id: 11, 
-      name: '代码片段',
-      type: 'folder',
-      shareToken: 'def456ghi789jkl012',
-      sharePassword: 'abc123',
-      expiryDate: '2025/03/19',
-      status: 'active',
-      createdAt: '2025/03/19 15:08',
-      accessCount: 0
-    },
-    {
-      id: 12,
-      name: '工具软件',
-      type: 'folder', 
-      shareToken: 'ghi789jkl012mno345',
-      sharePassword: 'def456',
-      expiryDate: '2025/03/11',
-      status: 'active',
-      createdAt: '2025/03/11 21:41',
-      accessCount: 3
-    }
-  ]
+  // === 专注记录状态 ===  
+  const focusRecords = ref<FocusRecordItem[]>([])
+  const focusCurrentPage = ref(1)
+  const focusPageSize = ref(10)
+  const focusTotal = ref(0)
+  const hasMoreRecords = ref(true)
+  const isLoadingFocus = ref(false)
 
   // 设置分类
   const categories = ref<SettingCategory[]>([
@@ -342,79 +239,122 @@ export const useSettingsStore = defineStore('settings', () => {
     window.location.href = '#/login'
   }
 
-  const checkForUpdates = () => {
-    // 模拟检查更新
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve('应用已是最新版本')
-      }, 2000)
-    })
-  }
-
-  const changePassword = (oldPassword: string, newPassword: string) => {
-    // 模拟密码修改
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (oldPassword === '123456') {
-          resolve('密码修改成功')
-        } else {
-          reject('原密码错误')
-        }
-      }, 1000)
-    })
-  }
-
-  // 加载分享数据
-  const loadShareItems = async (page: number = 1, reset: boolean = false) => {
-    if (shareLoading.value) return
-
-    shareLoading.value = true
-    
+  // 检查更新（调用真实API）
+  const checkForUpdates = async (): Promise<boolean> => {
     try {
-      // 模拟网络请求延迟
-      await new Promise(resolve => setTimeout(resolve, 800))
+      // 调用真实的更新检查API
+      console.log('检查更新...')
+      // const response = await API.system.checkUpdate()
+      // return response.data?.hasUpdate || false
+      return false // 暂时返回false，等待API实现
+    } catch (error) {
+      console.error('检查更新失败:', error)
+      return false
+    }
+  }
+
+  // 修改密码（调用真实API）
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    try {
+      const response = await API.auth.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+      toast.success('密码修改成功')
+      return true
+    } catch (error) {
+      console.error('密码修改失败:', error)
+      toast.error('密码修改失败')
+      return false
+    }
+  }
+
+  // 取消分享（调用真实API）
+  const cancelShare = async (shareId: number): Promise<boolean> => {
+    try {
+      await API.share.cancel(shareId)
+      toast.success('分享已取消')
       
-      const startIndex = (page - 1) * sharePageSize.value
-      const endIndex = startIndex + sharePageSize.value
-      const pageData = mockShareData.slice(startIndex, endIndex)
-      
-      if (reset) {
-        shareItems.value = pageData
-        shareCurrentPage.value = page
-      } else {
-        shareItems.value.push(...pageData)
-        shareCurrentPage.value = page
+      // 从本地列表中移除
+      const index = shareRecords.value.findIndex(item => item.id === shareId)
+      if (index > -1) {
+        shareRecords.value.splice(index, 1)
+        shareTotal.value = Math.max(0, shareTotal.value - 1)
       }
       
-      shareTotal.value = mockShareData.length
-      shareHasMore.value = endIndex < mockShareData.length
-      
+      return true
     } catch (error) {
-      console.error('加载分享数据失败:', error)
+      console.error('取消分享失败:', error)
+      toast.error('取消分享失败')
+      return false
+    }
+  }
+
+  /**
+   * 加载分享记录（从API获取）
+   */
+  const loadShareRecords = async (page: number = 1): Promise<void> => {
+    try {
+      isLoadingShare.value = true
+      
+             const response = await API.share.getMyShares(page, sharePageSize.value)
+      
+      if (response.data) {
+        if (page === 1) {
+          shareRecords.value = response.data.records || []
+        } else {
+          shareRecords.value.push(...(response.data.records || []))
+        }
+        
+        shareCurrentPage.value = page
+        shareTotal.value = response.data.total || 0
+        shareHasMore.value = shareRecords.value.length < (response.data.total || 0)
+      }
+    } catch (error) {
+      console.error('加载分享记录失败:', error)
+      toast.error('加载分享记录失败')
     } finally {
-      shareLoading.value = false
+      isLoadingShare.value = false
+    }
+  }
+
+  /**
+   * 加载专注记录（从API获取）
+   */
+  const loadFocusRecords = async (page: number = 1): Promise<void> => {
+    try {
+      isLoadingFocus.value = true
+      
+             const response = await API.focus.getRecords(page, focusPageSize.value)
+      
+      if (response.data) {
+        if (page === 1) {
+          focusRecords.value = response.data.records || []
+        } else {
+          focusRecords.value.push(...(response.data.records || []))
+        }
+        
+        focusCurrentPage.value = page
+        focusTotal.value = response.data.total || 0
+        hasMoreRecords.value = focusRecords.value.length < (response.data.total || 0)
+      }
+    } catch (error) {
+      console.error('加载专注记录失败:', error)
+      toast.error('加载专注记录失败')
+    } finally {
+      isLoadingFocus.value = false
     }
   }
 
   // 加载更多分享数据
   const loadMoreShareItems = async () => {
-    if (!shareHasMore.value || shareLoading.value) return
-    await loadShareItems(shareCurrentPage.value + 1, false)
+    if (!shareHasMore.value || isLoadingShare.value) return
+    await loadShareRecords(shareCurrentPage.value + 1)
   }
 
   // 刷新分享数据
   const refreshShareItems = async () => {
-    await loadShareItems(1, true)
-  }
-
-  const cancelShare = (shareId: number) => {
-    const index = shareItems.value.findIndex(item => item.id === shareId)
-    if (index > -1) {
-      shareItems.value.splice(index, 1)
-      shareTotal.value = Math.max(0, shareTotal.value - 1)
-      return true
-    }
-    return false
+    await loadShareRecords(1)
   }
 
   // 生成分享链接的方法
@@ -453,11 +393,16 @@ export const useSettingsStore = defineStore('settings', () => {
     settings,
     cloudStorage,
     categories,
-    shareItems,
-    shareLoading,
-    shareHasMore,
-    shareTotal,
+    shareRecords,
+    isLoadingShare,
     shareCurrentPage,
+    shareTotal,
+    shareHasMore,
+    focusRecords,
+    isLoadingFocus,
+    focusCurrentPage,
+    focusTotal,
+    hasMoreRecords,
     
     // 计算属性
     currentCategory,
@@ -471,7 +416,7 @@ export const useSettingsStore = defineStore('settings', () => {
     logout,
     checkForUpdates,
     changePassword,
-    loadShareItems,
+    loadShareRecords,
     loadMoreShareItems,
     refreshShareItems,
     cancelShare,

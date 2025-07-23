@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types/api'
 
 // 创建 axios 实例
 const http: AxiosInstance = axios.create({
-  baseURL: import.meta.env.PROD ? '/api/v1' : 'http://localhost:8002/api/v1',
+  baseURL: import.meta.env.PROD ? '/' : 'http://localhost:8002/',
   timeout: 30000, // 增加超时时间以支持文件操作
   headers: {
     'Content-Type': 'application/json'
@@ -11,7 +11,7 @@ const http: AxiosInstance = axios.create({
 })
 
 // 打印连接信息用于调试
-console.log('🌐 API Base URL:', import.meta.env.PROD ? '/api/v1' : 'http://localhost:8002/api/v1')
+console.log('🌐 API Base URL:', import.meta.env.PROD ? '/' : 'http://localhost:8002/')
 
 // 请求拦截器
 http.interceptors.request.use(
@@ -20,9 +20,13 @@ http.interceptors.request.use(
     const token = localStorage.getItem('access_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log(`🔑 添加Authorization头: Bearer ${token.substring(0, 20)}...`)
+    } else {
+      console.log('🔑 没有找到token，请求无Authorization头')
     }
     
     console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      headers: config.headers,
       data: config.data,
       params: config.params
     })
@@ -42,12 +46,12 @@ http.interceptors.response.use(
       data: response.data
     })
     
-    // 检查业务状态码
+    // 对于业务错误，只打印警告，不抛出异常，让业务层处理
     if (response.data && typeof response.data === 'object' && 'code' in response.data) {
       const apiResponse = response.data as ApiResponse
       if (apiResponse.code !== 200) {
         console.warn(`⚠️ Business Error: ${apiResponse.code} - ${apiResponse.message}`)
-        return Promise.reject(new Error(apiResponse.message || '请求失败'))
+        // 不要在这里抛出异常，让业务层处理
       }
     }
     

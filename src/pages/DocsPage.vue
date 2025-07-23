@@ -542,8 +542,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
-import { useDocsStoreV5 } from '../store/DocsStoreV5';
-import { useTransferStoreV5 } from '../store/TransferStoreV5';
+import { useDocsStore } from '../store/DocsStore';
+import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore';
 import { useRoute } from 'vue-router';
@@ -564,8 +564,8 @@ import PowerPointViewer from '@/components/PowerPointViewer.vue';
 import ExcelViewer from '@/components/ExcelViewer.vue';
 import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
-const docsStore = useDocsStoreV5();
-const transferStore = useTransferStoreV5();
+const docsStore = useDocsStore();
+const transferStore = useTransferStore();
 const uiStore = useUIStore();
 const contextMenuStore = useContextMenuStore();
 const toast = useToast();

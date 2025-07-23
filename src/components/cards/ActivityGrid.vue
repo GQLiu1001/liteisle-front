@@ -59,10 +59,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useFocusStoreV5 } from '@/store/FocusStoreV5'
+import { computed, onMounted } from 'vue'
+import { useFocusStore } from '@/store/FocusStore'
 
-const focusStore = useFocusStoreV5()
+const focusStore = useFocusStore()
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -96,15 +96,15 @@ const calendarDays = computed(() => {
   
   // 添加本月的所有天数
   for (let date = 1; date <= daysInMonth; date++) {
-    const currentDate = new Date(year, month, date)
-    const dateStr = currentDate.toISOString().split('T')[0]
-    const focusMinutes = focusStore.dailyFocusData.get(dateStr) || 0
     const isToday = date === now.getDate()
+    
+    // 检查这一天是否有专注记录
+    const hasFocus = focusStore.calendarData?.check_in_days?.includes(date) || false
     
     days.push({
       date,
-      hasFocus: focusMinutes >= 30,
-      focusMinutes,
+      hasFocus,
+      focusMinutes: hasFocus ? 30 : 0, // 简化：有记录就显示30分钟
       isToday
     })
   }
@@ -112,25 +112,26 @@ const calendarDays = computed(() => {
   return days
 })
 
+// 组件挂载时加载日历数据
+onMounted(async () => {
+  try {
+    await focusStore.loadFocusCalendar()
+  } catch (error) {
+    console.warn('加载专注日历失败:', error)
+  }
+})
+
 // 本月统计
 const monthlyStats = computed(() => {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
-  
-  let checkedDays = 0
-  let totalMinutes = 0
-  
-  for (let date = 1; date <= new Date(year, month + 1, 0).getDate(); date++) {
-    const currentDate = new Date(year, month, date)
-    const dateStr = currentDate.toISOString().split('T')[0]
-    const focusMinutes = focusStore.dailyFocusData.get(dateStr) || 0
-    
-    if (focusMinutes >= 30) {
-      checkedDays++
+  if (!focusStore.calendarData || !focusStore.calendarData.check_in_days) {
+    return {
+      checkedDays: 0,
+      totalMinutes: 0
     }
-    totalMinutes += focusMinutes
   }
+  
+  const checkedDays = focusStore.calendarData.check_in_days.length
+  const totalMinutes = focusStore.calendarData.total_focus_minutes
   
   return {
     checkedDays,

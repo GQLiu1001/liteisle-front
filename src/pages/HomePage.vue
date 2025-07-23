@@ -71,9 +71,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import StudyCard from '@/components/cards/StudyCard.vue'
 import ActivityGrid from '@/components/cards/ActivityGrid.vue'
-import { useAuthStoreV5 } from '@/store/AuthStoreV5'
+import IsleCard from '@/components/cards/IsleCard.vue'
+import { useAuthStore } from '@/store/AuthStore'
+import { useFocusStore } from '@/store/FocusStore'
 
-const authStore = useAuthStoreV5()
+const authStore = useAuthStore()
+const focusStore = useFocusStore()
 
 // 名言接口
 interface Quote {
@@ -150,7 +153,19 @@ const greeting = computed(() => getGreeting())
 
 // 用户名计算属性
 const userName = computed(() => {
-  return authStore.user?.username || 'Zen'
+  console.log('🔍 用户信息调试:', {
+    user: authStore.user,
+    username: authStore.user?.username,
+    name: authStore.user?.name,
+    user_name: authStore.user?.user_name,
+    isAuthenticated: authStore.isAuthenticated
+  })
+  
+  // 尝试多个可能的用户名字段
+  return authStore.user?.username || 
+         authStore.user?.name || 
+         authStore.user?.user_name || 
+         'Zen'
 })
 
 // 随机选择一句名言
@@ -169,12 +184,24 @@ const changeQuote = () => {
   }, 500) // 淡出完成后切换内容
 }
 
-// 组件挂载时选择名言
-onMounted(() => {
+// 组件挂载时初始化
+onMounted(async () => {
+  // 加载今日名言
   currentQuote.value = selectRandomQuote()
   
   // 每30秒更换一次名言
   quoteInterval = setInterval(changeQuote, 30000)
+  
+  // 初始化专注数据
+  try {
+    await Promise.all([
+      focusStore.loadTotalFocusCount(),
+      focusStore.loadFocusCalendar()
+    ])
+    console.log('专注数据初始化完成')
+  } catch (error) {
+    console.warn('专注数据初始化失败:', error)
+  }
 })
 
 // 组件卸载时清理定时器

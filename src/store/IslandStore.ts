@@ -27,7 +27,7 @@ export const useIslandStore = defineStore('island', () => {
       const response = await API.island.getUserIslands()
       
       if (response.data) {
-        userIslands.value = response.data
+        userIslands.value = response.data || []
         lastUpdated.value = new Date()
       }
     } catch (error) {

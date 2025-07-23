@@ -25,9 +25,9 @@
     <div class="flex-1 flex items-center justify-center min-h-0 mb-4 lg:mb-6">
 
       <!-- 无岛屿状态 -->
-      <div v-if="!hasIsles" class="text-center">
-        <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 bg-morandi-100 rounded-2xl flex items-center justify-center">
-          <div class="text-6xl lg:text-7xl opacity-50">🏝️</div>
+      <div v-if="!hasIsles" class="flex flex-col items-center justify-center h-full text-center px-4">
+        <div class="w-24 h-24 lg:w-32 lg:h-32 mb-6 flex items-center justify-center">
+          <img src="/cardpic/cardpic.png" alt="暂无岛屿" class="max-w-full max-h-full object-contain opacity-60" />
         </div>
         <h4 class="text-lg lg:text-xl font-semibold text-morandi-700 mb-2">暂未探索到秘境岛屿</h4>
         <p class="text-sm text-morandi-500">专注学习有概率探索到秘境岛屿</p>
@@ -102,7 +102,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, reactive } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { useFocusStoreV5 } from '@/store/FocusStoreV5'
+import { useFocusStore } from '@/store/FocusStore'
 import { useIslandStore } from '@/store/IslandStore'
 import { storeToRefs } from 'pinia'
 
@@ -115,7 +115,7 @@ interface Island {
   min_focus_minutes: number
 }
 
-const focusStore = useFocusStoreV5()
+const focusStore = useFocusStore()
 const islandStore = useIslandStore()
 
 const { islandProgress } = storeToRefs(islandStore)
@@ -125,34 +125,21 @@ const singleIsleLoading = ref(true)
 const gridImageLoading = reactive<Record<number, boolean>>({})
 const initialLoadComplete = ref(false)
 
-// 用户已收集的岛屿（从后端获取，暂时为空数组）
+// 用户已收集的岛屿（从后端获取）
 const isles = computed((): Island[] => {
-  // 模拟4个岛屿数据
-  const islands = [
-    {
-    id: 0,
-    image_url: 'https://pub-061d1fd03ea74e68849f186c401fde40.r2.dev/Figma%20%E7%B4%A0%E6%9D%90%E5%88%B6%E4%BD%9C%20(18).png',
-    rarity: 'common' as const,
-    obtain_probability: 0.1,
-    min_focus_minutes: 30
-  },
-  {
-    id: 1,
-    image_url: 'https://pub-061d1fd03ea74e68849f186c401fde40.r2.dev/Figma%20%E7%B4%A0%E6%9D%90%E5%88%B6%E4%BD%9C%20(23).png',
-    rarity: 'common' as const,
-    obtain_probability: 0.1,
-    min_focus_minutes: 30
+  // 如果有真实数据，使用真实数据
+  if (islandStore.hasIslands) {
+    return islandStore.userIslands.map((imageUrl: string, index: number) => ({
+      id: index + 1,
+      image_url: imageUrl,
+      rarity: 'common' as const,
+      obtain_probability: 0.1,
+      min_focus_minutes: 30
+    }))
   }
-  ]
   
-  // 初始化网格图片加载状态
-  islands.forEach(island => {
-    if (gridImageLoading[island.id] === undefined) {
-      gridImageLoading[island.id] = true
-    }
-  })
-  
-  return islands
+  // 如果没有数据，返回空数组
+  return []
 })
 
 // 是否有岛屿
@@ -274,11 +261,19 @@ const stopAutoPlay = () => {
   }
 }
 
-// 在组件挂载时启动自动轮播
-onMounted(() => {
-  checkScreenMode()
-  window.addEventListener('resize', checkScreenMode)
-  startAutoPlay()
+// 组件挂载时加载岛屿数据
+onMounted(async () => {
+  try {
+    await islandStore.loadUserIslands()
+    console.log('岛屿数据加载完成')
+  } catch (error) {
+    console.warn('岛屿数据加载失败:', error)
+  }
+  
+  // 图片加载处理
+  setTimeout(() => {
+    initialLoadComplete.value = true
+  }, 1000)
 })
 
 // 在组件卸载时清理

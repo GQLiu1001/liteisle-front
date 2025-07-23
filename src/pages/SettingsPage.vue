@@ -60,7 +60,7 @@
                       v-model="settingsStore.settings.downloadDirectory" 
                       @change="settingsStore.saveSettings()"
                       class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-80"
-                      placeholder="例如: C:\Users\Username\Downloads"
+                      placeholder="例如: D:\Downloads"
                       style="user-select: text !important;"
                     />
                   </div>
@@ -96,7 +96,7 @@
                       v-model="settingsStore.settings.picgoPath" 
                       @change="settingsStore.saveSettings()"
                       class="px-3 py-1 text-sm border border-morandi-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 select-text w-80"
-                      placeholder="例如: C:\Users\YourUsername\AppData\Local\Programs\PicGo\PicGo.exe"
+                      placeholder="例如: D:\Programs\PicGo\PicGo.exe"
                       style="user-select: text !important;"
                     />
                   </div>
@@ -244,12 +244,12 @@
                   @scroll="handleShareScroll"
                   style="min-height: 400px; max-height: calc(100vh - 300px);"
                 >
-                  <div v-if="settingsStore.shareItems.length === 0 && !settingsStore.shareLoading" class="p-8 text-center text-morandi-500">
+                  <div v-if="(!shareRecords || shareRecords.length === 0) && !isLoadingShare" class="p-8 text-center text-morandi-500">
                     暂无分享记录
                   </div>
                   <div v-else class="space-y-3">
                     <div 
-                      v-for="share in settingsStore.shareItems" 
+                      v-for="share in shareRecords" 
                       :key="share.id"
                       class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
                     >
@@ -302,13 +302,13 @@
                     </div>
                   </div>
                   
-                  <!-- 加载更多指示器 -->
-                  <div v-if="settingsStore.shareLoading" class="flex justify-center py-4">
+                                      <!-- 加载更多指示器 -->
+                    <div v-if="isLoadingShare" class="flex justify-center py-4">
                     <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                   
                   <!-- 没有更多数据提示 -->
-                  <div v-if="!settingsStore.shareHasMore && settingsStore.shareItems.length > 0" class="text-center py-4 text-sm text-morandi-500">
+                                      <div v-if="!shareHasMore && shareRecords && shareRecords.length > 0" class="text-center py-4 text-sm text-morandi-500">
                     没有更多分享记录了
                   </div>
                 </div>
@@ -327,7 +327,7 @@
                   @scroll="handleScroll"
                   style="min-height: 400px; max-height: calc(100vh - 300px);"
                 >
-                  <div v-if="focusRecords.length === 0 && !isLoadingRecords" class="p-8 text-center text-morandi-500">
+                                      <div v-if="(!focusRecords || focusRecords.length === 0) && !isLoadingFocus" class="p-8 text-center text-morandi-500">
                     暂无专注记录
                   </div>
                   <div v-else class="space-y-3">
@@ -360,7 +360,7 @@
                   </div>
                   
                   <!-- 加载更多指示器 -->
-                  <div v-if="isLoadingRecords" class="flex justify-center py-4">
+                  <div v-if="isLoadingFocus" class="flex justify-center py-4">
                     <div class="w-4 h-4 border-2 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                   
@@ -469,12 +469,13 @@
 </template>
 
 <script setup lang="ts">
-import { useFocusStoreV5 } from '@/store/FocusStoreV5';
-import { useAuthStoreV5 } from '@/store/AuthStoreV5';
+import { useFocusStore } from '@/store/FocusStore';
+import { useAuthStore } from '@/store/AuthStore';
 import { useSettingsStore } from '@/store/SettingsStore';
 import { useShareStore } from '@/store/ShareStore';
 import { useToast } from 'vue-toastification';
 import { ref, computed, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
 // 默认用户头像  
 const defaultUserPic = '/defaultuserpic (2).png';
@@ -482,8 +483,8 @@ const logoPic = '/logopic.png';
 
 // 使用存储
 const settingsStore = useSettingsStore();
-const focusStore = useFocusStoreV5();
-const authStore = useAuthStoreV5();
+const focusStore = useFocusStore();
+const authStore = useAuthStore();
 const shareStore = useShareStore();
 const toast = useToast();
 
@@ -508,9 +509,6 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 // PicGo连接测试状态
 const isTestingConnection = ref(false);
-
-// PicGo路径输入对话框状态
-
 
 // 移除了下载目录输入对话框状态（已改为直接输入）
 
@@ -618,21 +616,13 @@ const submitPasswordChange = async () => {
 };
 
 // 专注记录相关状态
-const focusRecords = ref<Array<{
-  date: string;
-  focusMinutes: number;
-}>>([]);
+const currentFocusPage = ref(1)
+const focusPageSize = ref(10)
+const hasMoreRecords = ref(true)
+const isLoadingRecords = ref(false)
 
-const isLoadingRecords = ref(false);
-const hasMoreRecords = ref(true);
-const focusCurrentPage = ref(1);
-const focusPageSize = ref(10);
-
-// 模拟的完整专注记录数据
-const mockFocusData: Array<{
-  date: string;
-  focusMinutes: number;
-}> = [];
+// 从SettingsStore获取真实的专注记录和分享记录
+const { focusRecords, focusTotal, isLoadingFocus, shareRecords, isLoadingShare, shareHasMore } = storeToRefs(settingsStore)
 
 // 专注统计
 const focusStats = computed(() => ({
@@ -707,62 +697,21 @@ const formatSessionTime = (timestamp: number): string => {
   });
 };
 
-// 初始化模拟专注数据
-const initMockFocusData = () => {
-  mockFocusData.length = 0; // 清空数组
-  
-  // 生成最近60天的模拟数据
-  for (let i = 0; i < 60; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-    
-    // 随机生成一些专注记录（70%的概率有记录）
-    if (Math.random() > 0.3) {
-      const focusMinutes = Math.floor(Math.random() * 120) + 15; // 15-135分钟
-      mockFocusData.push({
-        date: dateStr,
-        focusMinutes: focusMinutes
-      });
-    }
-  }
-};
-
 // 加载专注记录
 const loadFocusRecords = async (page: number = 1, reset: boolean = false) => {
-  if (isLoadingRecords.value) return;
+  await settingsStore.loadFocusRecords(page)
+}
 
-  isLoadingRecords.value = true;
-  
-  try {
-    // 模拟网络请求延迟
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const startIndex = (page - 1) * focusPageSize.value;
-    const endIndex = startIndex + focusPageSize.value;
-    const pageData = mockFocusData.slice(startIndex, endIndex);
-    
-    if (reset) {
-      focusRecords.value = pageData;
-      focusCurrentPage.value = 1;
-    } else {
-      focusRecords.value.push(...pageData);
-      focusCurrentPage.value = page;
-    }
-    
-    hasMoreRecords.value = endIndex < mockFocusData.length;
-    
-  } catch (error) {
-    console.error('加载专注记录失败:', error);
-  } finally {
-    isLoadingRecords.value = false;
-  }
-};
+// 加载更多专注记录
+const loadMoreFocusRecords = async () => {
+  if (!hasMoreRecords.value || isLoadingFocus.value) return
+  await loadFocusRecords(currentFocusPage.value + 1)
+}
 
-const loadMoreRecords = async () => {
-  if (!hasMoreRecords.value || isLoadingRecords.value) return;
-  await loadFocusRecords(focusCurrentPage.value + 1, false);
-};
+// 刷新专注记录
+const refreshFocusRecords = async () => {
+  await loadFocusRecords(1)
+}
 
 // 滚动加载处理
 const handleScroll = (event: Event) => {
@@ -773,7 +722,7 @@ const handleScroll = (event: Event) => {
   
   // 当滚动到接近底部时触发加载更多（距离底部50px）
   if (scrollTop + clientHeight >= scrollHeight - 50 && hasMoreRecords.value && !isLoadingRecords.value) {
-    loadMoreRecords();
+    loadMoreFocusRecords();
   }
 };
 
@@ -785,7 +734,7 @@ const handleShareScroll = (event: Event) => {
   const clientHeight = target.clientHeight;
   
   // 当滚动到接近底部时触发加载更多（距离底部50px）
-  if (scrollTop + clientHeight >= scrollHeight - 50 && settingsStore.shareHasMore && !settingsStore.shareLoading) {
+  if (scrollTop + clientHeight >= scrollHeight - 50 && shareHasMore.value && !isLoadingShare.value) {
     settingsStore.loadMoreShareItems();
   }
 };
@@ -932,12 +881,8 @@ const copyShareInfo = async (share: any) => {
 onMounted(async () => {
   // 加载保存的设置
   await settingsStore.loadSettings();
-  // 初始化模拟数据
-  initMockFocusData();
-  // 加载第一页专注记录
-  loadFocusRecords(1, true);
-  // 初始化分享数据 - 重置为第一页的10条数据
-  settingsStore.loadShareItems(1, true);
+      // 初始化分享数据
+    await settingsStore.loadShareRecords(1);
 });
 </script>
 

@@ -1,426 +1,363 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification'
 import { API } from '@/utils/api'
 import { connectWebSocket, disconnectWebSocket } from '@/utils/websocket'
-import { useToast } from 'vue-toastification'
 import type { 
   AuthLoginReq, 
   AuthRegisterReq, 
+  AuthSendVerificationCodeReq, 
   AuthForgotPasswordReq, 
   AuthResetPasswordReq,
-  AuthCurrentUserResp 
+  AuthCurrentUserResp,
+  AuthInfoResp
 } from '@/types/api'
 
-interface User {
-  id: number
-  username: string
-  email: string
-  picture?: string
-  storageUsed?: number
-  storageQuota?: number
-}
-
-interface LoginRequest {
-  email: string
-  password: string
-  username?: string
-}
-
-interface RegisterRequest {
-  username: string
-  email: string
-  password: string
-  verificationCode?: string
-}
-
-interface ForgotPasswordRequest {
-  username: string
-  email: string
-  verificationCode: string
-  newPassword: string
-  confirmPassword: string
-}
-
-interface AuthResponse {
-  success: boolean
-  message: string
-  data: {
-    userId: number
-    username: string
-    email: string
-    token: string
-    expiresIn: number
-  }
-  token?: string
-  refreshToken?: string
-  user?: User
-  expiresIn?: number
-  refreshTokenExpiresIn?: number
-}
-
 export const useAuthStore = defineStore('auth', () => {
+  const toast = useToast()
+  
+  // 响应式状态
   const token = ref<string | null>(localStorage.getItem('access_token'))
-  const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
-  const user = ref<User | null>(null)
+  const user = ref<AuthCurrentUserResp | null>(null)
   const isLoading = ref(false)
-  const tokenExpiresAt = ref<number | null>(null)
+  const isInitialized = ref(false)
   
+  // 计算属性
   const isAuthenticated = computed(() => !!token.value && !!user.value)
-  
-  // 计算token剩余时间（分钟）
-  const tokenRemainingMinutes = computed(() => {
-    if (!tokenExpiresAt.value) return null
-    const now = Date.now()
-    const remaining = tokenExpiresAt.value - now
-    return remaining > 0 ? Math.floor(remaining / (1000 * 60)) : 0
+  const storageUsagePercentage = computed(() => {
+    if (!user.value || user.value.storage_quota === 0) return 0
+    return Math.round((user.value.storage_used / user.value.storage_quota) * 100)
   })
   
-  // 格式化剩余时间显示
-  const tokenRemainingText = computed(() => {
-    const minutes = tokenRemainingMinutes.value
-    if (minutes === null) return '未知'
-    if (minutes === 0) return '已过期'
-    if (minutes < 60) return `${minutes}分钟`
-    if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}小时`
-    return `${Math.floor(minutes / (24 * 60))}天`
-  })
-  
-
-  
-  const convertSnakeToCamel = (obj: any): any => {
-    if (Array.isArray(obj)) {
-      return obj.map(convertSnakeToCamel)
-    } else if (obj !== null && typeof obj === 'object') {
-      const converted: any = {}
-      for (const key in obj) {
-        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-        converted[camelKey] = convertSnakeToCamel(obj[key])
-      }
-      return converted
-    }
-    return obj
-  }
-
-  const convertCamelToSnake = (obj: any): any => {
-    if (Array.isArray(obj)) {
-      return obj.map(convertCamelToSnake)
-    } else if (obj !== null && typeof obj === 'object') {
-      const converted: any = {}
-      for (const key in obj) {
-        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
-        converted[snakeKey] = convertCamelToSnake(obj[key])
-      }
-      return converted
-    }
-    return obj
-  }
-  
-  const login = async (credentials: LoginRequest): Promise<void> => {
-    isLoading.value = true
+  /**
+   * 用户登录
+   */
+  const login = async (credentials: AuthLoginReq): Promise<boolean> => {
     try {
-      // 尝试使用真实 API
-      try {
-        const apiCredentials = convertCamelToSnake({
-          email: credentials.email,
-          password: credentials.password
-        })
-        
-        const response = await API.auth.login(apiCredentials)
-        
-        const convertedResponse = convertSnakeToCamel(response.data)
-        
-        // 处理 Spring Security JWT 响应
-        if (convertedResponse.success || convertedResponse.code === 200) {
-          setAuthData(convertedResponse)
-        } else {
-          throw new Error(convertedResponse.message || '登录失败')
-        }
-      } catch (apiError) {
-        // 如果 API 调用失败，回退到演示模式
-        console.warn('API 调用失败，使用演示模式:', apiError)
-        
-        const usernameOrEmail = credentials.username || credentials.email
-        if (usernameOrEmail === 'admin' && credentials.password === '123456') {
-          // 桌面端应用 - 固定30天有效期
-          const tokenExpiresIn = 30 * 24 * 3600 // 30天
-          
-          const mockResponse: AuthResponse = {
-            success: true,
-            message: '登录成功',
-            data: {
-              userId: 1,
-              username: 'admin',
-              email: 'admin@example.com',
-              token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
-              expiresIn: tokenExpiresIn
-            },
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTcwMDAwMDAwMH0.demo_token',
-            refreshToken: 'refresh_token_demo_123',
-            user: {
-              id: 1,
-              username: 'admin',
-              email: 'admin@example.com',
-              picture: 'https://pub-061d1fd03ea74e68849f186c401fde40.r2.dev/liteisledefaultuserpic.png'
-            },
-            expiresIn: tokenExpiresIn
-          }
-          setAuthData(mockResponse)
-        } else {
-          throw new Error('用户名或密码错误')
-        }
-      }
-    } catch (error) {
-      throw error
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  const register = async (registerData: RegisterRequest): Promise<void> => {
-    isLoading.value = true
-    try {
-      // 尝试使用真实 API
-      try {
-        const apiData = convertCamelToSnake({
-          username: registerData.username,
-          email: registerData.email,
-          password: registerData.password
-        })
-        
-        const response = await API.auth.register(apiData)
-        const convertedResponse = convertSnakeToCamel(response.data)
-        
-        if (convertedResponse.success || convertedResponse.code === 200) {
-          console.log('注册成功')
-        } else {
-          throw new Error(convertedResponse.message || '注册失败')
-        }
-      } catch (apiError) {
-        // 如果 API 调用失败，回退到演示模式
-        console.warn('API 调用失败，使用演示模式:', apiError)
-        
-        if (registerData.verificationCode === '123456') {
-          console.log('注册成功')
-        } else {
-          throw new Error('验证码错误')
-        }
-      }
-    } catch (error) {
-      throw error
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  const forgotPassword = async (forgotData: ForgotPasswordRequest): Promise<void> => {
-    isLoading.value = true
-    try {
-      // 尝试使用真实 API
-      try {
-        const apiData = convertCamelToSnake({
-          username: forgotData.username,
-          email: forgotData.email,
-          verificationCode: forgotData.verificationCode,
-          newPassword: forgotData.newPassword,
-          confirmPassword: forgotData.confirmPassword
-        })
-        
-        const response = await authAPI.forgotPassword(apiData)
-        const convertedResponse = convertSnakeToCamel(response.data)
-        
-        if (convertedResponse.success || convertedResponse.code === 200) {
-          console.log('密码重置成功')
-        } else {
-          throw new Error(convertedResponse.message || '密码重置失败')
-        }
-      } catch (apiError) {
-        // 如果 API 调用失败，回退到演示模式
-        console.warn('API 调用失败，使用演示模式:', apiError)
-        
-        if (forgotData.verificationCode === '123456') {
-          console.log('密码重置成功')
-        } else {
-          throw new Error('验证码错误')
-        }
-      }
-    } catch (error) {
-      throw error
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  const sendVerificationCode = async (email: string, type: 'register' | 'forgot'): Promise<void> => {
-    try {
-      // 尝试使用真实 API
-      const response = await authAPI.sendVerificationCode(email, type)
-      const convertedResponse = convertSnakeToCamel(response.data)
+      isLoading.value = true
+      console.log('🔑 开始登录请求:', credentials.username)
       
-      if (convertedResponse.success || convertedResponse.code === 200) {
-        console.log(`验证码已发送到 ${email}，类型: ${type}`)
+      const response = await API.auth.login(credentials)
+      console.log('🔑 登录完整响应:', response)
+      
+      const apiResponse = response.data
+      console.log('🔑 API响应数据:', apiResponse)
+      
+      // 检查业务响应码
+      if (apiResponse.code === 200 && apiResponse.data) {
+        const authData = apiResponse.data
+        console.log('🔑 收到token:', authData.token ? '有token' : '无token')
+        
+        // 保存token
+        token.value = authData.token
+        localStorage.setItem('access_token', authData.token)
+        
+        console.log('🔑 Token已保存到localStorage')
+        
+        // 获取用户详细信息
+        await getCurrentUser()
+        
+        // 暂时不自动连接WebSocket，只有在需要时才连接
+        // connectWebSocket(authData.token)
+        
+        toast.success('登录成功')
+        
+        return true
       } else {
-        throw new Error(convertedResponse.message || '发送验证码失败')
+        // 业务逻辑错误
+        const errorMsg = apiResponse.message || '登录失败'
+        console.warn('🔑 登录业务错误:', errorMsg)
+        toast.error(errorMsg)
+        return false
       }
-    } catch (apiError) {
-      // 如果 API 调用失败，回退到演示模式
-      console.warn('API 调用失败，使用演示模式:', apiError)
-      console.log(`验证码已发送到 ${email}，类型: ${type}`)
+    } catch (error) {
+      console.error('登录网络错误:', error)
+      toast.error('网络错误，请检查连接')
+      return false
+    } finally {
+      isLoading.value = false
     }
   }
   
+  /**
+   * 用户注册
+   */
+  const register = async (registerData: AuthRegisterReq): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      const response = await API.auth.register(registerData)
+      
+      const apiResponse = response.data
+      
+      if (apiResponse.code === 200 && apiResponse.data) {
+        const authData = apiResponse.data
+        
+        // 保存token
+        token.value = authData.token
+        localStorage.setItem('access_token', authData.token)
+        
+        // 获取用户详细信息
+        await getCurrentUser()
+        
+        // 暂时不自动连接WebSocket
+        // connectWebSocket(authData.token)
+        
+        toast.success('注册成功')
+        
+        return true
+      } else {
+        const errorMsg = apiResponse.message || '注册失败'
+        toast.error(errorMsg)
+        return false
+      }
+    } catch (error) {
+      console.error('注册失败:', error)
+      toast.error('注册失败，请重试')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 发送验证码
+   */
+  const sendVerificationCode = async (email: string): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      await API.auth.sendVcode(email)
+      toast.success('验证码已发送，请注意查收')
+      return true
+    } catch (error) {
+      console.error('发送验证码失败:', error)
+      toast.error('发送验证码失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 忘记密码
+   */
+  const forgotPassword = async (data: AuthForgotPasswordReq): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      await API.auth.forgotPassword(data)
+      toast.success('密码重置成功')
+      return true
+    } catch (error) {
+      console.error('密码重置失败:', error)
+      toast.error('密码重置失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 获取当前用户信息
+   */
+  const getCurrentUser = async (): Promise<void> => {
+    try {
+      const response = await API.auth.getCurrentUser()
+      console.log('🔍 获取用户信息响应:', response)
+      
+      // 检查响应数据结构
+      if (response.data) {
+        const apiResponse = response.data
+        console.log('🔍 API响应数据:', apiResponse)
+        
+        // 检查是否是标准的ApiResponse格式
+        if (apiResponse.code === 200 && apiResponse.data) {
+          user.value = apiResponse.data
+          console.log('🔍 设置用户数据:', apiResponse.data)
+        } else if (apiResponse.username) {
+          // 如果直接返回用户数据
+          user.value = apiResponse
+          console.log('🔍 设置用户数据(直接):', apiResponse)
+        }
+      }
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      // 如果获取用户信息失败，可能token已过期，执行退出登录
+      await logout()
+    }
+  }
+  
+  /**
+   * 修改密码
+   */
+  const resetPassword = async (data: AuthResetPasswordReq): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      await API.auth.resetPassword(data)
+      toast.success('密码修改成功')
+      return true
+    } catch (error) {
+      console.error('密码修改失败:', error)
+      toast.error('密码修改失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 上传头像
+   */
+  const uploadAvatar = async (file: File): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      const response = await API.auth.uploadAvatar(file)
+      
+      if (response.data && user.value) {
+        user.value.avatar = response.data
+        toast.success('头像上传成功')
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('头像上传失败:', error)
+      toast.error('头像上传失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 重置头像
+   */
+  const resetAvatar = async (): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      const response = await API.auth.resetAvatar()
+      
+      if (response.data && user.value) {
+        user.value.avatar = response.data
+        toast.success('头像已重置')
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('重置头像失败:', error)
+      toast.error('重置头像失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 退出登录
+   */
   const logout = async (): Promise<void> => {
     try {
-      // 尝试调用后端登出 API
-      await authAPI.logout()
+      // 先调用后端退出登录API
+      if (token.value) {
+        await API.auth.logout()
+      }
     } catch (error) {
-      console.warn('登出 API 调用失败:', error)
-    } finally {
-      // 无论 API 调用是否成功，都清除本地数据
-      clearAuthData()
-    }
-  }
-  
-  const setAuthData = (authData: AuthResponse) => {
-    // 优先使用顶级的 token 和 user，如果没有则使用 data 中的
-    const accessToken = authData.token || authData.data?.token
-    const refreshTokenValue = authData.refreshToken
-    const userData = authData.user || {
-      id: authData.data?.userId || 0,
-      username: authData.data?.username || '',
-      email: authData.data?.email || ''
+      console.warn('后端退出登录失败:', error)
     }
     
-    // 计算token过期时间
-    const expiresIn = authData.expiresIn || authData.data?.expiresIn || 3600
-    const expiresAt = Date.now() + (expiresIn * 1000)
-    
-    token.value = accessToken
-    refreshToken.value = refreshTokenValue || null
-    user.value = userData
-    tokenExpiresAt.value = expiresAt
-    
-    if (accessToken) {
-      localStorage.setItem('access_token', accessToken)
-    }
-    if (refreshTokenValue) {
-      localStorage.setItem('refresh_token', refreshTokenValue)
-    }
-    localStorage.setItem('user_info', JSON.stringify(userData))
-    localStorage.setItem('token_expires_at', expiresAt.toString())
-  }
-  
-  const clearAuthData = () => {
+    // 清理本地状态
     token.value = null
-    refreshToken.value = null
     user.value = null
-    tokenExpiresAt.value = null
-    
     localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
-    localStorage.removeItem('user_info')
-    localStorage.removeItem('token_expires_at')
-    localStorage.removeItem('isLoggedIn')
-    localStorage.removeItem('username')
+    
+    // 断开WebSocket连接
+    disconnectWebSocket()
+    
+    toast.info('已退出登录')
   }
   
-  const initializeAuth = async () => {
-    const savedToken = localStorage.getItem('access_token')
-    const savedUserInfo = localStorage.getItem('user_info')
-    const savedExpiresAt = localStorage.getItem('token_expires_at')
+  /**
+   * 初始化认证状态
+   */
+  const initializeAuth = async (): Promise<void> => {
+    if (isInitialized.value) return
     
-    if (savedToken && savedUserInfo) {
-      try {
-        user.value = JSON.parse(savedUserInfo)
-        token.value = savedToken
-        tokenExpiresAt.value = savedExpiresAt ? parseInt(savedExpiresAt) : null
-        
-        // 检查token是否过期
-        if (tokenExpiresAt.value && Date.now() > tokenExpiresAt.value) {
-          console.log('Token已过期，清除认证数据')
-          clearAuthData()
-        }
-      } catch (error) {
-        clearAuthData()
-      }
-    }
-  }
-
-  const updateUserPicture = async (file: File): Promise<void> => {
-    if (!user.value) {
-      throw new Error('用户未登录')
-    }
-
-    isLoading.value = true
     try {
-      // 创建FormData对象
-      const formData = new FormData()
-      formData.append('picture', file)
-      
-      // 尝试使用真实 API
-      try {
-        const response = await authAPI.updateUserPicture(formData)
-        const convertedResponse = convertSnakeToCamel(response.data)
+      const savedToken = localStorage.getItem('access_token')
+      if (savedToken) {
+        token.value = savedToken
+        await getCurrentUser()
         
-        if (convertedResponse.success || convertedResponse.code === 200) {
-          // 更新用户信息
-          const pictureUrl = convertedResponse.data?.pictureUrl || convertedResponse.pictureUrl
-          if (user.value) {
-            user.value = {
-              ...user.value,
-              picture: pictureUrl
-            }
-          }
-          
-          // 更新本地存储
-          localStorage.setItem('user_info', JSON.stringify(user.value))
-        } else {
-          throw new Error(convertedResponse.message || '头像上传失败')
-        }
-      } catch (apiError) {
-        // 如果 API 调用失败，回退到演示模式
-        console.warn('API 调用失败，使用演示模式:', apiError)
-        
-        // 将文件转换为base64
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64String = reader.result as string
-          
-          // 更新用户信息
-          if (user.value) {
-            user.value = {
-              ...user.value,
-              picture: base64String
-            }
-            
-            // 更新本地存储
-            localStorage.setItem('user_info', JSON.stringify(user.value))
-          }
-        }
-        
-        reader.readAsDataURL(file)
-        console.log('头像上传成功（演示模式）')
+        // 连接WebSocket
+        connectWebSocket(savedToken)
       }
     } catch (error) {
-      throw error
+      console.warn('初始化认证状态失败:', error)
+      await logout()
     } finally {
-      isLoading.value = false
+      isInitialized.value = true
     }
   }
+  
+  /**
+   * 格式化存储空间
+   */
+  const formatStorageSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B'
+    
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+  
+  /**
+   * 获取存储空间信息
+   */
+  const getStorageInfo = computed(() => {
+    if (!user.value) {
+      return {
+        used: '0 B',
+        quota: '0 B',
+        usedBytes: 0,
+        quotaBytes: 0,
+        percentage: 0
+      }
+    }
+    
+    return {
+      used: formatStorageSize(user.value.storage_used),
+      quota: formatStorageSize(user.value.storage_quota),
+      usedBytes: user.value.storage_used,
+      quotaBytes: user.value.storage_quota,
+      percentage: storageUsagePercentage.value
+    }
+  })
   
   return {
-    token: computed(() => token.value),
-    user: computed(() => user.value),
+    // 状态
+    token,
+    user,
+    isLoading,
+    isInitialized,
+    
+    // 计算属性
     isAuthenticated,
-    isLoading: computed(() => isLoading.value),
-    tokenRemainingMinutes: computed(() => tokenRemainingMinutes.value),
-    tokenRemainingText: computed(() => tokenRemainingText.value),
-
+    storageUsagePercentage,
+    getStorageInfo,
+    
+    // 方法
     login,
     register,
-    forgotPassword,
     sendVerificationCode,
+    forgotPassword,
+    getCurrentUser,
+    resetPassword,
+    uploadAvatar,
+    resetAvatar,
     logout,
     initializeAuth,
-    updateUserPicture
+    formatStorageSize
   }
-})
+}) 

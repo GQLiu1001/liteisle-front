@@ -153,17 +153,17 @@ import { PenTool, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as Imag
 // 默认用户头像
 const defaultUserPic = '/defaultuserpic (2).png'
 import { http } from '@/utils/http'
-import { useFocusStoreV5 } from '@/store/FocusStoreV5'
+import { useFocusStore } from '@/store/FocusStore'
+import { useAuthStore } from '@/store/AuthStore'
 import { useUIStore } from '@/store/UIStore'
-import { useAuthStoreV5 } from '@/store/AuthStoreV5'
 import { useSettingsStore } from '@/store/SettingsStore'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const route = useRoute()
-const focusStore = useFocusStoreV5()
+const focusStore = useFocusStore()
+const authStore = useAuthStore()
 const uiStore = useUIStore()
-const authStore = useAuthStoreV5()
 const settingsStore = useSettingsStore()
 const { isFocusing } = storeToRefs(focusStore)
 

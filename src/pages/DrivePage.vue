@@ -979,8 +979,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useDriveStoreV5 } from '../store/DriveStoreV5'
-import { useTransferStoreV5 } from '../store/TransferStoreV5'
+import { useDriveStore } from '../store/DriveStore'
+import { useTransferStore } from '../store/TransferStore'
 import { useSettingsStore } from '../store/SettingsStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
@@ -996,9 +996,15 @@ const toast = useToast()
 interface DriveItem {
   id: number
   name: string
-  type: 'folder' | 'file'
+  type: 'folder' | 'file' | 'audio' | 'document'
   size?: number
   path: string
+  parentId?: number
+  children?: DriveItem[]
+  modifiedAt?: Date
+  createdAt?: Date
+  level?: number
+  itemCount?: number
   // 其他必要属性...
 }
 
@@ -1008,8 +1014,8 @@ interface BreadcrumbPath {
 }
 
 // 使用 DriveStore 和 TransferStore
-const driveStore = useDriveStoreV5()
-const transferStore = useTransferStoreV5()
+const driveStore = useDriveStore()
+const transferStore = useTransferStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 
@@ -1074,14 +1080,14 @@ const breadcrumbPaths = computed<BreadcrumbPath[]>(() => {
     ]
   }
   
-  const paths = driveStore.currentPath.split('/').filter((p: string) => p)
+  // 使用DriveStore的breadcrumb数据
   const result = [{ name: '云盘', path: '/' }]
   
-  let currentFullPath = ''
-  paths.forEach((path: string) => {
-    currentFullPath += '/' + path
-    result.push({ name: path, path: currentFullPath })
-  })
+  if (driveStore.breadcrumb && driveStore.breadcrumb.length > 0) {
+    driveStore.breadcrumb.forEach((crumb: any) => {
+      result.push({ name: crumb.name, path: crumb.path || '/' })
+    })
+  }
   
   return result
 })
@@ -1100,9 +1106,39 @@ const currentItems = computed(() => {
 })
 
 const filteredItems = computed(() => {
-  let itemsToDisplay: DriveItem[] = driveStore.isInRecycleBin
-    ? [...driveStore.recycleBinItems]
-    : [...driveStore.currentItems]
+  // 安全地获取当前项目 - 使用DriveStoreV5的实际属性
+  const getCurrentItems = () => {
+    if (driveStore.isInRecycleBin) {
+      // 回收站项目（如果有的话）
+      return []
+    } else {
+      // 合并文件夹和文件
+      const folders = Array.isArray(driveStore.folders) ? driveStore.folders : []
+      const files = Array.isArray(driveStore.files) ? driveStore.files : []
+      
+      // 转换为DriveItem格式
+      const folderItems: DriveItem[] = folders.map((folder: any) => ({
+        id: folder.id,
+        name: folder.folder_name,
+        type: 'folder' as const,
+        path: '',
+        size: 0,
+        itemCount: folder.sub_count || 0
+      }))
+      
+      const fileItems: DriveItem[] = files.map((file: any) => ({
+        id: file.id,
+        name: file.file_name,
+        type: 'file' as const,
+        path: '',
+        size: file.file_size || 0
+      }))
+      
+      return [...folderItems, ...fileItems]
+    }
+  }
+  
+  let itemsToDisplay: DriveItem[] = getCurrentItems()
 
   // 搜索过滤
   if (driveStore.searchQuery && !driveStore.isInRecycleBin) {
@@ -1137,9 +1173,9 @@ const filteredItems = computed(() => {
       case 'size':
         return (b.size || 0) - (a.size || 0) // 通常大文件在前
       case 'modifiedAt':
-        return b.modifiedAt.getTime() - a.modifiedAt.getTime()
+        return (b.modifiedAt?.getTime() || 0) - (a.modifiedAt?.getTime() || 0)
       case 'createdAt':
-        return b.createdAt.getTime() - a.createdAt.getTime()
+        return (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
       default:
         return 0
     }
@@ -1194,10 +1230,16 @@ const getCurrentLevel = (): number => {
 const getCurrentLevelTitle = (): string => {
   if (driveStore.isInRecycleBin) return '回收站'
   
-  const level = getCurrentLevel()
-  if (level === 0) return '云盘'
-  if (level === 1) return currentFolder.value?.name || '大类'
-  if (level === 2) return currentFolder.value?.name || '子文件夹'
+  // 如果有面包屑，使用最后一个面包屑作为标题
+  if (driveStore.breadcrumb && driveStore.breadcrumb.length > 0) {
+    return driveStore.breadcrumb[driveStore.breadcrumb.length - 1].name
+  }
+  
+  // 否则根据当前文件夹ID判断
+  if (driveStore.currentFolderId === 0) {
+    return '云盘'
+  }
+  
   return '文件夹'
 }
 
@@ -1210,9 +1252,13 @@ const getEmptyStateMessage = (): string => {
 }
 
 const findItemByPath = (path: string): DriveItem | undefined => {
-  const pathParts = path.split('/').filter((p: string) => p)
-  
+  const pathParts = path.split('/').filter(p => p.length > 0)
   if (pathParts.length === 0) return undefined
+  
+  // 确保driveItems存在且为数组
+  if (!driveStore.driveItems || !Array.isArray(driveStore.driveItems)) {
+    return undefined
+  }
   
   let current = driveStore.driveItems.find((item: DriveItem) => item.name === pathParts[0])
   
@@ -1383,15 +1429,17 @@ const confirmCreateFolder = () => {
   newFolderName.value = ''
 }
 
-const uploadFiles = () => {
-  const level = getCurrentLevel()
-  if (level !== 2) {
-    alert('只能在第二级文件夹中上传文件')
-    return
+const uploadFiles = async () => {
+  if (selectedFiles.value.length === 0) return
+  
+  // 直接上传，无延迟
+  for (const file of selectedFiles.value) {
+    await transferStore.uploadFile(file, driveStore.currentFolderId)
   }
-  hideContextMenu() // 隐藏右键菜单
-  showUploadDialog.value = true
+  
   selectedFiles.value = []
+  showUploadDialog.value = false
+  driveStore.refresh()
 }
 
 const handleFileSelect = (event: Event) => {
@@ -2816,5 +2864,45 @@ const getDeleteInfo = (item: DriveItem) => {
   const daysLeft = Math.max(0, Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
   return { dateStr: deleted.toLocaleDateString(), daysLeft }
 }
+
+// 用户已收集的岛屿（从后端获取）
+const isles = computed((): Island[] => {
+  // 暂时返回空数组，避免错误
+  return []
+})
+
+// 移除模拟分享功能，改为真实API调用
+const handleShare = async () => {
+  if (!selectedItem.value) return
+  
+  try {
+    const response = await API.share.create({
+      file_ids: selectedItem.value.type === 'file' ? [selectedItem.value.id] : [],
+      folder_ids: selectedItem.value.type === 'folder' ? [selectedItem.value.id] : [],
+      expire_days: 7,
+      password: ''
+    })
+    
+    if (response.data) {
+      navigator.clipboard.writeText(response.data.share_url)
+      toast.success('分享链接已复制到剪贴板')
+    }
+  } catch (error) {
+    console.error('创建分享失败:', error)
+    toast.error('创建分享失败')
+  }
+  
+  hideContextMenu()
+}
+
+// 初始化数据
+onMounted(async () => {
+  try {
+    // 加载云盘数据
+    await driveStore.loadFolderContent(0)
+  } catch (error) {
+    console.error('加载云盘数据失败:', error)
+  }
+})
 
 </script> 

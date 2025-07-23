@@ -289,13 +289,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Repeat1, Shuffle, Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp, ChevronDown } from 'lucide-vue-next'
-import { useMusicStoreV5 } from '../store/MusicStoreV5'
+import { useMusicStore } from '../store/MusicStore'
+import { useDocsStore } from '@/store/DocsStore'
 import { useRoute, useRouter } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
-import { useDocsStoreV5 } from '@/store/DocsStoreV5'
 import { storeToRefs } from 'pinia'
 
-const musicStore = useMusicStoreV5()
+const musicStore = useMusicStore()
 const uiStore = useUIStore()
 const { progressPercentage } = storeToRefs(musicStore)
 const route = useRoute()
@@ -308,7 +308,7 @@ const showPlaylistSelector = ref(false)
 const showFullMusicBar = ref(false)
 
 // 文档页面检测 - 通过 DocsStore 检查是否有当前文档
-const docsStore = useDocsStoreV5()
+const docsStore = useDocsStore()
 const isDocumentPage = computed(() => {
   return !!docsStore.selectedDocument
 })

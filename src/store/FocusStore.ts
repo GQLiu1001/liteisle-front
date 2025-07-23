@@ -1,195 +1,465 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-interface DailyFocusData {
-  date: string // yyyy-mm-dd格式
-  focusMinutes: number // 当日专注时长（分钟）
-}
-
-interface UserFocusRecord {
-  id: number
-  userId: number
-  focusDate: string // yyyy-mm-dd格式
-  focusMinutes: number
-  createTime: string
-}
+import { API } from '@/utils/api'
+import { useToast } from 'vue-toastification'
+import { useIslandStore } from './IslandStore'
+import type {
+  FocusStatsPageResp,
+  FocusCalendarResp,
+  FocusRecordItem
+} from '@/types/api'
 
 export const useFocusStore = defineStore('focus', () => {
-  // 核心状态
-  const totalFocusTime = ref(360000) // 总专注时长 (100小时)
-  const currentStudyTime = ref(180) // 今日专注时长 (分钟)
+  const toast = useToast()
+  const islandStore = useIslandStore()
+  
+  // === 专注统计状态 ===
+  const totalFocusCount = ref(0)          // 总专注次数
+  const isLoading = ref(false)
+  const lastUpdated = ref<Date | null>(null)
+  
+  // === 专注记录 ===
+  const focusRecords = ref<FocusRecordItem[]>([])
+  const recordsPagination = ref({
+    total: 0,
+    current_page: 1,
+    page_size: 10,
+    hasMore: true
+  })
+  
+  // === 专注日历数据 ===
+  const calendarData = ref<FocusCalendarResp | null>(null)
+  const currentCalendarDate = ref(new Date())
+  
+  // === 当前专注会话状态 ===
   const isFocusing = ref(false)
-  const focusStartTime = ref(0)
+  const focusStartTime = ref<Date | null>(null)
+  const focusElapsedTime = ref(0)           // 已专注时间（秒）
+  const focusTargetTime = ref(25 * 60)      // 目标专注时间（秒），默认25分钟
   const focusTimer = ref<number | null>(null)
   
-  // 岛屿相关状态
-  const isleCount = ref(8) // 净化岛屿总数，现在扩充到8个
-  const currentIsleIndex = ref(0) // 当前显示的岛屿索引
-
-  // 每日专注时间记录
-  const dailyFocusData = ref(new Map<string, number>([
-    ['2025-07-01', 180],
-    ['2025-07-02', 30]
-  ]))
-
-  // 初始化最近4个月的数据
-  const initDailyData = () => {
+  // === 计算属性 ===
+  const focusProgress = computed(() => {
+    if (focusTargetTime.value === 0) return 0
+    return Math.min((focusElapsedTime.value / focusTargetTime.value) * 100, 100)
+  })
+  
+  const focusRemaining = computed(() => {
+    return Math.max(focusTargetTime.value - focusElapsedTime.value, 0)
+  })
+  
+  const focusElapsedMinutes = computed(() => {
+    return Math.floor(focusElapsedTime.value / 60)
+  })
+  
+  const focusTargetMinutes = computed(() => {
+    return Math.floor(focusTargetTime.value / 60)
+  })
+  
+  const hasRecords = computed(() => focusRecords.value.length > 0)
+  
+  const todayFocusTime = computed(() => {
+    if (!calendarData.value) return 0
+    
     const today = new Date()
-    // 生成4个月的数据（17周 * 7天 = 119天）
-    for (let i = 0; i < 119; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0] // yyyy-mm-dd格式
+    const todayDate = today.getDate()
+    const currentMonth = calendarData.value.year_month
+    const expectedMonth = `${today.getFullYear()}-${today.getMonth() + 1}`
+    
+    if (currentMonth === expectedMonth && calendarData.value.check_in_days && calendarData.value.check_in_days.includes(todayDate)) {
+      // 如果今天有签到，返回今天的专注时间
+      // 这里简化处理，实际应该从API获取今天的具体专注时间
+      return Math.floor(calendarData.value.total_focus_minutes / (calendarData.value.check_in_days.length || 1))
+    }
+    
+    return 0
+  })
+  
+  /**
+   * 加载专注总次数
+   */
+  const loadTotalFocusCount = async (): Promise<void> => {
+    try {
+      isLoading.value = true
+      const response = await API.focus.getTotalCount()
       
-      // 生成模拟的专注时间数据
-      const random = Math.random()
-      let focusMinutes = 0
-      
-      // 75%概率有专注时间
-      if (random > 0.25) {
-        // 专注时间在20-180分钟之间（更符合实际）
-        focusMinutes = Math.floor(Math.random() * 160) + 20
+      if (response.data !== undefined) {
+        totalFocusCount.value = response.data
       }
-      
-      dailyFocusData.value.set(dateStr, focusMinutes)
+    } catch (error) {
+      console.error('加载专注总次数失败:', error)
+      toast.error('加载专注统计失败')
+    } finally {
+      isLoading.value = false
     }
   }
-
-  // 初始化数据
-  initDailyData()
-
-  // 计算属性
-  const formattedTotalTime = computed(() => {
-    return `${totalFocusTime.value / 3600000} 小时`
-  })
-
-  const formattedCurrentTime = computed(() => {
-    const hours = Math.floor(currentStudyTime.value / 60)
-    const minutes = currentStudyTime.value % 60
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-  })
-
-  const totalFocusCount = computed(() => {
-    let count = 0
-    for (const minutes of dailyFocusData.value.values()) {
-      if (minutes > 0) {
-        count++
+  
+  /**
+   * 加载专注记录
+   */
+  const loadFocusRecords = async (reset = false): Promise<void> => {
+    try {
+      isLoading.value = true
+      
+      const page = reset ? 1 : recordsPagination.value.current_page
+      const response = await API.focus.getRecords(page, recordsPagination.value.page_size)
+      
+      if (response.data) {
+        if (reset) {
+          focusRecords.value = response.data.records || []
+          recordsPagination.value.current_page = 1
+        } else {
+          focusRecords.value.push(...(response.data.records || []))
+        }
+        
+        recordsPagination.value.total = response.data.total || 0
+        recordsPagination.value.hasMore = focusRecords.value.length < (response.data.total || 0)
+        lastUpdated.value = new Date()
       }
+    } catch (error) {
+      console.error('加载专注记录失败:', error)
+      toast.error('加载专注记录失败')
+    } finally {
+      isLoading.value = false
     }
-    return count
-  })
-
-  // 方法
-  const startFocus = () => {
+  }
+  
+  /**
+   * 加载更多专注记录
+   */
+  const loadMoreRecords = async (): Promise<void> => {
+    if (!recordsPagination.value.hasMore || isLoading.value) {
+      return
+    }
+    
+    recordsPagination.value.current_page++
+    await loadFocusRecords()
+  }
+  
+  /**
+   * 加载专注日历数据
+   */
+  const loadFocusCalendar = async (year?: number, month?: number): Promise<void> => {
+    try {
+      isLoading.value = true
+      
+      const targetDate = new Date(year || currentCalendarDate.value.getFullYear(), 
+                                  (month || currentCalendarDate.value.getMonth() + 1) - 1)
+      
+      const response = await API.focus.getCalendar(
+        targetDate.getFullYear(),
+        targetDate.getMonth() + 1
+      )
+      
+      if (response.data) {
+        calendarData.value = response.data
+        currentCalendarDate.value = targetDate
+      }
+    } catch (error) {
+      console.error('加载专注日历失败:', error)
+      toast.error('加载专注日历失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 开始专注
+   */
+  const startFocus = (targetMinutes = 25): void => {
+    if (isFocusing.value) return
+    
+    focusTargetTime.value = targetMinutes * 60
+    focusElapsedTime.value = 0
+    focusStartTime.value = new Date()
     isFocusing.value = true
-    focusStartTime.value = Date.now()
-  }
-
-  const stopFocus = () => {
-    if (isFocusing.value && focusStartTime.value) {
-      const endTime = Date.now()
-      const focusMinutes = Math.floor((endTime - focusStartTime.value) / 1000)
-      currentStudyTime.value += focusMinutes
-      totalFocusTime.value += focusMinutes * 1000
+    
+    // 开始计时器
+    focusTimer.value = window.setInterval(() => {
+      focusElapsedTime.value++
       
-      // 更新今日专注时间记录
-      const today = new Date().toISOString().split('T')[0]
-      const todayFocus = dailyFocusData.value.get(today) || 0
-      dailyFocusData.value.set(today, todayFocus + focusMinutes)
-    }
-    isFocusing.value = false
-    focusStartTime.value = 0
-  }
-
-  // 获取专注活动数据（用于贡献图）
-  const getFocusActivityData = computed(() => {
-    const activityData: { date: string; count: number }[] = []
-    
-    for (const [date, minutes] of dailyFocusData.value.entries()) {
-      activityData.push({
-        date: date,
-        count: minutes
-      })
-    }
-    
-    return activityData
-  })
-
-  // 获取签到统计
-  const getCheckInStats = computed(() => {
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
-    
-    let monthlyCheckins = 0
-    let consecutiveCheckins = 0
-    
-    // 计算本月签到
-    for (const [dateStr, minutes] of dailyFocusData.value.entries()) {
-      const date = new Date(dateStr)
-      if (date.getMonth() === currentMonth && 
-          date.getFullYear() === currentYear && 
-          minutes >= 30) {
-        monthlyCheckins++
+      // 检查是否完成
+      if (focusElapsedTime.value >= focusTargetTime.value) {
+        completeFocus()
       }
+    }, 1000)
+    
+    toast.success(`开始 ${targetMinutes} 分钟专注`)
+  }
+  
+  /**
+   * 暂停专注
+   */
+  const pauseFocus = (): void => {
+    if (!isFocusing.value) return
+    
+    isFocusing.value = false
+    
+    if (focusTimer.value) {
+      clearInterval(focusTimer.value)
+      focusTimer.value = null
     }
     
-    // 计算连续签到（从今天开始往前，最多4个月）
-    for (let i = 0; i < 119; i++) {
-      const date = new Date(today)
-      date.setDate(today.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
-      const minutes = dailyFocusData.value.get(dateStr) || 0
+    toast.info('专注已暂停')
+  }
+  
+  /**
+   * 恢复专注
+   */
+  const resumeFocus = (): void => {
+    if (isFocusing.value) return
+    
+    isFocusing.value = true
+    
+    // 重新开始计时器
+    focusTimer.value = window.setInterval(() => {
+      focusElapsedTime.value++
       
-      if (minutes >= 30) {
-        consecutiveCheckins++
+      // 检查是否完成
+      if (focusElapsedTime.value >= focusTargetTime.value) {
+        completeFocus()
+      }
+    }, 1000)
+    
+    toast.success('专注已恢复')
+  }
+  
+  /**
+   * 停止专注
+   */
+  const stopFocus = (): void => {
+    if (!isFocusing.value) return
+    
+    isFocusing.value = false
+    
+    if (focusTimer.value) {
+      clearInterval(focusTimer.value)
+      focusTimer.value = null
+    }
+    
+    // 重置状态
+    focusElapsedTime.value = 0
+    focusStartTime.value = null
+    
+    toast.info('专注已停止')
+  }
+  
+  /**
+   * 完成专注
+   */
+  const completeFocus = async (): Promise<void> => {
+    if (!isFocusing.value) return
+    
+    const completedMinutes = focusElapsedMinutes.value
+    
+    // 停止计时器
+    isFocusing.value = false
+    if (focusTimer.value) {
+      clearInterval(focusTimer.value)
+      focusTimer.value = null
+    }
+    
+    try {
+      // 记录专注时长到后端
+      const response = await API.focus.recordFocus(completedMinutes)
+      
+      if (response.data) {
+        // 如果获得了新岛屿
+        const islandUrl = response.data
+        if (islandUrl) {
+          islandStore.addIsland(islandUrl)
+        }
+      }
+      
+      // 更新本地统计
+      totalFocusCount.value++
+      
+      // 刷新数据
+      await Promise.all([
+        loadFocusRecords(true),
+        loadFocusCalendar(),
+        loadTotalFocusCount()
+      ])
+      
+      toast.success(`🎉 专注完成！用时 ${completedMinutes} 分钟`)
+    } catch (error) {
+      console.error('记录专注时长失败:', error)
+      toast.error('记录专注失败')
+    }
+    
+    // 重置状态
+    focusElapsedTime.value = 0
+    focusStartTime.value = null
+  }
+  
+  /**
+   * 设置专注目标时间
+   */
+  const setFocusTarget = (minutes: number): void => {
+    if (minutes <= 0) return
+    
+    focusTargetTime.value = minutes * 60
+    
+    // 如果正在专注中，需要重新计算进度
+    if (isFocusing.value) {
+      toast.info(`目标时间已调整为 ${minutes} 分钟`)
+    }
+  }
+  
+  /**
+   * 格式化时间显示
+   */
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  
+  /**
+   * 格式化专注时长
+   */
+  const formatFocusTime = (minutes: number): string => {
+    if (minutes < 60) {
+      return `${minutes}分钟`
+    }
+    
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    
+    if (remainingMinutes === 0) {
+      return `${hours}小时`
+    }
+    
+    return `${hours}小时${remainingMinutes}分钟`
+  }
+  
+  /**
+   * 获取专注连续天数
+   */
+  const getFocusStreak = (): number => {
+    if (!calendarData.value || calendarData.value.check_in_days.length === 0) {
+      return 0
+    }
+    
+    const today = new Date()
+    const currentDay = today.getDate()
+    const checkInDays = [...calendarData.value.check_in_days].sort((a, b) => b - a) // 降序排列
+    
+    let streak = 0
+    let expectedDay = currentDay
+    
+    for (const day of checkInDays) {
+      if (day === expectedDay) {
+        streak++
+        expectedDay--
       } else {
         break
       }
     }
     
-    return {
-      monthlyCheckins,
-      consecutiveCheckins
+    return streak
+  }
+  
+  /**
+   * 切换到上个月
+   */
+  const gotoPreviousMonth = async (): Promise<void> => {
+    const prevMonth = new Date(currentCalendarDate.value)
+    prevMonth.setMonth(prevMonth.getMonth() - 1)
+    await loadFocusCalendar(prevMonth.getFullYear(), prevMonth.getMonth() + 1)
+  }
+  
+  /**
+   * 切换到下个月
+   */
+  const gotoNextMonth = async (): Promise<void> => {
+    const nextMonth = new Date(currentCalendarDate.value)
+    nextMonth.setMonth(nextMonth.getMonth() + 1)
+    await loadFocusCalendar(nextMonth.getFullYear(), nextMonth.getMonth() + 1)
+  }
+  
+  /**
+   * 回到当前月
+   */
+  const gotoCurrentMonth = async (): Promise<void> => {
+    const now = new Date()
+    await loadFocusCalendar(now.getFullYear(), now.getMonth() + 1)
+  }
+  
+  /**
+   * 重置状态
+   */
+  const reset = (): void => {
+    // 停止专注
+    stopFocus()
+    
+    // 重置数据
+    totalFocusCount.value = 0
+    focusRecords.value = []
+    calendarData.value = null
+    lastUpdated.value = null
+    
+    // 重置分页
+    recordsPagination.value = {
+      total: 0,
+      current_page: 1,
+      page_size: 10,
+      hasMore: true
     }
-  })
-
-  // 切换岛屿
-  const nextIsle = () => {
-    currentIsleIndex.value = (currentIsleIndex.value + 1) % isleCount.value
+    
+    // 重置日期
+    currentCalendarDate.value = new Date()
   }
-
-  const prevIsle = () => {
-    currentIsleIndex.value = (currentIsleIndex.value - 1 + isleCount.value) % isleCount.value
-  }
-
-  const addIsle = () => {
-    isleCount.value++
-  }
-
+  
   return {
-    // 状态
-    totalFocusTime,
-    currentStudyTime,
+    // === 统计状态 ===
+    totalFocusCount,
+    isLoading,
+    lastUpdated,
+    
+    // === 记录数据 ===
+    focusRecords,
+    recordsPagination,
+    calendarData,
+    currentCalendarDate,
+    
+    // === 专注会话状态 ===
     isFocusing,
     focusStartTime,
-    focusTimer,
-    isleCount,
-    currentIsleIndex,
-    dailyFocusData,
+    focusElapsedTime,
+    focusTargetTime,
     
-    // 计算属性
-    formattedTotalTime,
-    formattedCurrentTime,
-    getFocusActivityData,
-    getCheckInStats,
-    totalFocusCount,
+    // === 计算属性 ===
+    focusProgress,
+    focusRemaining,
+    focusElapsedMinutes,
+    focusTargetMinutes,
+    hasRecords,
+    todayFocusTime,
     
-    // 方法
+    // === 数据加载方法 ===
+    loadTotalFocusCount,
+    loadFocusRecords,
+    loadMoreRecords,
+    loadFocusCalendar,
+    
+    // === 专注控制方法 ===
     startFocus,
+    pauseFocus,
+    resumeFocus,
     stopFocus,
-    nextIsle,
-    prevIsle,
-    addIsle
+    completeFocus,
+    setFocusTarget,
+    
+    // === 日历导航方法 ===
+    gotoPreviousMonth,
+    gotoNextMonth,
+    gotoCurrentMonth,
+    
+    // === 工具方法 ===
+    formatTime,
+    formatFocusTime,
+    getFocusStreak,
+    reset
   }
 }) 

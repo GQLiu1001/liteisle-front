@@ -186,6 +186,7 @@ import 'vditor/dist/index.css'
 import { useVditorStore } from '@/store/VditorStore'
 import { useSettingsStore } from '@/store/SettingsStore'
 import { uploadClipboardImageToPicGo } from '@/utils/picgo'
+import { API } from '@/utils/api'
 
 // 组件属性
 interface Props {
@@ -1108,16 +1109,17 @@ const translateText = async () => {
     translatedText.value = ''
     
     try {
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // 这里应该调用真实的翻译API
-      // 现在先用模拟翻译结果
-      const mockTranslation = `翻译结果: ${selectedText.value}`
-      translatedText.value = mockTranslation
-      
+             const response = await API.translate.translate({
+         file_name: 'selected_text.txt',
+         text: selectedText.value,
+         target_lang: 'zh-CN'
+       })
+      if (response.data) {
+        translatedText.value = response.data.translated_text
+      }
     } catch (error) {
-      translatedText.value = '翻译失败，请重试'
+      console.error('翻译失败:', error)
+      translatedText.value = '翻译服务暂不可用'
     } finally {
       isTranslating.value = false
     }

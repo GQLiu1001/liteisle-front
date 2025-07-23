@@ -85,15 +85,15 @@ export const useShareStore = defineStore('share', () => {
       
       if (response.data) {
         if (reset) {
-          myShares.value = response.data.records
+          myShares.value = response.data.records || []
           sharesPagination.value.currentPage = 1
         } else {
-          myShares.value.push(...response.data.records)
+          myShares.value.push(...(response.data.records || []))
         }
         
-        sharesPagination.value.total = response.data.total
+        sharesPagination.value.total = response.data.total || 0
         sharesPagination.value.currentPage = page
-        sharesPagination.value.hasMore = myShares.value.length < response.data.total
+        sharesPagination.value.hasMore = myShares.value.length < (response.data.total || 0)
       }
     } catch (error) {
       console.error('加载分享记录失败:', error)
@@ -174,7 +174,7 @@ export const useShareStore = defineStore('share', () => {
       const response = await API.share.save(data)
       
       if (response.data) {
-        toast.success(`开始转存 ${response.data.total_files_to_save} 个文件`)
+        toast.success(`开始转存 ${response.data.total_files_to_save || 0} 个文件`)
         return response.data
       }
       

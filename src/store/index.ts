@@ -8,13 +8,13 @@ import { useShareStore } from './ShareStore'
 import { useIslandStore } from './IslandStore'
 import { useSettingsStore } from './SettingsStore'
 
-// V5版本的新Store
-import { useAuthStoreV5 } from './AuthStoreV5'
-import { useDriveStoreV5 } from './DriveStoreV5'
-import { useMusicStoreV5 } from './MusicStoreV5'
-import { useDocsStoreV5 } from './DocsStoreV5'
-import { useTransferStoreV5 } from './TransferStoreV5'
-import { useFocusStoreV5 } from './FocusStoreV5'
+// 主要业务Store
+import { useAuthStore } from './AuthStore'
+import { useDriveStore } from './DriveStore'
+import { useMusicStore } from './MusicStore'
+import { useDocsStore } from './DocsStore'
+import { useTransferStore } from './TransferStore'
+import { useFocusStore } from './FocusStore'
 
 const pinia = createPinia()
 
@@ -28,11 +28,11 @@ export {
   useIslandStore,
   useSettingsStore,
 
-  // V5版本Store
-  useAuthStoreV5,
-  useDriveStoreV5,
-  useMusicStoreV5,
-  useDocsStoreV5,
-  useTransferStoreV5,
-  useFocusStoreV5
+  // 主要业务Store
+  useAuthStore,
+  useDriveStore,
+  useMusicStore,
+  useDocsStore,
+  useTransferStore,
+  useFocusStore
 } 

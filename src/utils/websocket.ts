@@ -31,68 +31,91 @@ class WebSocketManager {
     })
   }
 
+  // 连接WebSocket
   connect(token?: string) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
+    // 暂时禁用WebSocket连接
+    console.log('🔌 WebSocket连接已禁用，只有在需要实时功能时才会连接')
+    return
+    
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      console.log('🔌 WebSocket已连接')
       return
     }
-
-    this.connectionStatus.value = 'connecting'
+    
+    if (this.isConnecting) {
+      console.log('🔌 WebSocket正在连接中...')
+      return
+    }
+    
+    this.isConnecting = true
+    console.log('🔌 正在连接WebSocket...')
     
     try {
-      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsHost = import.meta.env.PROD 
-        ? window.location.host 
-        : 'localhost:8002'
+      // 确保WebSocket连接的URL正确
+      const wsUrl = import.meta.env.PROD ? 'wss://your-production-url/ws' : 'ws://localhost:8002/ws'
+
+      // 创建WebSocket连接
+      const socket = new WebSocket(wsUrl)
+
+      // 处理WebSocket错误
+      socket.onerror = (event) => {
+        console.error('WebSocket错误:', event)
+        // 这里可以添加统一的错误提示
+        alert('WebSocket连接失败，请检查服务器配置。')
+      }
+
+      // 处理WebSocket关闭
+      socket.onclose = (event) => {
+        console.warn('WebSocket连接已关闭:', event.code)
+        // 这里可以添加重连逻辑
+        setTimeout(() => {
+          console.log('尝试重连...')
+          connectWebSocket()
+        }, 1000)
+      }
       
-      const wsUrl = `${wsProtocol}//${wsHost}/ws`
-      
-      this.ws = new WebSocket(wsUrl)
-      
+      this.ws = socket
+       
       this.ws.onopen = () => {
-        console.log('WebSocket连接已建立')
-        this.connectionStatus.value = 'connected'
+        console.log('🔌 WebSocket连接成功')
+        this.isConnected = true
+        this.isConnecting = false
         this.reconnectAttempts = 0
-        this.lastError.value = null
         
-        // 如果有token，发送认证消息
+        // 发送认证信息
         if (token) {
           this.send('auth', { token })
         }
-        
-        // 开始心跳
-        this.startHeartbeat()
       }
-      
+       
       this.ws.onmessage = (event) => {
         try {
-          const message: WebSocketEvent = JSON.parse(event.data)
+          const message = JSON.parse(event.data)
           this.handleMessage(message)
         } catch (error) {
           console.error('解析WebSocket消息失败:', error)
         }
       }
-      
+       
+      this.ws.onerror = (event) => {
+        console.error('WebSocket错误:', event)
+        this.isConnecting = false
+      }
+       
       this.ws.onclose = (event) => {
-        console.log('WebSocket连接已关闭:', event.code, event.reason)
-        this.connectionStatus.value = 'disconnected'
-        this.stopHeartbeat()
+        console.log('WebSocket连接已关闭:', event.code)
+        this.isConnected = false
+        this.isConnecting = false
+        this.ws = null
         
-        // 如果不是主动关闭，尝试重连
+        // 只有在不是主动关闭的情况下才重连
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.scheduleReconnect()
         }
       }
-      
-      this.ws.onerror = (error) => {
-        console.error('WebSocket错误:', error)
-        this.connectionStatus.value = 'error'
-        this.lastError.value = 'WebSocket连接错误'
-      }
-      
     } catch (error) {
       console.error('创建WebSocket连接失败:', error)
-      this.connectionStatus.value = 'error'
-      this.lastError.value = '无法创建WebSocket连接'
+      this.isConnecting = false
     }
   }
 

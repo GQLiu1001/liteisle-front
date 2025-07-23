@@ -298,11 +298,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2, Minus, Square, X } from 'lucide-vue-next'
-import { useAuthStoreV5 } from '@/store/AuthStoreV5'
+import { useAuthStore } from '@/store/AuthStore'
 import { useToast } from 'vue-toastification'
 
 const router = useRouter()
-const authStore = useAuthStoreV5()
+const authStore = useAuthStore()
 const toast = useToast()
 
 // 活跃标签页
@@ -384,62 +384,48 @@ const closeWindow = () => {
   }
 }
 
-// 处理登录提交
+// 处理登录
 const handleLogin = async () => {
   if (!loginForm.username || !loginForm.password) {
-    toast.error('请填写完整的登录信息')
+    toast.error('请填写用户名和密码')
     return
   }
 
-  try {
-    const success = await authStore.login({
-      username: loginForm.username,
-      password: loginForm.password
-    })
+  const success = await authStore.login({
+    username: loginForm.username,
+    password: loginForm.password
+  })
 
-    if (success) {
-      toast.success('登录成功')
-      router.push('/home')
-    }
-  } catch (error: any) {
-    console.error('登录错误:', error)
-    if (error.response?.status === 401) {
-      toast.error('用户名或密码错误')
-    } else if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
-      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
-    } else {
-      toast.error(error.response?.data?.message || '登录失败，请重试')
-    }
+  if (success) {
+    // 登录成功，跳转到首页
+    router.push('/home')
   }
 }
 
-// 处理注册提交
+// 处理注册
 const handleRegister = async () => {
   if (!registerForm.username || !registerForm.email || 
-      !registerForm.password || !registerForm.verificationCode) {
-    toast.error('请填写完整的注册信息')
+      !registerForm.password || !registerForm.confirmPassword || 
+      !registerForm.vcode) {
+    toast.error('请填写所有必填项')
     return
   }
 
-  try {
-    const success = await authStore.register({
-      username: registerForm.username,
-      email: registerForm.email,
-      password: registerForm.password,
-      vcode: registerForm.verificationCode
-    })
+  if (registerForm.password !== registerForm.confirmPassword) {
+    toast.error('两次输入的密码不一致')
+    return
+  }
 
-    if (success) {
-      toast.success('注册成功，正在跳转...')
-      router.push('/home')
-    }
-  } catch (error: any) {
-    console.error('注册错误:', error)
-    if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
-      toast.error('无法连接到后端服务器，请检查服务器是否启动 (localhost:8002)')
-    } else {
-      toast.error(error.response?.data?.message || '注册失败，请重试')
-    }
+  const success = await authStore.register({
+    username: registerForm.username,
+    email: registerForm.email,
+    password: registerForm.password,
+    vcode: registerForm.vcode
+  })
+
+  if (success) {
+    // 注册成功，跳转到首页
+    router.push('/home')
   }
 }
 

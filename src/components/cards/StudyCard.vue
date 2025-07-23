@@ -8,7 +8,7 @@
       <div>
         <h3 class="text-lg lg:text-xl font-semibold text-morandi-900 mb-2 lg:mb-3">累计专注次数</h3>
         <div class="flex items-baseline justify-center mb-1">
-          <span class="text-3xl lg:text-4xl font-bold text-morandi-800">{{ totalFocusCount }}</span>
+          <span class="text-3xl lg:text-4xl font-bold text-morandi-800">{{ displayFocusCount }}</span>
           <span class="text-base lg:text-lg text-morandi-700 ml-1.5">次</span>
         </div>
       </div>
@@ -19,11 +19,28 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Clock } from 'lucide-vue-next'
-import { useFocusStoreV5 } from '@/store/FocusStoreV5'
+import { useFocusStore } from '@/store/FocusStore'
 import { storeToRefs } from 'pinia'
 
-const focusStore = useFocusStoreV5()
+const focusStore = useFocusStore()
 const { totalFocusCount } = storeToRefs(focusStore)
+
+// 确保显示正确的数字，而不是JSON
+const displayFocusCount = computed(() => {
+  // 如果totalFocusCount是数字，直接返回
+  if (typeof totalFocusCount.value === 'number') {
+    return totalFocusCount.value
+  }
+  
+  // 如果是字符串或其他类型，尝试解析
+  if (typeof totalFocusCount.value === 'string') {
+    const parsed = parseInt(totalFocusCount.value, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  
+  // 默认返回0
+  return 0
+})
 
 // 今日学习进度（假设目标是2小时=120分钟）
 const todayProgress = computed(() => {

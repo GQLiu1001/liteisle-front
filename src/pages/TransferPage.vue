@@ -221,9 +221,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Upload, Download, Link, Trash2, FolderOpen, File as FileIcon, Film, X } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification'
-import { useDriveStoreV5 } from '@/store/DriveStoreV5';
-import { useTransferStoreV5 } from '@/store/TransferStoreV5';
-import type { DriveItem } from '@/store/DriveStore';
+import { useDriveStore } from '@/store/DriveStore';
+import { useTransferStore } from '@/store/TransferStore';
 
 const toast = useToast()
 
@@ -251,8 +250,8 @@ const taskToDelete = ref<Task | null>(null);
 const linkUrl = ref('');
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const driveStore = useDriveStoreV5();
-const transferStore = useTransferStoreV5();
+const driveStore = useDriveStore();
+const transferStore = useTransferStore();
 
 const categories: { type: CategoryType; label: string; icon: any; }[] = [
   { type: 'upload', label: '上传', icon: Upload },
@@ -268,13 +267,18 @@ const allTasks = ref<Task[]>([]);
 let taskIdCounter = 0;
 
 const getTaskCount = (category: CategoryType) => {
-  return transferStore.tasks.filter((task: any) => task.type === category).length;
+  const allTasks = [...transferStore.processingTasks, ...transferStore.completedTasks];
+  return allTasks.filter((task: any) => task.transfer_type === category || task.transfer_type === category.toUpperCase()).length;
 };
 
 const getStatusCount = (status: StatusType) => {
-  return transferStore.tasks.filter((task: any) => 
-    task.type === activeCategory.value && 
-    (status === 'progressing' ? task.status === 'progressing' : task.status === 'completed')
+  const allTasks = [...transferStore.processingTasks, ...transferStore.completedTasks];
+  return allTasks.filter((task: any) => 
+    task.transfer_type === activeCategory.value && 
+    (status === 'progressing' ? 
+      transferStore.processingTasks.includes(task) : 
+      transferStore.completedTasks.includes(task)
+    )
   ).length;
 };
 
@@ -283,22 +287,27 @@ const hasCompletedTasks = computed(() => {
 });
 
 const filteredTasks = computed(() => {
-  // 使用 TransferStore 的任务，而不是本地的 allTasks
-  const storeTasks = transferStore.tasks
+  let storeTasks: any[] = [];
+  
+  if (activeStatus.value === 'progressing') {
+    storeTasks = transferStore.processingTasks;
+  } else {
+    storeTasks = transferStore.completedTasks;
+  }
+  
   const mappedTasks = storeTasks.map((task: any) => ({
-    id: parseInt(task.id.split('-')[1]) || 0,
-    name: task.name,
-    category: task.type as CategoryType,
-    status: task.status === 'progressing' ? 'progressing' as StatusType : 'completed' as StatusType,
-    size: transferStore.formatBytes(task.size),
-    speed: task.speed,
-    progress: task.progress,
-    icon: task.type === 'upload' ? Upload : Download
+    id: task.log_id || Math.random(),
+    name: task.item_name || '未知文件',
+    category: task.transfer_type as CategoryType,
+    status: activeStatus.value as StatusType,
+    size: transferStore.formatFileSize(task.item_size || 0),
+    speed: task.speed || '0 KB/s',
+    progress: task.progress || 0,
+    icon: task.transfer_type === 'upload' ? Upload : Download
   }))
   
   return mappedTasks.filter((t: any) => 
-    t.category === activeCategory.value && 
-    t.status === activeStatus.value
+    t.category === activeCategory.value
   )
 });
 
@@ -319,23 +328,9 @@ const getFileType = (name: string): 'audio' | 'document' | 'other' => {
 };
 
 const addToSpecialFolder = (folderName: '上传' | '分享', fileName: string, size: number = 0) => {
-  const folder = driveStore.driveItems.find((d: DriveItem) => d.name === folderName && d.type === 'folder');
-  if (!folder) return;
-
-  const newFile: DriveItem = {
-    id: Date.now().toString() + Math.random().toString(),
-    name: fileName,
-    type: getFileType(fileName),
-    size,
-    modifiedAt: new Date(),
-    createdAt: new Date(),
-    path: `/${folderName}/${fileName}`,
-    parentId: folder.id,
-  } as DriveItem;
-
-  if (!folder.children) folder.children = [];
-  folder.children.push(newFile);
-  folder.itemCount = (folder.itemCount || 0) + 1;
+  // 这个功能需要与新的DriveStore结构适配
+  // 暂时注释掉，等待后续实现
+  console.log(`添加文件 ${fileName} 到 ${folderName} 文件夹`);
 };
 
 const addTask = (file: File) => {

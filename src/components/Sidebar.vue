@@ -30,10 +30,10 @@
 import { computed } from 'vue'
 import { Home, Cloud, Music, FileText, Settings, CloudLightning } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
-import { useTransferStoreV5 } from '../store/TransferStoreV5'
+import { useTransferStore } from '../store/TransferStore'
 
 const route = useRoute()
-const transferStore = useTransferStoreV5()
+const transferStore = useTransferStore()
 
 // 检查是否有活跃的传输任务
 const hasActiveTasks = computed(() => {

@@ -1,319 +1,520 @@
-import {defineStore}   from 'pinia'
+import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useDriveStore, type DriveItem } from './DriveStore'
-
-// 文档接口定义
-export interface Document {
-  id: string
-  name: string
-  type: 'pdf' | 'markdown' | 'txt' | 'doc' | 'docx' | 'ppt' | 'pptx' | 'xls' | 'xlsx'
-  size: number
-  modifiedAt: Date
-  path: string
-  categoryId: string
-  content?: string
-  summary?: string
-}
-
-// 分类接口定义
-export interface DocumentCategory {
-  id: string
-  name: string
-  icon: string
-  documentCount: number
-  documents: Document[]
-}
+import { API } from '@/utils/api'
+import { onFileStatusUpdated } from '@/utils/websocket'
+import { useToast } from 'vue-toastification'
+import { FileStatusEnum } from '@/types/api'
+import type {
+  DocumentViewResp,
+  FolderInfo,
+  FileInfo,
+  MarkdownContentResp,
+  MarkdownUpdateReq,
+  MarkdownCreateReq,
+  TranslateReq,
+  TranslateResp
+} from '@/types/api'
 
 export const useDocsStore = defineStore('docs', () => {
-  // 响应式状态
-  const currentCategory = ref<string | null>(null)
-  const currentDocument = ref<Document | null>(null)
-  const searchQuery = ref('')
-  const selectedText = ref('')
-  const translationResult = ref('')
-  const showTranslation = ref(false)
-  const translationPosition = ref({ x: 0, y: 0 })
-
-  // 文档数据现在从 DriveStore 动态加载
-  const categories = ref<DocumentCategory[]>([])
+  const toast = useToast()
   
-  const getDocTypeFromExtension = (extension: string | undefined): Document['type'] => {
-    switch (extension) {
-      case 'pdf': return 'pdf';
-      case 'md': return 'markdown';
-      case 'txt': return 'txt';
-      case 'doc': return 'doc';
-      case 'docx': return 'docx';
-      case 'ppt': return 'ppt';
-      case 'pptx': return 'pptx';
-      case 'xls': return 'xls';
-      case 'xlsx': return 'xlsx';
-      default: return 'txt';
-    }
-  }
-
-  const loadCategoriesFromDrive = () => {
-    // 防止重复加载
-    if (categories.value.length > 0) return
-
-    const driveStore = useDriveStore()
-    const newCategories: DocumentCategory[] = []
-
-    const docsFolder = driveStore.driveItems.find((item: DriveItem) => item.name === '文档' && item.type === 'folder')
-
-    if (docsFolder && docsFolder.children) {
-      docsFolder.children.forEach((subfolder: DriveItem) => {
-        if (subfolder.type === 'folder' && subfolder.children) {
-          const documents: Document[] = subfolder.children
-            .filter((file: DriveItem) => file.type === 'document')
-            .map((file: DriveItem) => {
-              const extension = file.name.split('.').pop()?.toLowerCase();
-              const fileType = getDocTypeFromExtension(extension);
-              return {
-                id: file.id,
-                name: file.name,
-                type: fileType,
-                size: file.size,
-                modifiedAt: file.modifiedAt,
-                path: file.path,
-                categoryId: subfolder.id,
-                // 为演示目的，动态生成模拟内容和摘要
-                content: fileType === 'markdown' ? 
-                  `# ${file.name.split('.')[0]}
-
-这是一个**Milkdown 编辑器**的测试文档，展示了所见即所得的 Markdown 编辑功能。
-
-## 功能特性
-
-### 基本格式
-- **粗体文本**
-- *斜体文本*
-- ~~删除线文本~~
-- \`内联代码\`
-
-### 列表
-1. 有序列表项 1
-2. 有序列表项 2
-   - 无序子列表项
-   - 另一个子列表项
-
-### 代码块
-\`\`\`javascript
-function hello() {
-  console.log("Hello, Milkdown!");
-}
-\`\`\`
-
-### 引用
-> 这是一个引用块，展示了编辑器的引用功能。
-
-### 表格
-| 列1 | 列2 | 列3 |
-|-----|-----|-----|
-| 内容1 | 内容2 | 内容3 |
-| 数据A | 数据B | 数据C |
-
-### 链接和图片
-[Milkdown官网](https://milkdown.dev)
-
----
-
-这个编辑器支持完整的 Markdown 语法，包括数学公式、表情符号等扩展功能。
-` : 
-                  `# ${file.name}\n\n这是从云盘加载的文档 **${file.name}** 的模拟内容。`,
-                summary: `这是一个关于 "${file.name.split('.')[0]}" 的文档。`
-              }
-            })
-
-          if (documents.length > 0) {
-            newCategories.push({
-              id: subfolder.id,
-              name: subfolder.name,
-              icon: 'Book', // 可以根据需要设置不同的图标
-              documentCount: documents.length,
-              documents: documents
-            })
-          }
-        }
-      })
-    }
-    
-    categories.value = newCategories
-    // 默认选中第一个分类
-    if (newCategories.length > 0 && !currentCategory.value) {
-      currentCategory.value = newCategories[0].id
-    }
-  }
-
-  // 计算属性
-  const currentCategoryData = computed(() => {
-    return categories.value.find((cat: DocumentCategory) => cat.id === currentCategory.value)
+  // === 文档数据状态 ===
+  const booklists = ref<FolderInfo[]>([])     // 笔记本列表（文件夹）
+  const allDocuments = ref<FileInfo[]>([])    // 所有文档文件
+  const isLoading = ref(false)
+  const searchQuery = ref('')
+  const lastUpdated = ref<Date | null>(null)
+  
+  // === 当前选择状态 ===
+  const currentBooklist = ref<FolderInfo | null>(null)  // 当前选择的笔记本
+  const selectedDocument = ref<FileInfo | null>(null)   // 当前选择的文档
+  
+  // === Markdown编辑状态 ===
+  const currentMarkdownContent = ref('')
+  const currentMarkdownVersion = ref(0)
+  const isMarkdownMode = ref(false)
+  const hasUnsavedChanges = ref(false)
+  const isSaving = ref(false)
+  
+  // === 翻译功能状态 ===
+  const isTranslating = ref(false)
+  const lastTranslation = ref<TranslateResp | null>(null)
+  
+  // === 计算属性 ===
+  const currentBooklistDocuments = computed(() => {
+    if (!currentBooklist.value) return []
+    return allDocuments.value.filter(file => 
+      file.folder_id === currentBooklist.value!.id &&
+      file.file_status === FileStatusEnum.AVAILABLE
+    ).sort((a, b) => a.sorted_order - b.sorted_order)
   })
-
-  const categoriesWithFilteredCounts = computed(() => {
-    if (!searchQuery.value) {
-      return categories.value;
-    }
-    const query = searchQuery.value.toLowerCase();
-    return categories.value.map(category => {
-      const filteredCount = category.documents.filter(doc =>
-        doc.name.toLowerCase().includes(query) ||
-        (doc.summary && doc.summary.toLowerCase().includes(query))
-      ).length;
-      return {
-        ...category,
-        documentCount: filteredCount
-      };
-    });
-  });
-
+  
   const filteredDocuments = computed(() => {
-    if (currentCategoryData.value) {
-      const { documents } = currentCategoryData.value
-      const query = searchQuery.value.toLowerCase()
-      if (!query) return documents
-
-      return documents.filter(doc =>
-        doc.name.toLowerCase().includes(query) ||
-        (doc.summary && doc.summary.toLowerCase().includes(query))
-      )
-    }
-    return []
+    const documents = currentBooklistDocuments.value
+    if (!searchQuery.value) return documents
+    
+    const query = searchQuery.value.toLowerCase()
+    return documents.filter(doc => 
+      doc.file_name.toLowerCase().includes(query)
+    )
   })
-
-  const loadDocumentByPath = (path: string) => {
-    for (const category of categories.value) {
-      const doc = category.documents.find(d => d.path === path)
-      if (doc) {
-        currentCategory.value = category.id
-        currentDocument.value = doc
+  
+  const canSaveMarkdown = computed(() => {
+    return isMarkdownMode.value && hasUnsavedChanges.value && !isSaving.value
+  })
+  
+  const isMarkdownDocument = computed(() => {
+    return selectedDocument.value?.file_name.toLowerCase().endsWith('.md') || false
+  })
+  
+  /**
+   * 设置WebSocket监听
+   */
+  const setupWebSocketListeners = () => {
+    onFileStatusUpdated((payload) => {
+      // 更新对应文档文件的状态
+      const fileIndex = allDocuments.value.findIndex(file => file.id === payload.file_id)
+      if (fileIndex > -1 && payload.file_data) {
+        allDocuments.value[fileIndex] = payload.file_data
+        
+        if (payload.file_status === FileStatusEnum.AVAILABLE) {
+          toast.success(`文档 "${payload.file_data.file_name}" 处理完成`)
+        } else if (payload.file_status === FileStatusEnum.FAILED) {
+          toast.error(`文档 "${payload.file_data.file_name}" 处理失败`)
+        }
+      }
+    })
+  }
+  
+  /**
+   * 加载文档页面数据
+   */
+  const loadDocumentsData = async (content?: string): Promise<void> => {
+    try {
+      isLoading.value = true
+      const response = await API.document.getDocumentView(content)
+      
+      if (response.data) {
+        booklists.value = response.data.booklists || []
+        allDocuments.value = response.data.files || []
+        lastUpdated.value = new Date()
+      }
+    } catch (error) {
+      console.error('加载文档数据失败:', error)
+      toast.error('加载文档数据失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 搜索文档
+   */
+  const searchDocuments = async (query: string): Promise<void> => {
+    searchQuery.value = query
+    await loadDocumentsData(query)
+  }
+  
+  /**
+   * 选择笔记本
+   */
+  const selectBooklist = (booklist: FolderInfo): void => {
+    currentBooklist.value = booklist
+    
+    // 如果当前选择的文档不在新选择的笔记本中，清除选择
+    if (selectedDocument.value) {
+      const booklistDocuments = allDocuments.value.filter(file => file.folder_id === booklist.id)
+      if (!booklistDocuments.find(doc => doc.id === selectedDocument.value!.id)) {
+        closeDocument()
+      }
+    }
+  }
+  
+  /**
+   * 选择文档
+   */
+  const selectDocument = async (document: FileInfo): Promise<void> => {
+    // 如果有未保存的更改，提示用户
+    if (hasUnsavedChanges.value) {
+      const confirmed = confirm('您有未保存的更改，是否要放弃更改？')
+      if (!confirmed) {
         return
       }
     }
-    console.error(`在 DocsStore 中未找到路径为 "${path}" 的文档`)
-    currentDocument.value = null // or a specific "not found" state
-  }
-
-  // Actions
-  const setCurrentCategory = (categoryId: string) => {
-    currentCategory.value = categoryId
-    currentDocument.value = null
-  }
-
-  const setCurrentDocument = (document: Document | null) => {
-    currentDocument.value = document
-  }
-
-  const reorderDocumentsInCurrentCategory = (oldIndex: number, newIndex: number) => {
-    if (!currentCategoryData.value) return;
-
-    const documents = currentCategoryData.value.documents;
-    const [movedItem] = documents.splice(oldIndex, 1);
-    documents.splice(newIndex, 0, movedItem);
-  };
-
-  const reorderCategories = (oldIndex: number, newIndex: number) => {
-    if (oldIndex === newIndex) return;
     
-    const categoriesArray = [...categories.value];
-    const [movedCategory] = categoriesArray.splice(oldIndex, 1);
-    categoriesArray.splice(newIndex, 0, movedCategory);
+    selectedDocument.value = document
     
-    categories.value = categoriesArray;
-  };
-
-  const addDocument = (categoryId: string, document: Omit<Document, 'id'>) => {
-    const newDocument: Document = {
-      ...document,
-      id: Date.now().toString()
-    }
-
-    const category = categories.value.find((cat: DocumentCategory) => cat.id === categoryId)
-    if (category) {
-      category.documents.push(newDocument)
-      category.documentCount = category.documents.length
+    if (isMarkdownDocument.value) {
+      await loadMarkdownContent(document.id)
+    } else {
+      // 对于非Markdown文档，退出编辑模式
+      exitMarkdownMode()
     }
   }
-
-  const setSelectedText = (text: string) => {
-    selectedText.value = text
-  }
-
-  const showTranslationPopup = (x: number, y: number) => {
-    translationPosition.value = { x, y }
-    showTranslation.value = true
-  }
-
-  const hideTranslationPopup = () => {
-    showTranslation.value = false
-    translationResult.value = ''
-  }
-
-  const translateText = async (text: string) => {
-    // 模拟翻译API调用
-    translationResult.value = '翻译中...'
+  
+  /**
+   * 关闭文档
+   */
+  const closeDocument = (): void => {
+    if (hasUnsavedChanges.value) {
+      const confirmed = confirm('您有未保存的更改，是否要放弃更改？')
+      if (!confirmed) {
+        return
+      }
+    }
     
-    setTimeout(() => {
-      // 简单的模拟翻译结果
-      const translations: Record<string, string> = {
-        'design patterns': '设计模式',
-        'javascript': 'JavaScript 编程语言',
-        'vue': 'Vue.js 框架',
-        'react': 'React.js 框架',
-        'typescript': 'TypeScript 编程语言',
-        'nodejs': 'Node.js 运行时环境'
+    selectedDocument.value = null
+    exitMarkdownMode()
+  }
+  
+  /**
+   * 获取文档预览/下载链接
+   */
+  const getDocumentViewUrl = async (fileId: number): Promise<string | null> => {
+    try {
+      const response = await API.document.getViewUrl(fileId)
+      return response.data || null
+    } catch (error) {
+      console.error('获取文档链接失败:', error)
+      toast.error('获取文档链接失败')
+      return null
+    }
+  }
+  
+  /**
+   * 加载Markdown文档内容
+   */
+  const loadMarkdownContent = async (fileId: number): Promise<void> => {
+    try {
+      isLoading.value = true
+      const response = await API.document.getMarkdownContent(fileId)
+      
+      if (response.data) {
+        currentMarkdownContent.value = response.data.content
+        currentMarkdownVersion.value = response.data.version
+        isMarkdownMode.value = true
+        hasUnsavedChanges.value = false
+      }
+    } catch (error) {
+      console.error('加载Markdown内容失败:', error)
+      toast.error('加载Markdown内容失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 更新Markdown文档内容
+   */
+  const updateMarkdownContent = (content: string): void => {
+    if (content !== currentMarkdownContent.value) {
+      currentMarkdownContent.value = content
+      hasUnsavedChanges.value = true
+    }
+  }
+  
+  /**
+   * 保存Markdown文档
+   */
+  const saveMarkdownDocument = async (): Promise<boolean> => {
+    if (!selectedDocument.value || !canSaveMarkdown.value) {
+      return false
+    }
+    
+    try {
+      isSaving.value = true
+      
+      const updateData: MarkdownUpdateReq = {
+        content: currentMarkdownContent.value,
+        version: currentMarkdownVersion.value
       }
       
-      const lowerText = text.toLowerCase()
-      translationResult.value = translations[lowerText] || `"${text}" 的翻译结果`
-    }, 1000)
-  }
-
-  // 保存文档内容
-  const saveDocumentContent = (content: string) => {
-    if (currentDocument.value && currentDocument.value.type === 'markdown') {
-      currentDocument.value.content = content
-      // TODO: 调用后端 API 保存内容
-      console.log('保存文档内容:', content)
+      await API.document.updateMarkdownContent(selectedDocument.value.id, updateData)
+      
+      hasUnsavedChanges.value = false
+      currentMarkdownVersion.value++ // 增加版本号
+      toast.success('文档保存成功')
+      return true
+    } catch (error) {
+      console.error('保存Markdown文档失败:', error)
+      toast.error('保存文档失败')
+      return false
+    } finally {
+      isSaving.value = false
     }
   }
-
-  // 移动端相关
-  const showMobileDocList = ref(false)
-
-  return {
-    // State
-    currentCategory,
-    currentDocument,
-    searchQuery,
-    selectedText,
-    translationResult,
-    showTranslation,
-    translationPosition,
-    categories,
+  
+  /**
+   * 创建新的Markdown文档
+   */
+  const createMarkdownDocument = async (name: string, folderId: number): Promise<boolean> => {
+    try {
+      isLoading.value = true
+      
+      const createData: MarkdownCreateReq = {
+        name: name.endsWith('.md') ? name : `${name}.md`,
+        folder_id: folderId
+      }
+      
+      const response = await API.document.createMarkdown(createData)
+      
+      if (response.data) {
+        toast.success('Markdown文档创建成功')
+        
+        // 刷新文档列表
+        await loadDocumentsData()
+        
+        // 如果当前在对应的笔记本中，自动选择新创建的文档
+        const newDocument = allDocuments.value.find(doc => doc.id === response.data)
+        if (newDocument && currentBooklist.value?.id === folderId) {
+          await selectDocument(newDocument)
+        }
+        
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('创建Markdown文档失败:', error)
+      toast.error('创建文档失败')
+      return false
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 进入Markdown编辑模式
+   */
+  const enterMarkdownMode = (): void => {
+    if (isMarkdownDocument.value && selectedDocument.value) {
+      loadMarkdownContent(selectedDocument.value.id)
+    }
+  }
+  
+  /**
+   * 退出Markdown编辑模式
+   */
+  const exitMarkdownMode = (): void => {
+    if (hasUnsavedChanges.value) {
+      const confirmed = confirm('您有未保存的更改，是否要放弃更改？')
+      if (!confirmed) {
+        return
+      }
+    }
     
-    // Computed
-    currentCategoryData,
-    categoriesWithFilteredCounts,
+    isMarkdownMode.value = false
+    currentMarkdownContent.value = ''
+    currentMarkdownVersion.value = 0
+    hasUnsavedChanges.value = false
+  }
+  
+  /**
+   * 划词翻译
+   */
+  const translateText = async (
+    text: string, 
+    targetLang = 'zh-CN'
+  ): Promise<TranslateResp | null> => {
+    if (!selectedDocument.value) {
+      toast.error('请先选择一个文档')
+      return null
+    }
+    
+    try {
+      isTranslating.value = true
+      
+      const translateData: TranslateReq = {
+        text: text.trim(),
+        target_lang: targetLang,
+        file_name: selectedDocument.value.file_name
+      }
+      
+      const response = await API.translate.translate(translateData)
+      
+      if (response.data) {
+        lastTranslation.value = response.data
+        return response.data
+      }
+      
+      return null
+    } catch (error) {
+      console.error('翻译失败:', error)
+      toast.error('翻译失败')
+      return null
+    } finally {
+      isTranslating.value = false
+    }
+  }
+  
+  /**
+   * 获取笔记本中的文档数量
+   */
+  const getBooklistDocumentCount = (booklistId: number): number => {
+    return allDocuments.value.filter(file => 
+      file.folder_id === booklistId && 
+      file.file_status === FileStatusEnum.AVAILABLE
+    ).length
+  }
+  
+  /**
+   * 检查文档类型
+   */
+  const getDocumentType = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase() || ''
+    
+    switch (extension) {
+      case 'md':
+        return 'markdown'
+      case 'pdf':
+        return 'pdf'
+      case 'doc':
+      case 'docx':
+        return 'word'
+      case 'ppt':
+      case 'pptx':
+        return 'powerpoint'
+      case 'xls':
+      case 'xlsx':
+        return 'excel'
+      case 'txt':
+        return 'text'
+      default:
+        return 'unknown'
+    }
+  }
+  
+  /**
+   * 键盘快捷键处理
+   */
+  const handleKeyboardShortcut = async (event: KeyboardEvent): Promise<void> => {
+    // Ctrl+S 保存
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault()
+      if (canSaveMarkdown.value) {
+        await saveMarkdownDocument()
+      }
+    }
+    
+    // Esc 退出编辑模式
+    if (event.key === 'Escape' && isMarkdownMode.value) {
+      exitMarkdownMode()
+    }
+  }
+  
+  /**
+   * 重置状态
+   */
+  const reset = (): void => {
+    booklists.value = []
+    allDocuments.value = []
+    currentBooklist.value = null
+    selectedDocument.value = null
+    currentMarkdownContent.value = ''
+    currentMarkdownVersion.value = 0
+    isMarkdownMode.value = false
+    hasUnsavedChanges.value = false
+    isSaving.value = false
+    isTranslating.value = false
+    lastTranslation.value = null
+    searchQuery.value = ''
+    lastUpdated.value = null
+  }
+  
+  /**
+   * 从云盘加载分类（笔记本）
+   */
+  const loadCategoriesFromDrive = async (): Promise<void> => {
+    try {
+      isLoading.value = true
+             const response = await API.document.getDocumentView()
+      
+      if (response.data) {
+        booklists.value = response.data.booklists || []
+        allDocuments.value = response.data.documents || []
+        lastUpdated.value = new Date()
+      }
+    } catch (error) {
+      console.error('加载文档数据失败:', error)
+      toast.error('加载文档数据失败')
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  /**
+   * 根据路径加载文档
+   */
+  const loadDocumentByPath = async (path: string): Promise<void> => {
+    try {
+      // 根据路径找到对应的文档
+             const document = allDocuments.value.find(doc => doc.file_name === path)
+      if (document) {
+        await selectDocument(document)
+      }
+    } catch (error) {
+      console.error('加载文档失败:', error)
+      toast.error('加载文档失败')
+    }
+  }
+  
+  /**
+   * 设置当前文档
+   */
+  const setCurrentDocument = (doc: FileInfo | null): void => {
+    selectedDocument.value = doc
+    if (!doc) {
+      currentMarkdownContent.value = ''
+      currentMarkdownVersion.value = 0
+      isMarkdownMode.value = false
+      hasUnsavedChanges.value = false
+    }
+  }
+  
+  // 初始化WebSocket监听
+  setupWebSocketListeners()
+  
+  return {
+    // 状态
+    booklists,
+    allDocuments,
+    isLoading,
+    searchQuery,
+    lastUpdated,
+    currentBooklist,
+    selectedDocument,
+    currentMarkdownContent,
+    currentMarkdownVersion,
+    isMarkdownMode,
+    hasUnsavedChanges,
+    isSaving,
+    isTranslating,
+    lastTranslation,
+    
+    // 计算属性
+    currentBooklistDocuments,
     filteredDocuments,
     
-    // Actions
-    setCurrentCategory,
-    setCurrentDocument,
-    reorderDocumentsInCurrentCategory,
-    reorderCategories,
-    addDocument,
-    setSelectedText,
-    showTranslationPopup,
-    hideTranslationPopup,
+    // 方法
+    loadDocumentsData,
+    searchDocuments,
+    selectBooklist,
+    selectDocument,
+    closeDocument,
+    getDocumentViewUrl,
+    getBooklistDocumentCount,
+    getDocumentType,
+    loadMarkdownContent,
+    updateMarkdownContent,
+    saveMarkdownDocument,
+    createMarkdownDocument,
+    enterMarkdownMode,
+    exitMarkdownMode,
     translateText,
-    saveDocumentContent,
-    loadDocumentByPath,
+    handleKeyboardShortcut,
+    reset,
     loadCategoriesFromDrive,
-    showMobileDocList
-  }
-}, {
-  persist: {
-    // ... existing code ...
+    loadDocumentByPath,
+    setCurrentDocument
   }
 }) 
