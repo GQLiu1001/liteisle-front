@@ -30,7 +30,7 @@
 
               <!-- 下拉菜单 -->
               <div
-                v-if="breadcrumbDropdownPath === path.path && breadcrumbDropdownItems.length"
+                v-if="breadcrumbDropdownPath === path.path && breadcrumbDropdownItems.length > 0"
                 class="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-morandi-200 z-50"
                 @dragover.prevent="keepBreadcrumbDropdown"
                 @dragleave="handleBreadcrumbDragLeave"
@@ -42,7 +42,7 @@
                   @dragleave="(e) => { dragOverDropdownTargetId = null; scheduleHideDropdown() }"
                   @drop="handleBreadcrumbChildDrop($event, child)"
                   :class="[
-                    'px-4 py-1 text-sm whitespace-nowrap',
+                    'px-4 py-1 text-sm whitespace-nowrap cursor-pointer',
                     dragOverDropdownTargetId === child.id ? 'bg-teal-100' : 'hover:bg-morandi-50'
                   ]"
                 >
@@ -996,6 +996,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import type { FolderInfo, FileInfo } from '@/types/api'
 import { FolderTypeEnum } from '@/types/api'
+import { API } from '@/utils/api'
 import {
   Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, 
   FileMusic, LibraryBig, FileUp, Share2
@@ -1022,6 +1023,7 @@ interface DriveItem {
 interface BreadcrumbPath {
   name: string
   path: string
+  id: number
 }
 
 // 使用 DriveStore 和 TransferStore
@@ -1097,14 +1099,19 @@ const breadcrumbPaths = computed<BreadcrumbPath[]>(() => {
   }
   
   // 使用DriveStore的breadcrumb数据
-  const result = [{ name: '云盘', path: '/' }]
-  
+  const result = [{ name: '云盘', path: '/', id: 0 }]
+
   if (driveStore.breadcrumb && driveStore.breadcrumb.length > 0) {
-    driveStore.breadcrumb.forEach((crumb: any) => {
-      result.push({ name: crumb.name, path: crumb.path || '/' })
+    driveStore.breadcrumb.forEach((crumb: any, index: number) => {
+      // 存储面包屑项目的ID，用于导航
+      result.push({
+        name: crumb.name,
+        path: `/folder/${crumb.id}`, // 使用文件夹ID构建路径
+        id: crumb.id
+      })
     })
   }
-  
+
   return result
 })
 
@@ -1152,29 +1159,65 @@ const isRootFixedFolder = (folder: DriveItem): boolean => {
 }
 
 const availableFolders = computed(() => {
-  // 文件夹：返回固定目录
-  if (selectedItem.value?.type === 'folder') {
-    return driveStore.driveItems
-      .filter((item: DriveItem) => item.type === 'folder' && fixedRootFolderNames.includes(item.name))
-      .map((item: DriveItem) => ({ ...item, level: 1 }))
+  console.log('availableFolders computed - selectedItem:', selectedItem.value)
+  console.log('availableFolders computed - driveStore.folderHierarchy:', driveStore.folderHierarchy)
+
+  // 处理folderHierarchy可能是API响应对象的情况
+  let hierarchy: any[] = []
+
+  if (Array.isArray(driveStore.folderHierarchy)) {
+    hierarchy = driveStore.folderHierarchy
+  } else if (driveStore.folderHierarchy && (driveStore.folderHierarchy as any).data) {
+    // 如果是API响应对象，提取data字段
+    hierarchy = Array.isArray((driveStore.folderHierarchy as any).data) ? (driveStore.folderHierarchy as any).data : []
   }
 
-  // 文件：返回所有可用文件夹（排除自己）
-  const allFolders: DriveItem[] = []
+  console.log('availableFolders - extracted hierarchy:', hierarchy)
 
-  const collectFolders = (items: DriveItem[], level: number = 1) => {
-    items.forEach(item => {
-      if (item.type === 'folder' && item.id !== selectedItem.value?.id) {
-        allFolders.push({ ...item, level })
-        if (item.children) {
-          collectFolders(item.children, level + 1)
-        }
+  if (hierarchy.length === 0) {
+    console.log('availableFolders - no hierarchy data')
+    return []
+  }
+
+  // 构建层级结构，根据parent_id关系计算层级
+  const buildFolderTree = (parentId: number, currentLevel: number = 1): any[] => {
+    const children = hierarchy.filter(folder => folder.parent_id === parentId)
+    const result: any[] = []
+
+    children.forEach(folder => {
+      // 排除当前选中的文件夹（不能移动到自己）
+      if (selectedItem.value && folder.id === selectedItem.value.id) {
+        return
       }
+
+      const folderItem = {
+        ...folder,
+        name: folder.folder_name,
+        type: 'folder' as const,
+        size: 0,
+        itemCount: 0,
+        createdAt: new Date(),
+        modifiedAt: new Date(),
+        isLocked: folder.folder_type === 'system',
+        path: `/folder/${folder.id}`,
+        level: currentLevel  // 使用计算出的层级
+      }
+
+      result.push(folderItem)
+
+      // 递归添加子文件夹，层级+1
+      const subFolders = buildFolderTree(folder.id, currentLevel + 1)
+      result.push(...subFolders)
     })
+
+    return result
   }
 
-  collectFolders(driveStore.driveItems)
-  return allFolders
+  // 从根目录开始构建树（parent_id = 0）
+  const result = buildFolderTree(0, 1)
+
+  console.log('availableFolders result:', result)
+  return result
 })
 
 // 辅助函数
@@ -1238,16 +1281,24 @@ const formatFileSize = (bytes: number): string => {
 
 // 事件处理
 const navigateToPath = (index: number) => {
-  const targetPath = breadcrumbPaths.value[index].path
-  
+  const breadcrumbItem = breadcrumbPaths.value[index]
+
   // 如果在回收站模式下点击面包屑，退出回收站模式
   if (driveStore.isInRecycleBin) {
     driveStore.exitRecycleBin()
     return
   }
-  
+
   selectedItemId.value = null // 清除选中状态
-  driveStore.setCurrentPath(targetPath)
+
+  // 根据面包屑项目的索引导航
+  if (index === 0) {
+    // 点击"云盘"，导航到根目录
+    driveStore.navigateToRoot()
+  } else {
+    // 点击其他面包屑项目，导航到对应的文件夹
+    driveStore.navigateToFolder(breadcrumbItem.id)
+  }
 }
 
 const selectedItemId = ref<number | null>(null)
@@ -1594,10 +1645,28 @@ const cancelRename = () => {
   renameValue.value = ''
 }
 
+// 加载文件夹层级用于移动对话框
+const loadFolderHierarchyForMoveDialog = async () => {
+  try {
+    // 调用DriveStore的方法加载文件夹层级
+    await driveStore.loadFolderHierarchy()
+  } catch (error) {
+    console.error('加载文件夹层级失败:', error)
+  }
+}
+
 // 移动功能
-const showMoveDialog = () => {
+const showMoveDialog = async () => {
   if (selectedItem.value) {
     moveTargetPath.value = ''
+
+    console.log('showMoveDialog - selectedItem:', selectedItem.value)
+
+    // 加载文件夹层级数据
+    await loadFolderHierarchyForMoveDialog()
+
+    console.log('showMoveDialog - after loading hierarchy:', driveStore.folderHierarchy)
+
     showMoveDialogState.value = true
   }
   showContextMenuState.value = false;
@@ -1607,90 +1676,54 @@ const selectMoveTarget = (path: string) => {
   moveTargetPath.value = path
 }
 
-const confirmMove = () => {
+const confirmMove = async () => {
   if (!selectedItem.value || !moveTargetPath.value) return
 
+  console.log('confirmMove - selectedItem:', selectedItem.value)
+  console.log('confirmMove - moveTargetPath:', moveTargetPath.value)
+
   if (moveTargetPath.value === '/') {
-    alert('不能移动到根目录')
+    toast.error('不能移动到根目录')
     return
   }
 
   const item = selectedItem.value
   const targetPath = moveTargetPath.value
-  const oldParentPath = getParentPath(item.path)
 
-  // 不能移动到自己或子目录
-  if (targetPath.startsWith(item.path)) {
-    alert('不能移动到自己或子目录中')
+  // 从目标路径中提取文件夹ID
+  // targetPath格式: "/folder/7" -> 提取ID 7
+  let targetFolderId: number
+  if (targetPath.startsWith('/folder/')) {
+    targetFolderId = parseInt(targetPath.replace('/folder/', ''))
+  } else {
+    toast.error('无效的目标路径')
     return
   }
 
-  // 额外规则：文件夹只能移动到根目录固定文件夹
-  const targetFolderItemCM = findItemByPath(targetPath)
-  if (item.type === 'folder' && targetFolderItemCM && targetFolderItemCM.type === 'folder' && !isRootFixedFolder(targetFolderItemCM)) {
-    alert('禁止将文件夹移动到非根目录文件夹，防止嵌套')
-    return
+  console.log('confirmMove - targetFolderId:', targetFolderId)
+
+  // 构建移动请求数据
+  const moveData = {
+    file_ids: item.type === 'folder' ? [] : [item.id],
+    folder_ids: item.type === 'folder' ? [item.id] : [],
+    target_folder_id: targetFolderId
   }
 
-  // 从原位置移除
-  const removeFromParent = (parentPath: string, itemId: string) => {
-    if (parentPath === '/') {
-      const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === itemId)
-      if (index > -1) {
-        driveStore.driveItems.splice(index, 1)
-      }
-    } else {
-      const parent = findItemByPath(parentPath)
-      if (parent?.children) {
-        const index = parent.children.findIndex((i: DriveItem) => i.id === itemId)
-        if (index > -1) {
-          parent.children.splice(index, 1)
-          parent.itemCount = (parent.itemCount || 1) - 1
-        }
-      }
+  console.log('confirmMove - moveData:', moveData)
+
+  // 调用DriveStore的moveItems方法
+  try {
+    const success = await driveStore.moveItems(moveData)
+
+    if (success) {
+      // 移动成功，关闭对话框
+      showMoveDialogState.value = false
+      moveTargetPath.value = ''
+      selectedItem.value = null
     }
+  } catch (error) {
+    console.error('移动操作失败:', error)
   }
-
-  // 添加到新位置
-  const addToParent = (parentPath: string, item: DriveItem) => {
-    if (parentPath === '/') {
-      item.parentId = null
-      item.path = `/${item.name}`
-      driveStore.driveItems.push(item)
-    } else {
-      const parent = findItemByPath(parentPath)
-      if (parent?.children) {
-        item.parentId = parent.id
-        item.path = `${parentPath}/${item.name}`
-        parent.children.push(item)
-        parent.itemCount = (parent.itemCount || 0) + 1
-      }
-    }
-  }
-
-  // 更新子项路径
-  const updateChildrenPaths = (folder: DriveItem, newBasePath: string) => {
-    if (folder.children) {
-      folder.children.forEach((child: DriveItem) => {
-        child.path = `${newBasePath}/${child.name}`
-        if (child.type === 'folder') {
-          updateChildrenPaths(child, child.path)
-        }
-      })
-    }
-  }
-
-  removeFromParent(oldParentPath, item.id)
-  addToParent(targetPath, item)
-
-  if (item.type === 'folder') {
-    updateChildrenPaths(item, item.path)
-  }
-
-  showMoveDialogState.value = false
-  moveTargetPath.value = ''
-  selectedItem.value = null
-  toast.success(`移动成功`)
 }
 
 const cancelMove = () => {
@@ -2310,21 +2343,136 @@ const handleBreadcrumbDragOver = (event: DragEvent, path: BreadcrumbPath, index:
   if (index === breadcrumbPaths.value.length - 1) {
     return
   }
+
   keepBreadcrumbDropdown()
   dragOverBreadcrumbPath.value = path.path
   breadcrumbDropdownPath.value = path.path
 
-  // 获取该路径对应的子项用于下拉（只显示文件夹）
-  let folder: DriveItem | undefined
-  if (path.path === '/') {
-    breadcrumbDropdownItems.value = driveStore.driveItems.filter(item => item.type === 'folder')
-  } else {
-    folder = findItemByPath(path.path)
-    breadcrumbDropdownItems.value = (folder?.children || []).filter(item => item.type === 'folder')
+  console.log('handleBreadcrumbDragOver:', { path, index, breadcrumbPaths: breadcrumbPaths.value })
+
+  // 清除之前的定时器
+  if (loadDropdownTimer) {
+    clearTimeout(loadDropdownTimer)
+  }
+
+  // 如果已经加载过这个路径，直接使用缓存
+  if (loadedPaths.has(path.path)) {
+    console.log('Using cached data for path:', path.path)
+    return
+  }
+
+  // 防抖：500ms后加载数据
+  loadDropdownTimer = setTimeout(async () => {
+    if (breadcrumbDropdownPath.value === path.path) {
+      console.log('Loading dropdown data for path:', path.path)
+      loadedPaths.add(path.path)
+
+      if (path.path === '/') {
+        await loadSystemFoldersForDropdown()
+      } else {
+        const breadcrumbIndex = breadcrumbPaths.value.findIndex(bp => bp.path === path.path)
+        if (breadcrumbIndex >= 0) {
+          await loadBreadcrumbDropdownItems(path.id, breadcrumbIndex)
+        }
+      }
+    }
+  }, 500)
+}
+
+// 加载系统文件夹用于下拉菜单（带缓存）
+const loadSystemFoldersForDropdown = async () => {
+  try {
+    // 检查缓存是否有效
+    const now = Date.now()
+    if (systemFoldersCache.value.length > 0 && (now - systemFoldersCacheTime.value) < CACHE_DURATION) {
+      console.log('Using cached system folders')
+      breadcrumbDropdownItems.value = systemFoldersCache.value
+      return
+    }
+
+    console.log('Loading system folders for dropdown...')
+    // 调用API获取文件夹层级
+    const response = await API.folder.getFolderHierarchy()
+
+    if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+      const hierarchyData = (response.data as any).data
+
+      console.log('Folder hierarchy from API:', hierarchyData)
+
+      // 只显示系统文件夹（parent_id为0的文件夹）
+      const systemFolders = hierarchyData.filter((folder: any) =>
+        folder.parent_id === 0 && folder.folder_type === 'system'
+      )
+
+      const mappedFolders = systemFolders.map((folder: any) => ({
+        ...folder,
+        name: folder.folder_name,
+        type: 'folder' as const,
+        size: 0,
+        itemCount: 0,
+        createdAt: new Date(),
+        modifiedAt: new Date(),
+        isLocked: true,
+        path: `/folder/${folder.id}`
+      }))
+
+      // 更新缓存
+      systemFoldersCache.value = mappedFolders
+      systemFoldersCacheTime.value = now
+      breadcrumbDropdownItems.value = mappedFolders
+
+      console.log('breadcrumbDropdownItems after mapping:', breadcrumbDropdownItems.value)
+    }
+  } catch (error) {
+    console.error('加载系统文件夹失败:', error)
+    breadcrumbDropdownItems.value = []
+  }
+}
+
+// 加载面包屑下拉菜单项
+const loadBreadcrumbDropdownItems = async (folderId: number, breadcrumbIndex: number) => {
+  try {
+    // 获取父级文件夹ID
+    let parentFolderId = 0 // 默认为根目录
+
+    if (breadcrumbIndex > 1) {
+      // 如果不是第一级，获取上一级的文件夹ID
+      parentFolderId = breadcrumbPaths.value[breadcrumbIndex - 1].id
+    }
+
+    // 调用API获取该层级的所有文件夹
+    const response = await API.folder.getFolderContent(parentFolderId)
+
+    if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+      const folderData = (response.data as any).data
+      const folders = folderData.folders || []
+
+      // 转换为DriveItem格式并只显示文件夹
+      breadcrumbDropdownItems.value = folders.map((folder: any) => ({
+        ...folder,
+        name: folder.folder_name,
+        type: 'folder' as const,
+        size: 0,
+        itemCount: folder.sub_count || 0,
+        createdAt: new Date(folder.create_time),
+        modifiedAt: new Date(folder.update_time),
+        isLocked: folder.folder_type === 'system',
+        path: `/folder/${folder.id}`
+      }))
+    }
+  } catch (error) {
+    console.error('加载面包屑下拉菜单失败:', error)
+    breadcrumbDropdownItems.value = []
   }
 }
 
 const handleBreadcrumbDragLeave = () => {
+  // 清除定时器
+  if (loadDropdownTimer) {
+    clearTimeout(loadDropdownTimer)
+    loadDropdownTimer = null
+  }
+
   dragOverBreadcrumbPath.value = null
   scheduleHideDropdown()
 }
@@ -2345,8 +2493,14 @@ const handleBreadcrumbDrop = (event: DragEvent, path: BreadcrumbPath, index: num
 
   if (!event.dataTransfer) return
 
+  // 阻止直接拖拽到根目录（应该使用下拉菜单选择系统文件夹）
+  if (path.path === '/') {
+    toast.error('请将文件夹拖拽到下拉菜单中的系统文件夹')
+    return
+  }
+
   const dragData = event.dataTransfer.getData('text/plain')
-  
+
   try {
     const parsedData = JSON.parse(dragData)
     
@@ -2407,6 +2561,15 @@ const dragOverBreadcrumbPath = ref<string | null>(null)
 // 面包屑下拉显示
 const breadcrumbDropdownPath = ref<string | null>(null)
 const breadcrumbDropdownItems = ref<DriveItem[]>([])
+
+// 缓存系统文件夹数据，避免重复请求
+const systemFoldersCache = ref<any[]>([])
+const systemFoldersCacheTime = ref<number>(0)
+const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+
+// 防抖相关
+let loadDropdownTimer: NodeJS.Timeout | null = null
+const loadedPaths = new Set<string>() // 记录已加载的路径
 
 const clearBreadcrumbDropdown = () => {
   breadcrumbDropdownPath.value = null

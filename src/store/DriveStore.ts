@@ -113,7 +113,9 @@ export const useDriveStore = defineStore('drive', () => {
         createdAt: createdAt,
         modifiedAt: modifiedAt,
         // 系统级文件夹（根目录下的文件夹）不能被重命名、移动或删除
-        isLocked: folder.folder_type === FolderTypeEnum.SYSTEM
+        isLocked: folder.folder_type === FolderTypeEnum.SYSTEM,
+        // 添加path属性，用于移动操作
+        path: `${currentPath.value}/${folder.folder_name}`.replace(/\/+/g, '/').replace(/^\//, '') || '/'
       }
     })
 
@@ -130,7 +132,9 @@ export const useDriveStore = defineStore('drive', () => {
         createdAt: createdAt,
         modifiedAt: modifiedAt,
         // 文件通常不会被锁定
-        isLocked: false
+        isLocked: false,
+        // 添加path属性，用于移动操作
+        path: `${currentPath.value}/${file.file_name}`.replace(/\/+/g, '/').replace(/^\//, '') || '/'
       }
     })
 
@@ -304,9 +308,22 @@ export const useDriveStore = defineStore('drive', () => {
   const moveItems = async (data: ItemsOperationReq): Promise<boolean> => {
     try {
       isLoading.value = true
-      
+
+      console.log('moveItems - folderHierarchy.value:', folderHierarchy.value)
+      console.log('moveItems - data:', data)
+
       // 验证移动规则
-      const targetFolder = folderHierarchy.value.find(f => f.id === data.target_folder_id)
+      // 处理folderHierarchy可能是API响应对象的情况
+      let hierarchy: any[] = []
+      if (Array.isArray(folderHierarchy.value)) {
+        hierarchy = folderHierarchy.value
+      } else if (folderHierarchy.value && (folderHierarchy.value as any).data) {
+        hierarchy = Array.isArray((folderHierarchy.value as any).data) ? (folderHierarchy.value as any).data : []
+      }
+
+      console.log('moveItems - extracted hierarchy:', hierarchy)
+
+      const targetFolder = hierarchy.find(f => f.id === data.target_folder_id)
       if (targetFolder) {
         // 检查移动规则：文件夹只能移动到根目录四大类，文件可以移动到二级目录
         if (data.folder_ids.length > 0 && targetFolder.parent_id !== 0) {
@@ -424,11 +441,18 @@ export const useDriveStore = defineStore('drive', () => {
   const loadFolderHierarchy = async (): Promise<void> => {
     try {
       const response = await API.folder.getFolderHierarchy()
-      if (response.data) {
-        folderHierarchy.value = response.data || []
+      console.log('loadFolderHierarchy response:', response)
+
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const hierarchyData = (response.data as any).data
+        folderHierarchy.value = Array.isArray(hierarchyData) ? hierarchyData : []
+        console.log('folderHierarchy updated:', folderHierarchy.value)
+      } else {
+        folderHierarchy.value = []
       }
     } catch (error) {
       console.error('加载文件夹层级失败:', error)
+      folderHierarchy.value = []
     }
   }
   
