@@ -1560,6 +1560,12 @@ const hideContextMenu = () => {
   selectedItem.value = null // 总是清空selectedItem，避免幽灵菜单
 }
 
+// 只关闭菜单和解锁，但保留selectedItem（用于对话框）
+const closeContextMenuOnly = () => {
+  showContextMenuState.value = false
+  contextMenuLock = false // 解锁
+}
+
 // 隐藏所有左键菜单
 const hideAllLeftClickMenus = () => {
   showSortMenu.value = false
@@ -1618,7 +1624,7 @@ const showRenameDialog = () => {
       }
     })
   }
-  showContextMenuState.value = false;
+  closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
 
 const confirmRename = () => {
@@ -1682,7 +1688,7 @@ const showMoveDialog = async () => {
 
     showMoveDialogState.value = true
   }
-  showContextMenuState.value = false;
+  closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
 
 const selectMoveTarget = (path: string) => {
@@ -1750,7 +1756,7 @@ const showDeleteConfirm = () => {
   if (selectedItem.value) {
     showDeleteConfirmState.value = true
   }
-  showContextMenuState.value = false;
+  closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
 
 const confirmDelete = async () => {
@@ -1939,13 +1945,13 @@ const openItem = () => {
 const showItemDetails = () => {
   if (selectedItem.value) {
     showItemDetailsState.value = true
-    showContextMenuState.value = false
+    closeContextMenuOnly() // 只关闭菜单但保留selectedItem
   }
 }
 
 const closeItemDetails = () => {
   showItemDetailsState.value = false
-  selectedItem.value = null
+  hideContextMenu() // 确保状态被正确清理
 }
 
 // 刷新功能
@@ -2187,7 +2193,7 @@ const showShareDialog = () => {
     enableSharePassword.value = false
     isGeneratingShare.value = false
   }
-  showContextMenuState.value = false;
+  closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
 
 const closeShareDialog = () => {
