@@ -95,7 +95,7 @@
                 <!-- 排序菜单 -->
                 <div
                   v-if="showSortMenu"
-                  class="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[140px] z-50"
+                  class="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-morandi-200 py-2 min-w-[160px] z-50"
                   @click.stop
                 >
                   <button
@@ -107,9 +107,19 @@
                       sortBy === option.value ? 'text-teal-600 bg-teal-50' : 'text-morandi-700'
                     ]"
                   >
-                                         <!-- <FileText :size="16" /> -->
                      <span>{{ option.label }}</span>
                      <ChevronRight v-if="sortBy === option.value" :size="14" class="ml-auto text-teal-600" />
+                  </button>
+
+                  <hr class="my-2 border-morandi-200">
+
+                  <!-- 排序方向 -->
+                  <button
+                    @click="toggleSortOrder"
+                    class="w-full px-4 py-2 text-left text-sm hover:bg-morandi-50 flex items-center gap-2 transition-colors text-morandi-700"
+                  >
+                    <span>{{ sortOrder === 'ASC' ? '升序' : '降序' }}</span>
+                    <ChevronRight :size="14" class="ml-auto" :class="{ 'rotate-180': sortOrder === 'DESC' }" />
                   </button>
                 </div>
               </div>
@@ -1027,6 +1037,7 @@ const selectedFiles = ref<File[]>([])
 
 // 排序和视图相关
 const sortBy = ref<'name' | 'size' | 'modifiedAt' | 'createdAt' | 'default'>('default')
+const sortOrder = ref<'ASC' | 'DESC'>('ASC')
 const viewMode = ref<'grid' | 'list'>('grid')
 const showSortMenu = ref(false)
 
@@ -1065,6 +1076,7 @@ const isGeneratingShare = ref(false)
 
 // 排序选项
 const sortOptions = [
+  { value: 'default', label: '默认排序' },
   { value: 'name', label: '按名称' },
   { value: 'modifiedAt', label: '按修改时间' },
   { value: 'createdAt', label: '按创建时间' },
@@ -1885,9 +1897,48 @@ const refreshItems = async () => {
 }
 
 // 排序功能
-const selectSort = (criteria: 'name' | 'size' | 'modifiedAt' | 'createdAt') => {
+const selectSort = async (criteria: 'name' | 'size' | 'modifiedAt' | 'createdAt' | 'default') => {
   sortBy.value = criteria
   showSortMenu.value = false
+
+  // 映射前端排序字段到后端字段
+  let backendSortBy: string
+  switch (criteria) {
+    case 'name':
+      backendSortBy = 'name'
+      break
+    case 'createdAt':
+      backendSortBy = 'create_time'
+      break
+    case 'modifiedAt':
+      backendSortBy = 'update_time'
+      break
+    case 'size':
+      backendSortBy = 'size'
+      break
+    case 'default':
+    default:
+      backendSortBy = 'sorted_order'
+      break
+  }
+
+  // 调用DriveStore的排序方法
+  try {
+    await driveStore.setSorting(backendSortBy, sortOrder.value)
+  } catch (error) {
+    console.error('排序失败:', error)
+    toast.error('排序失败，请重试')
+  }
+}
+
+// 切换排序方向
+const toggleSortOrder = async () => {
+  sortOrder.value = sortOrder.value === 'ASC' ? 'DESC' : 'ASC'
+
+  // 如果当前有选中的排序方式，重新应用排序
+  if (sortBy.value) {
+    await selectSort(sortBy.value)
+  }
 }
 
 // 关闭排序菜单
@@ -2908,8 +2959,8 @@ const handleShare = async () => {
 // 初始化数据
 onMounted(async () => {
   try {
-    // 加载云盘数据
-    await driveStore.loadFolderContent(0)
+    // 加载云盘数据，使用默认排序
+    await selectSort('default')
   } catch (error) {
     console.error('加载云盘数据失败:', error)
   }
