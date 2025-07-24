@@ -230,13 +230,13 @@ export const recycleBinAPI = {
 export const uploadAPI = {
   // 上传文件
   uploadFile: (
-    file: File, 
-    folderId: number, 
+    file: File,
+    folderId: number,
     onProgress?: (progress: number) => void
   ): Promise<ApiResponse<FileUploadAsyncResp>> => {
     const formData = new FormData()
     formData.append('file', file)
-    
+
     return http.post('/upload', formData, {
       params: { folder_id: folderId },
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -266,7 +266,7 @@ export const transferAPI = {
 
   // 获取传输历史记录
   getHistory: (
-    status: 'processing' | 'completed',
+    status: 'processing' | 'success',
     page = 1,
     size = 20
   ): Promise<ApiResponse<TransferLogPageResp>> => {

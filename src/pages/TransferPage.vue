@@ -288,13 +288,13 @@ const hasCompletedTasks = computed(() => {
 
 const filteredTasks = computed(() => {
   let storeTasks: any[] = [];
-  
+
   if (activeStatus.value === 'progressing') {
     storeTasks = transferStore.processingTasks;
   } else {
     storeTasks = transferStore.completedTasks;
   }
-  
+
   const mappedTasks = storeTasks.map((task: any) => ({
     id: task.log_id || Math.random(),
     name: task.item_name || '未知文件',
@@ -305,8 +305,8 @@ const filteredTasks = computed(() => {
     progress: task.progress || 0,
     icon: task.transfer_type === 'upload' ? Upload : Download
   }))
-  
-  return mappedTasks.filter((t: any) => 
+
+  return mappedTasks.filter((t: any) =>
     t.category === activeCategory.value
   )
 });
@@ -514,8 +514,14 @@ const handlePaste = async (event: ClipboardEvent) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('paste', handlePaste);
+
+  // 加载传输记录
+  console.log('传输页面加载，开始获取传输记录');
+  await transferStore.loadTransferSummary();
+  await transferStore.loadTransferHistory('processing');
+  await transferStore.loadTransferHistory('success');
 });
 
 onUnmounted(() => {

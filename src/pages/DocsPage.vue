@@ -965,9 +965,9 @@ const createNewCategory = async () => {
 const uploadDocumentFiles = async () => {
   if (selectedDocumentFiles.value.length === 0) return
   
-  // 获取当前分类的路径，如果没有则上传到文档根目录
+  // 获取当前分类的路径，如果没有则上传到书单根目录
   const currentCategory = docsStore.currentCategoryData
-  const targetPath = currentCategory ? `/文档/${currentCategory.folder_name}` : '/文档'
+  const targetPath = currentCategory ? `/书单/${currentCategory.folder_name}` : '/书单'
   
   // 使用 TransferStore 处理上传
   await transferStore.uploadFiles(selectedDocumentFiles.value, targetPath)

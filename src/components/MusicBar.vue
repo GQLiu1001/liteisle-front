@@ -67,9 +67,9 @@
             <button 
               @click="musicStore.togglePlay" 
               class="w-10 h-10 rounded-full bg-white text-morandi-800 flex items-center justify-center"
-              :title="musicStore.playState === 'playing' ? '暂停' : '播放'"
+              :title="musicStore.playState === musicStore.PlayState.PLAYING ? '暂停' : '播放'"
             >
-              <Play v-if="musicStore.playState !== 'playing'" :size="18" />
+              <Play v-if="musicStore.playState === musicStore.PlayState.STOPPED || musicStore.playState === musicStore.PlayState.PAUSED" :size="18" />
               <Pause v-else :size="18" />
             </button>
             
@@ -124,25 +124,25 @@
 
         <!-- 中间区域 - 主要播放控制 -->
         <div class="flex items-center gap-3">
-          <button 
-            @click="musicStore.previousTrack" 
+          <button
+            @click="musicStore.previousTrack"
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
             title="上一首"
           >
             <SkipBack :size="20" />
           </button>
-          
-          <button 
-            @click="musicStore.togglePlay" 
+
+          <button
+            @click="musicStore.togglePlay"
             class="w-12 h-12 rounded-full bg-white text-morandi-800 flex items-center justify-center"
-            :title="musicStore.playState === 'playing' ? '暂停' : '播放'"
+            :title="musicStore.playState === musicStore.PlayState.PLAYING ? '暂停' : '播放'"
           >
-            <Play v-if="musicStore.playState !== 'playing'" :size="20" />
+            <Play v-if="musicStore.playState === musicStore.PlayState.STOPPED || musicStore.playState === musicStore.PlayState.PAUSED" :size="20" />
             <Pause v-else :size="20" />
           </button>
-          
-          <button 
-            @click="musicStore.nextTrack" 
+
+          <button
+            @click="musicStore.nextTrack"
             class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
             title="下一首"
           >
@@ -183,6 +183,7 @@
                   @input="setVolume"
                   class="w-2 h-16 bg-morandi-200 rounded-lg appearance-none cursor-pointer volume-slider vertical-slider"
                   title="音量"
+                  :style="`--value: ${musicStore.volume * 100}%`"
                 />
               </div>
             </div>
@@ -236,17 +237,17 @@
         <div 
           v-if="showPlaylistSelector"
           ref="selectorRef"
-          class="absolute top-16 left-0 right-0 bg-white border border-morandi-200 rounded-lg shadow-lg mx-4 z-40"
+          class="absolute top-16 left-0 right-0 bg-white border border-morandi-200 rounded-lg shadow-lg mx-4 z-40 max-h-48 overflow-auto"
         >
           <div 
             v-for="playlist in musicStore.playlists"
             :key="playlist.id"
             @click="selectPlaylist(playlist, $event)"
-            class="p-3 hover:bg-morandi-50 cursor-pointer border-b border-morandi-100 last:border-b-0 flex items-center justify-between"
+            class="p-2 hover:bg-morandi-50 cursor-pointer border-b border-morandi-100 last:border-b-0 flex items-center justify-between"
             :class="{ 'bg-teal-50 text-teal-700': musicStore.currentPlaylist?.id === playlist.id }"
           >
-            <span class="font-medium">{{ playlist.folder_name }}</span>
-            <span class="text-sm text-morandi-500">{{ getPlaylistTrackCount(playlist) }} 首</span>
+            <span class="font-medium text-sm truncate">{{ playlist.folder_name }}</span>
+            <span class="text-xs text-morandi-500 ml-2">{{ getPlaylistTrackCount(playlist) }}</span>
           </div>
         </div>
         
@@ -393,6 +394,15 @@ const setVolume = (event: Event) => {
   musicStore.setVolume(parseFloat(target.value))
 }
 
+// 进度条点击跳转
+const seekToPosition = (event: MouseEvent) => {
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  const percentage = (event.clientX - rect.left) / rect.width
+  const newTime = percentage * musicStore.duration
+  musicStore.seek(newTime)
+}
+
 // 播放模式相关方法
 const getPlayModeText = () => {
   switch (musicStore.playMode) {
@@ -408,7 +418,12 @@ const getPlayModeText = () => {
 }
 
 // 歌单面板方法
-const togglePlaylistPanel = () => {
+const togglePlaylistPanel = async () => {
+  // 如果还没有加载音乐数据，先加载
+  if (musicStore.playlists.length === 0) {
+    await musicStore.loadPlaylistsFromDrive()
+  }
+  
   showPlaylistPanel.value = !showPlaylistPanel.value
   showPlaylistSelector.value = false
 }
@@ -438,7 +453,12 @@ const toggleMusicBar = () => {
 }
 
 // 跳转到音乐页面
-const goToMusicPage = () => {
+const goToMusicPage = async () => {
+  // 如果还没有加载音乐数据，先加载
+  if (musicStore.playlists.length === 0) {
+    await musicStore.loadPlaylistsFromDrive()
+  }
+
   if (musicStore.currentPlaylist && musicStore.currentTrack) {
     // 传递当前歌单和歌曲信息到音乐页面
     router.push({
@@ -473,7 +493,7 @@ const getPlaylistTrackCount = (playlist: any) => {
 
 <style scoped>
 .volume-slider {
-  background: linear-gradient(to top, #14B8A6 0%, #14B8A6 var(--value, 0%), #E2E8F0 var(--value, 0%), #E2E8F0 100%);
+  background: linear-gradient(to top, #14B8A6 var(--value, 0%), #E2E8F0 var(--value, 0%));
 }
 
 /* 垂直滑块样式 */
@@ -482,10 +502,11 @@ const getPlaylistTrackCount = (playlist: any) => {
   writing-mode: vertical-lr; /* 标准写法 */
   -webkit-appearance: none;
   appearance: none;
-  transform: rotate(180deg); /* 确保方向正确 */
+  /* 移除rotate，因为它搞反了方向 */
 }
 
 .volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
   appearance: none;
   width: 12px;
   height: 12px;
@@ -502,7 +523,11 @@ const getPlaylistTrackCount = (playlist: any) => {
   background: #14B8A6;
   border-radius: 50%;
   cursor: pointer;
-  border: 2px solid white;
+  border: none;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.volume-slider::-moz-range-track {
+  background: transparent;
 }
 </style> 

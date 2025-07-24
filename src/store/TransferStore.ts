@@ -78,6 +78,9 @@ export const useTransferStore = defineStore('transfer', () => {
       updateTransferTaskStatus(payload.log_id, payload.log_status, payload.error_message)
     })
   }
+
+  // 初始化时设置WebSocket监听
+  setupWebSocketListeners()
   
   /**
    * 加载传输统计摘要
@@ -102,7 +105,7 @@ export const useTransferStore = defineStore('transfer', () => {
    * 加载传输历史记录
    */
   const loadTransferHistory = async (
-    status: 'processing' | 'completed',
+    status: 'processing' | 'success',
     reset = false
   ): Promise<void> => {
     try {
@@ -112,9 +115,14 @@ export const useTransferStore = defineStore('transfer', () => {
       const page = reset ? 1 : pagination.current_page
       
       const response = await API.transfer.getHistory(status, page, pagination.page_size)
-      
-      if (response.data) {
-        const tasks = response.data.records.map(task => ({
+
+      console.log('传输历史API响应:', response.data)
+
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const transferData = (response.data as any).data
+        const records = transferData.records || []
+
+        const tasks = records.map((task: any) => ({
           ...task,
           progress: 100 // 历史记录默认为完成状态
         }))
@@ -126,8 +134,8 @@ export const useTransferStore = defineStore('transfer', () => {
           } else {
             processingTasks.value.push(...tasks)
           }
-          processingPagination.value.total = response.data.total || 0
-          processingPagination.value.hasMore = processingTasks.value.length < (response.data.total || 0)
+          processingPagination.value.total = transferData.total || 0
+          processingPagination.value.hasMore = processingTasks.value.length < (transferData.total || 0)
         } else {
           if (reset) {
             completedTasks.value = tasks
@@ -135,8 +143,8 @@ export const useTransferStore = defineStore('transfer', () => {
           } else {
             completedTasks.value.push(...tasks)
           }
-          completedPagination.value.total = response.data.total || 0
-          completedPagination.value.hasMore = completedTasks.value.length < (response.data.total || 0)
+          completedPagination.value.total = transferData.total || 0
+          completedPagination.value.hasMore = completedTasks.value.length < (transferData.total || 0)
         }
       }
     } catch (error) {
@@ -150,13 +158,13 @@ export const useTransferStore = defineStore('transfer', () => {
   /**
    * 加载更多传输记录
    */
-  const loadMoreTasks = async (status: 'processing' | 'completed'): Promise<void> => {
+  const loadMoreTasks = async (status: 'processing' | 'success'): Promise<void> => {
     const pagination = status === 'processing' ? processingPagination.value : completedPagination.value
-    
+
     if (!pagination.hasMore || isLoadingTasks.value) {
       return
     }
-    
+
     pagination.current_page++
     await loadTransferHistory(status)
   }
@@ -179,8 +187,8 @@ export const useTransferStore = defineStore('transfer', () => {
 
       console.log('上传文件API响应:', response)
 
-      if (response.data && response.data.code === 200 && response.data.data) {
-        const uploadData = response.data.data
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const uploadData = (response.data as any).data
 
         // 添加到处理中的任务列表
         const newTask: ExtendedTransferItem = {
@@ -201,12 +209,192 @@ export const useTransferStore = defineStore('transfer', () => {
         return uploadData
       } else {
         console.warn('上传文件API响应格式错误:', response.data)
-        toast.error(response.data?.message || '上传文件失败')
+        toast.error((response.data as any)?.message || '上传文件失败')
         return null
       }
     } catch (error) {
       console.error('上传文件失败:', error)
       toast.error('上传文件失败')
+      return null
+    }
+  }
+
+  /**
+   * 批量上传文件
+   */
+  const uploadFiles = async (
+    files: File[],
+    targetPath: string,
+    onProgress?: (fileIndex: number, progress: number) => void
+  ): Promise<FileUploadAsyncResp[]> => {
+    if (!files || files.length === 0) {
+      toast.warning('请选择要上传的文件')
+      return []
+    }
+
+    try {
+      // 首先需要根据路径获取文件夹ID
+      // 这里需要调用API来获取或创建目标文件夹
+      const folderId = await getFolderIdByPath(targetPath)
+      if (!folderId) {
+        toast.error('无法确定上传目标文件夹')
+        return []
+      }
+
+      const results: FileUploadAsyncResp[] = []
+      let successCount = 0
+      let failCount = 0
+
+      // 逐个上传文件
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        console.log(`开始上传文件 ${i + 1}/${files.length}: ${file.name}`)
+
+        const result = await uploadFile(file, folderId, (progress) => {
+          if (onProgress) {
+            onProgress(i, progress)
+          }
+        })
+
+        if (result) {
+          results.push(result)
+          successCount++
+        } else {
+          failCount++
+        }
+      }
+
+      // 显示上传结果
+      if (successCount > 0) {
+        toast.success(`成功开始上传 ${successCount} 个文件`)
+      }
+      if (failCount > 0) {
+        toast.error(`${failCount} 个文件上传失败`)
+      }
+
+      return results
+    } catch (error) {
+      console.error('批量上传文件失败:', error)
+      toast.error('批量上传文件失败')
+      return []
+    }
+  }
+
+  /**
+   * 根据路径获取文件夹ID（如果不存在则创建）
+   */
+  const getFolderIdByPath = async (path: string): Promise<number | null> => {
+    try {
+      console.log('获取文件夹ID，路径:', path)
+
+      // 获取文件夹层级信息
+      const response = await API.folder.getFolderHierarchy()
+
+      if (!response.data || (response.data as any).code !== 200 || !(response.data as any).data) {
+        console.error('获取文件夹层级失败:', response.data)
+        return null
+      }
+
+      const folderHierarchy = (response.data as any).data as any[]
+      console.log('文件夹层级:', folderHierarchy)
+
+      // 解析路径，例如 "/音乐/我的歌单" -> ["音乐", "我的歌单"]
+      const pathParts = path.split('/').filter(part => part.trim() !== '')
+      console.log('路径部分:', pathParts)
+
+      if (pathParts.length === 0) {
+        console.error('路径为空')
+        return null
+      }
+
+      // 查找对应的文件夹
+      let currentFolder: any = null
+
+      // 首先查找第一级文件夹（系统文件夹）
+      const firstLevelName = pathParts[0]
+      currentFolder = folderHierarchy.find((folder: any) =>
+        folder.folder_name === firstLevelName && folder.folder_type === 'system'
+      )
+
+      if (!currentFolder) {
+        console.error(`未找到系统文件夹: ${firstLevelName}`)
+        return null
+      }
+
+      console.log(`找到系统文件夹: ${firstLevelName}, ID: ${currentFolder.id}`)
+
+      // 如果只有一级路径，直接返回系统文件夹ID
+      if (pathParts.length === 1) {
+        return currentFolder.id
+      }
+
+      // 查找第二级文件夹（用户创建的歌单/书单）
+      const secondLevelName = pathParts[1]
+
+      // 获取系统文件夹的内容
+      const folderContentResponse = await API.folder.getFolderContent(currentFolder.id)
+
+      if (!folderContentResponse.data || (folderContentResponse.data as any).code !== 200 || !(folderContentResponse.data as any).data) {
+        console.error('获取文件夹内容失败:', folderContentResponse.data)
+        return null
+      }
+
+      const folderContent = (folderContentResponse.data as any).data
+      const targetFolder = folderContent.folders.find((folder: any) => folder.folder_name === secondLevelName)
+
+      if (targetFolder) {
+        console.log(`找到目标文件夹: ${secondLevelName}, ID: ${targetFolder.id}`)
+        return targetFolder.id
+      }
+
+      // 如果找不到目标文件夹，尝试创建
+      console.log(`未找到文件夹 ${secondLevelName}，尝试创建`)
+
+      // 根据系统文件夹类型确定要创建的文件夹类型
+      let folderType: 'playlist' | 'booklist'
+      if (firstLevelName === '歌单') {
+        folderType = 'playlist'
+      } else if (firstLevelName === '书单' || firstLevelName === '文档') {
+        folderType = 'booklist'
+      } else {
+        console.error(`不支持在 ${firstLevelName} 文件夹下创建子文件夹`)
+        return null
+      }
+
+      // 创建文件夹
+      const createResponse = await API.folder.createFolder({
+        name: secondLevelName,
+        parent_id: currentFolder.id,
+        folder_type: folderType as any
+      })
+
+      if (!createResponse.data || (createResponse.data as any).code !== 200) {
+        console.error('创建文件夹失败:', createResponse.data)
+        return null
+      }
+
+      // 重新获取文件夹内容以获取新创建的文件夹ID
+      const newFolderContentResponse = await API.folder.getFolderContent(currentFolder.id)
+
+      if (!newFolderContentResponse.data || (newFolderContentResponse.data as any).code !== 200 || !(newFolderContentResponse.data as any).data) {
+        console.error('获取新文件夹内容失败:', newFolderContentResponse.data)
+        return null
+      }
+
+      const newFolderContent = (newFolderContentResponse.data as any).data
+      const newFolder = newFolderContent.folders.find((folder: any) => folder.folder_name === secondLevelName)
+
+      if (newFolder) {
+        console.log(`成功创建文件夹: ${secondLevelName}, ID: ${newFolder.id}`)
+        toast.success(`文件夹 "${secondLevelName}" 创建成功`)
+        return newFolder.id
+      }
+
+      console.error('创建文件夹后未能找到新文件夹')
+      return null
+
+    } catch (error) {
+      console.error('获取文件夹ID失败:', error)
       return null
     }
   }
@@ -588,6 +776,7 @@ export const useTransferStore = defineStore('transfer', () => {
     
     // === 传输操作方法 ===
     uploadFile,
+    uploadFiles,
     createDownloadSession,
     downloadFile,
     cancelUpload,

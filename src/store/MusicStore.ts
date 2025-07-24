@@ -53,9 +53,9 @@ export const useMusicStore = defineStore('music', () => {
   // === 计算属性 ===
   const currentPlaylistTracks = computed(() => {
     if (!currentPlaylist.value) return []
-    return allMusicFiles.value.filter(file => 
+    return allMusicFiles.value.filter(file =>
       file.folder_id === currentPlaylist.value!.id &&
-      file.file_status === FileStatusEnum.AVAILABLE
+      (file.file_status === FileStatusEnum.AVAILABLE || !file.file_status) // 兼容没有file_status字段的情况
     ).sort((a, b) => a.sorted_order - b.sorted_order)
   })
   
@@ -179,13 +179,13 @@ export const useMusicStore = defineStore('music', () => {
       })
       
       audio.value.addEventListener('play', () => {
-        playState.value = PlayState.PLAYING
-        startProgressTimer()
+        console.log('音频play事件触发 - 状态由手动管理，当前状态:', playState.value)
+        // 状态由手动管理，不在这里设置
       })
       
       audio.value.addEventListener('pause', () => {
-        playState.value = PlayState.PAUSED
-        stopProgressTimer()
+        console.log('音频pause事件触发')
+        // 状态由手动管理，不在这里设置
       })
       
       audio.value.addEventListener('ended', () => {
@@ -217,6 +217,9 @@ export const useMusicStore = defineStore('music', () => {
       }
 
       currentTrack.value = track
+      
+      // 设置为加载状态
+      playState.value = PlayState.LOADING
 
       if (!audio.value) {
         initializeAudio()
@@ -229,7 +232,17 @@ export const useMusicStore = defineStore('music', () => {
       if (response.data && response.data.code === 200 && response.data.data && audio.value) {
         audio.value.src = response.data.data
         audio.value.currentTime = 0
-        await audio.value.play()
+        try {
+          await audio.value.play()
+          // 播放成功后才设置为播放状态
+          playState.value = PlayState.PLAYING
+          startProgressTimer()
+          console.log('音频开始播放，状态设置为PLAYING')
+        } catch (playError) {
+          console.error('播放失败:', playError)
+          playState.value = PlayState.STOPPED
+          toast.error('播放失败')
+        }
       } else {
         console.warn('获取播放URL失败:', response.data)
         toast.error(response.data?.message || '获取播放链接失败')
@@ -246,13 +259,48 @@ export const useMusicStore = defineStore('music', () => {
    * 播放/暂停
    */
   const togglePlay = async (): Promise<void> => {
-    if (!audio.value || !currentTrack.value) return
-    
+    console.log('togglePlay 被调用，当前状态:', {
+      currentTrack: currentTrack.value?.file_name,
+      playState: playState.value,
+      hasAudio: !!audio.value,
+      audioSrc: audio.value?.src,
+      audioPaused: audio.value?.paused,
+      audioReadyState: audio.value?.readyState
+    })
+
+    if (!currentTrack.value) {
+      console.warn('没有当前播放曲目')
+      return
+    }
+
+    if (!audio.value) {
+      console.log('初始化音频元素')
+      initializeAudio()
+    }
+
     try {
       if (playState.value === PlayState.PLAYING) {
-        audio.value.pause()
-      } else if (playState.value === PlayState.PAUSED) {
-        await audio.value.play()
+        // 正在播放 -> 暂停
+        console.log('暂停播放')
+        audio.value?.pause()
+        playState.value = PlayState.PAUSED
+        stopProgressTimer()
+      } else if (playState.value === PlayState.PAUSED && audio.value && audio.value.src) {
+        // 暂停中且有音频源 -> 继续播放
+        console.log('继续播放')
+        try {
+          await audio.value.play()
+          playState.value = PlayState.PLAYING
+          startProgressTimer()
+        } catch (playError) {
+          console.error('播放失败:', playError)
+          playState.value = PlayState.STOPPED
+          toast.error('播放失败')
+        }
+      } else {
+        // 停止状态或没有音频源 -> 重新播放当前曲目
+        console.log('重新播放当前曲目')
+        await playTrack(currentTrack.value, currentPlaylist.value || undefined)
       }
     } catch (error) {
       console.error('播放控制失败:', error)
@@ -369,11 +417,17 @@ export const useMusicStore = defineStore('music', () => {
   /**
    * 选择播放列表
    */
-  const selectPlaylist = (playlist: FolderInfo): void => {
+  const selectPlaylist = async (playlist: FolderInfo): Promise<void> => {
+    console.log('选择歌单:', playlist)
     currentPlaylist.value = playlist
-    
+
+    // 重新加载音乐数据以获取最新的歌曲列表
+    await loadPlaylistsFromDrive()
+
     // 如果当前播放的歌曲不在新选择的播放列表中，停止播放
     const playlistTracks = allMusicFiles.value.filter(file => file.folder_id === playlist.id)
+    console.log('歌单中的歌曲:', playlistTracks)
+
     if (currentTrack.value && !playlistTracks.find(track => track.id === currentTrack.value!.id)) {
       stop()
     }
@@ -501,10 +555,17 @@ export const useMusicStore = defineStore('music', () => {
         // 直接赋值新数组，避免响应式问题
         playlists.value = [...playlistsData]
         allMusicFiles.value = [...filesData]
-        
+
         console.log('赋值后 - playlists.value:', playlists.value)
         console.log('赋值后 - playlists.value.length:', playlists.value.length)
         console.log('赋值后 - allMusicFiles.value:', allMusicFiles.value)
+        console.log('赋值后 - allMusicFiles.value.length:', allMusicFiles.value.length)
+
+        // 检查每个歌单的歌曲数量
+        playlists.value.forEach(playlist => {
+          const tracks = allMusicFiles.value.filter(file => file.folder_id === playlist.id)
+          console.log(`歌单 "${playlist.folder_name}" (ID: ${playlist.id}) 有 ${tracks.length} 首歌曲:`, tracks)
+        })
         
         lastUpdated.value = new Date()
       } else {

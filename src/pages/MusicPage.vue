@@ -50,7 +50,7 @@
               <div
                 v-for="playlist in playlists.slice(0, 4)"
                 :key="playlist.id"
-                @click="musicStore.selectPlaylist(playlist)"
+                @click="selectPlaylist(playlist)"
                 :class="[
                   'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
                   musicStore.currentPlaylist?.id === playlist.id
@@ -808,18 +808,18 @@ const startDrag = (event: MouseEvent | TouchEvent) => {
 
 const getPlaylistDisplayCount = (playlist: any) => { // Playlist type is not directly imported, use 'any' for now
   // 获取该播放列表中的所有歌曲
-  const playlistTracks = musicStore.allMusicFiles.filter((file: MusicFileInfo) => 
-    file.folder_id === playlist.id && 
-    file.file_status === FileStatusEnum.AVAILABLE
+  const playlistTracks = musicStore.allMusicFiles.filter((file: MusicFileInfo) =>
+    file.folder_id === playlist.id &&
+    (file.file_status === FileStatusEnum.AVAILABLE || !file.file_status) // 兼容没有file_status字段的情况
   )
-  
+
   // 如果没有搜索条件，显示总数
   if (!musicStore.searchQuery) {
     return playlistTracks.length
   }
-  
+
   // 如果有搜索条件，显示该歌单中匹配的数量
-  return playlistTracks.filter((track: any) => 
+  return playlistTracks.filter((track: any) =>
     (track.file_name || '').toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
     (track.artist || '').toLowerCase().includes(musicStore.searchQuery.toLowerCase())
   ).length
@@ -1063,16 +1063,17 @@ const createNewPlaylist = async () => {
 const uploadMusicFiles = async () => {
   if (selectedMusicFiles.value.length === 0) return
   
-  // 获取当前歌单的路径，如果没有则上传到音乐根目录
+  // 获取当前歌单的路径，如果没有则上传到歌单根目录
   const currentPlaylist = musicStore.currentPlaylist
-  const targetPath = currentPlaylist ? `/音乐/${currentPlaylist.folder_name}` : '/音乐'
+  const targetPath = currentPlaylist ? `/歌单/${currentPlaylist.folder_name}` : '/歌单'
   
   // 使用 TransferStore 处理上传
+  const fileCount = selectedMusicFiles.value.length
   await transferStore.uploadFiles(selectedMusicFiles.value, targetPath)
-  
+
   showUploadMusicDialog.value = false
   selectedMusicFiles.value = []
-  toast.success(`已开始上传 ${selectedMusicFiles.value.length} 个音乐文件`)
+  toast.success(`已开始上传 ${fileCount} 个音乐文件`)
 }
 
 // 处理音乐文件选择
@@ -1222,9 +1223,25 @@ const handlePlaylistContextMenu = (event: MouseEvent, playlist: any) => { // Pla
   contextMenuStore.showContextMenu(event, menuItems, playlist)
 }
 
+const selectPlaylist = async (playlist: any) => {
+  console.log('点击歌单:', playlist)
+  console.log('选择前的数据状态:', {
+    allMusicFiles: musicStore.allMusicFiles.length,
+    currentPlaylist: musicStore.currentPlaylist
+  })
+
+  await musicStore.selectPlaylist(playlist)
+
+  console.log('选择后的数据状态:', {
+    allMusicFiles: musicStore.allMusicFiles.length,
+    currentPlaylist: musicStore.currentPlaylist,
+    currentPlaylistTracks: musicStore.currentPlaylistTracks.length
+  })
+}
+
 const openPlaylist = () => {
   if (selectedPlaylist.value) {
-    musicStore.selectPlaylist(selectedPlaylist.value)
+    selectPlaylist(selectedPlaylist.value)
   }
 }
 
