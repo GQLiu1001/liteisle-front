@@ -92,7 +92,7 @@
       <div v-else class="max-w-7xl mx-auto">
         <div class="h-[calc(100vh-10rem)]">
           <div class="flex gap-6 h-full">
-            <!-- 第一栏：分类导航 -->
+            <!-- 第一栏：书单导航 -->
             <div class="card w-64 flex-shrink-0 relative">
               <div class="h-full flex flex-col p-4">
                 <div class="relative mb-4">
@@ -104,17 +104,17 @@
                   />
                 </div>
                 <div class="flex items-center justify-between mb-4">
-                  <h2 class="text-lg font-bold text-morandi-900">文档分类</h2>
+                  <h2 class="text-lg font-bold text-morandi-900">书单</h2>
                   <button
                     @click="showCreateCategoryDialog = true"
                     class="flex items-center gap-1 px-2 py-1 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors text-sm"
-                    title="添加分类"
+                                          title="添加书单"
                   >
                     <svg :size="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    添加分类
+                    添加书单
                   </button>
                 </div>
                 <nav class="space-y-2 flex-1 overflow-y-auto">
@@ -132,11 +132,11 @@
                   >
                     <template #item="{ element: category }">
                       <button
-                        @click="docsStore.setCurrentCategory(category.id)"
+                        @click="docsStore.selectBooklist(category)"
                         @contextmenu.prevent="handleCategoryContextMenu($event, category)"
                         :class="[
                           'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 cursor-pointer',
-                          docsStore.currentCategory === category.id
+                          docsStore.currentBooklist?.id === category.id
                             ? 'bg-teal-100 text-teal-800 border border-teal-300' 
                             : 'text-morandi-700 hover:bg-morandi-100 border border-transparent'
                         ]"
@@ -144,26 +144,33 @@
                         <BookImage :size="20" />
                         <div class="flex-1">
                           <div class="font-medium">{{ category.folder_name }}</div>
-                          <div class="text-xs text-morandi-500">{{ category.documentCount }} 篇</div>
+                          <div class="text-xs text-morandi-500">{{ category.sub_count || 0 }} 篇</div>
                         </div>
                       </button>
                     </template>
                   </draggable>
+                  
+                  <!-- 空状态提示 -->
+                  <div v-if="!docsStore.booklists || docsStore.booklists.length === 0" class="text-center py-8">
+                    <BookImage :size="32" class="mx-auto mb-2 text-morandi-400" />
+                    <p class="text-sm text-morandi-500">暂无书单</p>
+                    <p class="text-xs text-morandi-400 mt-1">点击上方"添加书单"开始创建</p>
+                  </div>
                 </nav>
               </div>
             </div>
 
             <!-- 第二栏：文档列表 -->
             <div 
-              v-if="docsStore.currentCategory" 
+              v-if="docsStore.currentBooklist" 
               class="card flex-1 min-w-0"
             >
               <div class="h-full flex flex-col p-4">
                 <div class="flex items-center justify-between mb-4">
-                  <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentCategoryData?.name || '文档'">
-                    {{ docsStore.currentCategoryData?.name || '文档' }}
+                                      <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentBooklist?.folder_name || '文档'">
+                      {{ docsStore.currentBooklist?.folder_name || '文档' }}
                   </h2>
-                  <div v-if="docsStore.currentCategory" class="flex items-center gap-2">
+                                      <div v-if="docsStore.currentBooklist" class="flex items-center gap-2">
                     <button
                       @click="showUploadDocumentDialog = true"
                       class="flex items-center gap-1 px-2 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors text-sm"
@@ -220,11 +227,18 @@
                           </div>
                           
                           <div class="flex-1 min-w-0">
-                            <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                            <h3 class="font-medium text-morandi-900 truncate">{{ document.file_name }}</h3>
                           </div>
                       </div>
                     </template>
                   </draggable>
+                  
+                  <!-- 空状态提示 - 无搜索时 -->
+                  <div v-if="!docsStore.searchQuery && (!docsStore.filteredDocuments || docsStore.filteredDocuments.length === 0)" class="text-center py-12">
+                    <FileText :size="48" class="mx-auto mb-4 text-morandi-400" />
+                    <p class="text-lg text-morandi-600 mb-2">书单为空</p>
+                    <p class="text-sm text-morandi-500">请上传文档或新建MD文档</p>
+                  </div>
 
                   <div v-else class="space-y-1">
                     <div
@@ -244,9 +258,16 @@
                         <FileText :size="24" :class="getFileIconColor(document.type)" />
                       </div>
                       <div class="flex-1 min-w-0">
-                        <h3 class="font-medium text-morandi-900 truncate">{{ document.name }}</h3>
+                        <h3 class="font-medium text-morandi-900 truncate">{{ document.file_name }}</h3>
                       </div>
                     </div>
+                  </div>
+                  
+                  <!-- 空状态提示 - 搜索时 -->
+                  <div v-if="docsStore.searchQuery && docsStore.filteredDocuments.length === 0" class="text-center py-12">
+                    <FileText :size="48" class="mx-auto mb-4 text-morandi-400" />
+                    <p class="text-lg text-morandi-600 mb-2">未找到匹配的文档</p>
+                    <p class="text-sm text-morandi-500">尝试其他搜索词或添加新文档</p>
                   </div>
                 </div>
               </div>
@@ -314,13 +335,13 @@
         </div>
       </div>
 
-      <!-- 创建分类对话框 -->
+      <!-- 创建书单对话框 -->
       <div v-if="showCreateCategoryDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 w-96">
-          <h3 class="text-lg font-bold mb-4">新建文档分类</h3>
+                      <h3 class="text-lg font-bold mb-4">新建书单</h3>
           <div class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-2">分类名称</label>
+                              <label class="block text-sm font-medium text-morandi-700 mb-2">书单名称</label>
               <input
                 v-model="newCategoryName"
                 type="text"
@@ -623,12 +644,23 @@ onUnmounted(() => {
 });
 
 onMounted(() => {
+  console.log('DocsPage mounted, 开始加载分类数据')
   docsStore.loadCategoriesFromDrive()
   const { path } = route.query
   if (path && typeof path === 'string') {
     docsStore.loadDocumentByPath(path)
   }
 })
+
+// 添加对分类数据的监听，用于调试
+watch(() => docsStore.booklists, (newBooklists) => {
+  console.log('分类数据变化:', newBooklists)
+  console.log('分类数量:', newBooklists?.length || 0)
+}, { immediate: true, deep: true })
+
+watch(() => docsStore.currentBooklist, (newBooklist) => {
+  console.log('当前选中分类变化:', newBooklist)
+}, { immediate: true })
 
 const onDragStart = (event: any) => {
   if (event.item) {
@@ -670,13 +702,15 @@ const currentDocsList = computed({
   }
 });
 
-// 可拖动的分类列表
+// 可拖动的分类列表  
 const currentCategoriesList = computed({
   get() {
-    return docsStore.categoriesWithFilteredCounts;
+    console.log('获取分类列表:', docsStore.booklists)
+    return docsStore.booklists || [];
   },
   set(newCategories: FolderInfo[]) {
-    docsStore.reorderCategories(newCategories);
+    // TODO: 实现分类重排序
+    console.log('TODO: 重排序分类', newCategories);
   }
 });
 
@@ -822,7 +856,7 @@ const addDocument = () => {
     type: newDocumentType.value,
     size: Math.floor(Math.random() * 10485760),
     modifiedAt: new Date(),
-    path: `/文档/${docsStore.currentCategoryData?.name}/${newDocumentName.value}`,
+    path: `/文档/${docsStore.currentCategoryData?.folder_name}/${newDocumentName.value}`,
     categoryId: docsStore.currentCategory,
     summary: newDocumentSummary.value || '用户添加的文档',
     content: newDocumentType.value === 'markdown' ? '# ' + newDocumentName.value + '\n\n这是一个新文档，请开始编辑内容。' : undefined
@@ -855,7 +889,7 @@ const uploadDocumentFiles = async () => {
   
   // 获取当前分类的路径，如果没有则上传到文档根目录
   const currentCategory = docsStore.currentCategoryData
-  const targetPath = currentCategory ? `/文档/${currentCategory.name}` : '/文档'
+  const targetPath = currentCategory ? `/文档/${currentCategory.folder_name}` : '/文档'
   
   // 使用 TransferStore 处理上传
   await transferStore.uploadFiles(selectedDocumentFiles.value, targetPath)
@@ -875,7 +909,7 @@ const createMarkdownDocument = () => {
     type: 'markdown',
     size: 0,
     modifiedAt: new Date(),
-    path: `/文档/${docsStore.currentCategoryData?.name}/${docName}`,
+    path: `/文档/${docsStore.currentCategoryData?.folder_name}/${docName}`,
     categoryId: docsStore.currentCategory,
     summary: newDocumentSummary.value || '新建的Markdown文档',
     content: `# ${docName}\n\n这是一个新的Markdown文档，请开始编辑内容。`

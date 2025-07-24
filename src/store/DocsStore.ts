@@ -95,8 +95,15 @@ export const useDocsStore = defineStore('docs', () => {
       const response = await API.document.getDocumentView(content)
       
       if (response.data) {
-        booklists.value = response.data.booklists || []
-        allDocuments.value = response.data.files || []
+        // 检查数据结构，适配不同的响应格式
+        const actualData = (response.data as any).data || response.data
+        console.log('Documents API response:', response)
+        console.log('实际数据结构:', actualData)
+        console.log('API返回的booklists:', actualData.booklists)
+        console.log('API返回的files:', actualData.files)
+        
+        booklists.value = actualData.booklists || []
+        allDocuments.value = actualData.files || []
         lastUpdated.value = new Date()
       }
     } catch (error) {
@@ -430,8 +437,15 @@ export const useDocsStore = defineStore('docs', () => {
       const response = await API.document.getDocumentView()
 
       if (response.data) {
-        booklists.value = response.data.booklists || []
-        allDocuments.value = response.data.files || []  // 修复：使用 files 而不是 documents
+        // 检查数据结构，适配不同的响应格式
+        const actualData = (response.data as any).data || response.data
+        console.log('Documents API response:', response)
+        console.log('实际数据结构:', actualData)
+        console.log('API返回的booklists:', actualData.booklists)
+        console.log('API返回的files:', actualData.files)
+        
+        booklists.value = actualData.booklists || []
+        allDocuments.value = actualData.files || []
         lastUpdated.value = new Date()
       }
     } catch (error) {
