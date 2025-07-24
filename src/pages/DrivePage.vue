@@ -672,15 +672,24 @@
             </button>
             
             <hr class="my-1 border-morandi-200">
-            
+
+            <!-- 文件夹类型 - 只对文件夹显示，多选时禁用 -->
+            <div
+              v-if="selectedItem && selectedItem.type === 'folder' && selectedItemIds.size === 1"
+              class="w-full px-4 py-2 text-left text-sm text-morandi-600 bg-morandi-25 flex items-center gap-2 cursor-default"
+            >
+              <span class="text-xs">类型:</span>
+              <span class="font-medium">{{ getFolderTypeDisplayName(selectedItem.folder_type) }}</span>
+            </div>
+
             <!-- 详细信息 - 多选时禁用 -->
             <button
               :disabled="selectedItemIds.size > 1"
               @click.stop="selectedItemIds.size === 1 ? showItemDetails() : null"
               :class="[
                 'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
-                selectedItemIds.size > 1 
-                  ? 'text-morandi-400 cursor-not-allowed' 
+                selectedItemIds.size > 1
+                  ? 'text-morandi-400 cursor-not-allowed'
                   : 'text-morandi-700 hover:bg-morandi-50'
               ]"
             >
@@ -990,6 +999,7 @@ interface DriveItem {
   createdAt?: Date
   level?: number
   itemCount?: number
+  folder_type?: string  // 文件夹类型：system/playlist/booklist
   // 其他必要属性...
 }
 
@@ -1251,6 +1261,20 @@ const formatFileSize = (bytes: number): string => {
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// 获取文件夹类型的中文显示名称
+const getFolderTypeDisplayName = (folderType: string): string => {
+  switch (folderType) {
+    case 'system':
+      return '系统文件夹'
+    case 'playlist':
+      return '歌单'
+    case 'booklist':
+      return '书单'
+    default:
+      return '未知类型'
+  }
 }
 
 // 事件处理
@@ -2076,93 +2100,51 @@ const showEmptyContextMenu = (event: MouseEvent) => {
 
 
 // 粘贴功能
-const pasteItem = () => {
+const pasteItem = async () => {
   if (!clipboard.value.length || !clipboardAction.value) return
 
   const isCut = clipboardAction.value === 'cut'
-  let successCount = 0
 
-  clipboard.value.forEach((item) => {
-    const newId = Date.now().toString() + Math.random().toString()
-    const newPath = driveStore.currentPath === '/' ? `/${item.name}` : `${driveStore.currentPath}/${item.name}`
-    
-    // 检查名称冲突
-    const existingItems = currentItems.value
-    let finalName = item.name
-    let counter = 1
-    
-    while (existingItems.some((existing: DriveItem) => existing.name === finalName)) {
-      const nameWithoutExt = item.name.split('.').slice(0, -1).join('.')
-      const ext = item.name.split('.').pop()
-      if (item.name.includes('.') && item.type !== 'folder') {
-        finalName = `${nameWithoutExt}_副本${counter > 1 ? counter : ''}.${ext}`
-      } else {
-        finalName = `${item.name}_副本${counter > 1 ? counter : ''}`
-      }
-      counter++
+  try {
+    // 准备API请求数据
+    const fileIds = clipboard.value.filter(item => item.type === 'file').map(item => item.id)
+    const folderIds = clipboard.value.filter(item => item.type === 'folder').map(item => item.id)
+
+    const operationData = {
+      file_ids: fileIds,
+      folder_ids: folderIds,
+      target_folder_id: driveStore.currentFolderId
     }
 
-    const newItem: DriveItem = {
-      ...item,
-      id: newId,
-      name: finalName,
-      path: driveStore.currentPath === '/' ? `/${finalName}` : `${driveStore.currentPath}/${finalName}`,
-      parentId: driveStore.currentPath === '/' ? null : currentFolder.value?.id || null,
-      modifiedAt: new Date(),
-      createdAt: new Date(),
-      children: item.type === 'folder' ? [] : undefined,
-      itemCount: item.type === 'folder' ? 0 : undefined
-    }
+    let success = false
 
-    // 添加到当前位置
-    if (driveStore.currentPath === '/') {
-      driveStore.driveItems.push(newItem)
+    if (isCut) {
+      // 剪切操作：调用移动API
+      success = await driveStore.moveItems(operationData)
     } else {
-      const parent = currentFolder.value
-      if (parent?.children) {
-        parent.children.push(newItem)
-        parent.itemCount = (parent.itemCount || 0) + 1
-      }
+      // 复制操作：调用复制API
+      success = await driveStore.copyItems(operationData)
     }
 
-    successCount++
-  })
+    if (success) {
+      // 清空剪贴板
+      clipboard.value = []
+      clipboardAction.value = null
 
-  // 如果是剪切操作，从原位置删除
-  if (isCut) {
-    clipboard.value.forEach((item) => {
-      const originalParentPath = getParentPath(item.path)
-      if (originalParentPath === '/') {
-        const index = driveStore.driveItems.findIndex((i: DriveItem) => i.id === item.id)
-        if (index > -1) {
-          driveStore.driveItems.splice(index, 1)
-        }
-      } else {
-        const parent = findItemByPath(originalParentPath)
-        if (parent?.children) {
-          const index = parent.children.findIndex((i: DriveItem) => i.id === item.id)
-          if (index > -1) {
-            parent.children.splice(index, 1)
-            parent.itemCount = (parent.itemCount || 1) - 1
-          }
-        }
-      }
-    })
-    
-    hideContextMenu()
-    toast.success(`移动了 ${successCount} 个项目`)
-    
-    // 清空剪贴板
-    clipboard.value = []
-    clipboardAction.value = null
-  } else {
-    hideContextMenu()
-    toast.success(`复制了 ${successCount} 个项目`)
-    
-    // 清空剪贴板
-    clipboard.value = []
-    clipboardAction.value = null
+      // 刷新当前目录
+      await driveStore.loadFolderContent(driveStore.currentFolderId)
+
+      const action = isCut ? '移动' : '复制'
+      const itemCount = fileIds.length + folderIds.length
+      toast.success(`${action}了 ${itemCount} 个项目`)
+    }
+  } catch (error) {
+    console.error('粘贴操作失败:', error)
+    const action = isCut ? '移动' : '复制'
+    toast.error(`${action}失败`)
   }
+
+  hideContextMenu()
 }
 
 // 格式化日期
