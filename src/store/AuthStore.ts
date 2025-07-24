@@ -27,7 +27,25 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const storageUsagePercentage = computed(() => {
     if (!user.value || user.value.storage_quota === 0) return 0
-    return Math.round((user.value.storage_used / user.value.storage_quota) * 100)
+    
+    // 调试输出
+    console.log('存储计算调试:', {
+      storage_used: user.value.storage_used,
+      storage_quota: user.value.storage_quota,
+      used_type: typeof user.value.storage_used,
+      quota_type: typeof user.value.storage_quota
+    })
+    
+    // 确保数据是数字类型
+    const used = Number(user.value.storage_used)
+    const quota = Number(user.value.storage_quota)
+    
+    if (quota === 0) return 0
+    
+    const percentage = (used / quota) * 100
+    console.log('计算结果:', { used, quota, percentage })
+    
+    return percentage
   })
   
   /**

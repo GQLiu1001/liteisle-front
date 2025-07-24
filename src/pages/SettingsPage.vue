@@ -200,7 +200,7 @@
                   </div>
 
                   <div class="flex justify-between text-xs text-morandi-500">
-                    <span>0 B</span>
+                    <span>{{ authStore.getStorageInfo.used }}</span>
                     <span>{{ authStore.getStorageInfo.quota }}</span>
                   </div>
                 </div>
