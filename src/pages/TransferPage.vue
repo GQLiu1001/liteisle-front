@@ -520,8 +520,8 @@ onMounted(async () => {
   // 加载传输记录
   console.log('传输页面加载，开始获取传输记录');
   await transferStore.loadTransferSummary();
-  await transferStore.loadTransferHistory('processing');
-  await transferStore.loadTransferHistory('success');
+  await transferStore.loadTransferHistory('processing', true);
+  await transferStore.loadTransferHistory('success', true);
 });
 
 onUnmounted(() => {

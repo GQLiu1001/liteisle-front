@@ -225,20 +225,20 @@
       <div class="p-4 border-b border-morandi-200">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-semibold text-morandi-900">歌单</h3>
-          <button 
-            @click="showPlaylistSelector = !showPlaylistSelector"
-            class="px-3 py-1 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
-          >
-            切换歌单
-          </button>
-        </div>
-        
-        <!-- 歌单选择器 -->
-        <div 
-          v-if="showPlaylistSelector"
-          ref="selectorRef"
-          class="absolute top-16 left-0 right-0 bg-white border border-morandi-200 rounded-lg shadow-lg mx-4 z-40 max-h-48 overflow-auto"
-        >
+          <div class="relative">
+            <button 
+              @click="showPlaylistSelector = !showPlaylistSelector"
+              class="px-3 py-1 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
+            >
+              切换歌单
+            </button>
+            
+            <!-- 歌单选择器 -->
+            <div 
+              v-if="showPlaylistSelector"
+              ref="selectorRef"
+              class="absolute top-full right-0 mt-1 bg-white border border-morandi-200 rounded-lg shadow-lg z-40 max-h-48 overflow-auto w-40"
+            >
           <div 
             v-for="playlist in musicStore.playlists"
             :key="playlist.id"
@@ -247,7 +247,8 @@
             :class="{ 'bg-teal-50 text-teal-700': musicStore.currentPlaylist?.id === playlist.id }"
           >
             <span class="font-medium text-sm truncate">{{ playlist.folder_name }}</span>
-            <span class="text-xs text-morandi-500 ml-2">{{ getPlaylistTrackCount(playlist) }}</span>
+          </div>
+            </div>
           </div>
         </div>
         
@@ -529,5 +530,24 @@ const getPlaylistTrackCount = (playlist: any) => {
 
 .volume-slider::-moz-range-track {
   background: transparent;
+}
+
+/* 统一滚动条样式 */
+.overflow-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style> 
