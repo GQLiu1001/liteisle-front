@@ -296,8 +296,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const loadShareRecords = async (page: number = 1): Promise<void> => {
     try {
       isLoadingShare.value = true
+      console.log('开始加载分享记录，页码:', page)
       
-             const response = await API.share.getMyShares(page, sharePageSize.value)
+      const response = await API.share.getMyShares(page, sharePageSize.value)
+      console.log('分享记录API响应:', response)
       
       if (response.data) {
         if (page === 1) {
@@ -324,8 +326,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const loadFocusRecords = async (page: number = 1): Promise<void> => {
     try {
       isLoadingFocus.value = true
+      console.log('开始加载专注记录，页码:', page)
       
-             const response = await API.focus.getRecords(page, focusPageSize.value)
+      const response = await API.focus.getRecords(page, focusPageSize.value)
+      console.log('专注记录API响应:', response)
       
       if (response.data) {
         if (page === 1) {
@@ -417,6 +421,7 @@ export const useSettingsStore = defineStore('settings', () => {
     checkForUpdates,
     changePassword,
     loadShareRecords,
+    loadFocusRecords,
     loadMoreShareItems,
     refreshShareItems,
     cancelShare,

@@ -474,7 +474,8 @@ import { useAuthStore } from '@/store/AuthStore';
 import { useSettingsStore } from '@/store/SettingsStore';
 import { useShareStore } from '@/store/ShareStore';
 import { useToast } from 'vue-toastification';
-import { ref, computed, onMounted } from 'vue';
+import { API } from '@/utils/api';
+import { ref, computed, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { HardDrive, FileText, Clock, Upload } from 'lucide-vue-next';
 // 默认用户头像  
@@ -699,7 +700,30 @@ const formatSessionTime = (timestamp: number): string => {
 
 // 加载专注记录
 const loadFocusRecords = async (page: number = 1, reset: boolean = false) => {
-  await settingsStore.loadFocusRecords(page)
+  try {
+    settingsStore.isLoadingFocus = true
+    console.log('开始加载专注记录，页码:', page)
+    
+    const response = await API.focus.getRecords(page, 10)
+    console.log('专注记录API响应:', response)
+    
+    if (response.data) {
+      if (page === 1) {
+        settingsStore.focusRecords = response.data.records || []
+      } else {
+        settingsStore.focusRecords.push(...(response.data.records || []))
+      }
+      
+      settingsStore.focusCurrentPage = page
+      settingsStore.focusTotal = response.data.total || 0
+      settingsStore.hasMoreRecords = settingsStore.focusRecords.length < (response.data.total || 0)
+    }
+  } catch (error) {
+    console.error('加载专注记录失败:', error)
+    toast.error('加载专注记录失败')
+  } finally {
+    settingsStore.isLoadingFocus = false
+  }
 }
 
 // 加载更多专注记录
@@ -877,12 +901,23 @@ const copyShareInfo = async (share: any) => {
   }
 };
 
+// 监听分类切换，按需加载数据
+watch(() => settingsStore.currentCategoryId, async (newCategoryId) => {
+  console.log('设置分类切换到:', newCategoryId)
+  
+  if (newCategoryId === 'shares') {
+    console.log('加载分享数据...')
+    await settingsStore.loadShareRecords(1);
+  } else if (newCategoryId === 'focus') {
+    console.log('加载专注记录数据...')
+    await loadFocusRecords(1);
+  }
+}, { immediate: true }); // immediate: true 确保初始时也会执行
+
 // 初始化数据
 onMounted(async () => {
   // 加载保存的设置
   await settingsStore.loadSettings();
-  // 初始化分享数据
-  await settingsStore.loadShareRecords(1);
   // 确保用户信息已加载（获取最新的云盘容量信息）
   if (authStore.isAuthenticated && !authStore.user) {
     await authStore.getCurrentUser();
