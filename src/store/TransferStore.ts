@@ -176,28 +176,34 @@ export const useTransferStore = defineStore('transfer', () => {
           onProgress(progress)
         }
       })
-      
-      if (response.data) {
+
+      console.log('上传文件API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const uploadData = response.data.data
+
         // 添加到处理中的任务列表
         const newTask: ExtendedTransferItem = {
-          log_id: response.data.log_id,
+          log_id: uploadData.log_id,
           item_name: file.name,
           item_size: file.size,
           transfer_type: TransferTypeEnum.UPLOAD,
           create_time: new Date().toISOString(),
           progress: 0
         }
-        
+
         processingTasks.value.unshift(newTask)
-        
+
         // 更新统计
         uploadCount.value++
-        
+
         toast.success('文件开始上传')
-        return response.data
+        return uploadData
+      } else {
+        console.warn('上传文件API响应格式错误:', response.data)
+        toast.error(response.data?.message || '上传文件失败')
+        return null
       }
-      
-      return null
     } catch (error) {
       console.error('上传文件失败:', error)
       toast.error('上传文件失败')

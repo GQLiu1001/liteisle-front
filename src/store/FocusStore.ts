@@ -116,21 +116,29 @@ export const useFocusStore = defineStore('focus', () => {
   const loadFocusRecords = async (reset = false): Promise<void> => {
     try {
       isLoading.value = true
-      
+
       const page = reset ? 1 : recordsPagination.value.current_page
       const response = await API.focus.getRecords(page, recordsPagination.value.page_size)
-      
-      if (response.data) {
+
+      console.log('专注记录API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const recordsData = response.data.data
+        console.log('专注记录数据:', recordsData)
+
         if (reset) {
-          focusRecords.value = response.data.records || []
+          focusRecords.value = recordsData.records || []
           recordsPagination.value.current_page = 1
         } else {
-          focusRecords.value.push(...(response.data.records || []))
+          focusRecords.value.push(...(recordsData.records || []))
         }
-        
-        recordsPagination.value.total = response.data.total || 0
-        recordsPagination.value.hasMore = focusRecords.value.length < (response.data.total || 0)
+
+        recordsPagination.value.total = recordsData.total || 0
+        recordsPagination.value.hasMore = focusRecords.value.length < (recordsData.total || 0)
         lastUpdated.value = new Date()
+      } else {
+        console.warn('专注记录API响应格式错误:', response.data)
+        toast.error(response.data?.message || '加载专注记录失败')
       }
     } catch (error) {
       console.error('加载专注记录失败:', error)
@@ -294,26 +302,31 @@ export const useFocusStore = defineStore('focus', () => {
     try {
       // 记录专注时长到后端
       const response = await API.focus.recordFocus(completedMinutes)
-      
-      if (response.data) {
+
+      console.log('记录专注API响应:', response)
+
+      if (response.data && response.data.code === 200) {
         // 如果获得了新岛屿
-        const islandUrl = response.data
+        const islandUrl = response.data.data
         if (islandUrl) {
           islandStore.addIsland(islandUrl)
         }
+
+        // 更新本地统计
+        totalFocusCount.value++
+
+        // 刷新数据
+        await Promise.all([
+          loadFocusRecords(true),
+          loadFocusCalendar(),
+          loadTotalFocusCount()
+        ])
+
+        toast.success(`🎉 专注完成！用时 ${completedMinutes} 分钟`)
+      } else {
+        console.warn('记录专注API响应格式错误:', response.data)
+        toast.error(response.data?.message || '记录专注失败')
       }
-      
-      // 更新本地统计
-      totalFocusCount.value++
-      
-      // 刷新数据
-      await Promise.all([
-        loadFocusRecords(true),
-        loadFocusCalendar(),
-        loadTotalFocusCount()
-      ])
-      
-      toast.success(`🎉 专注完成！用时 ${completedMinutes} 分钟`)
     } catch (error) {
       console.error('记录专注时长失败:', error)
       toast.error('记录专注失败')

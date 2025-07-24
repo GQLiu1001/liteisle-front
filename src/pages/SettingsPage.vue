@@ -331,28 +331,28 @@
                     暂无专注记录
                   </div>
                   <div v-else class="space-y-3">
-                    <div 
-                      v-for="record in focusRecords" 
-                      :key="record.date"
+                    <div
+                      v-for="record in focusRecords"
+                      :key="record.id"
                       class="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-morandi-200/50 hover:bg-white/90 hover:border-morandi-300 transition-all duration-200"
                     >
                       <div class="flex items-center justify-between">
                         <div class="flex-1">
                           <div class="flex items-center gap-3 mb-2">
                             <div class="text-sm font-medium text-morandi-900">
-                              {{ formatDate(record.date) }}
+                              {{ formatDate(record.create_time) }}
                             </div>
                             <div class="px-2 py-1 bg-teal-100 text-teal-800 text-xs rounded-full">
                               专注
                             </div>
                           </div>
                           <div class="text-sm text-morandi-600">
-                            <div>专注时长: {{ formatMinutes(record.focusMinutes) }}</div>
+                            <div>专注时长: {{ formatMinutes(record.focus_minutes) }}</div>
                           </div>
                         </div>
                         <div class="text-right">
                           <div class="text-lg font-bold text-morandi-900">
-                            {{ formatMinutes(record.focusMinutes) }}
+                            {{ formatMinutes(record.focus_minutes) }}
                           </div>
                         </div>
                       </div>
@@ -643,28 +643,46 @@ const formatTotalTime = (minutes: number): string => {
   return `${remainingMinutes}m`;
 };
 
-const formatMinutes = (minutes: number): string => {
-  if (minutes >= 60) {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
+const formatMinutes = (minutes: number | undefined): string => {
+  if (minutes === undefined || minutes === null || isNaN(minutes)) {
+    console.warn('Invalid minutes value:', minutes);
+    return '0m';
+  }
+
+  const validMinutes = Math.floor(minutes);
+
+  if (validMinutes >= 60) {
+    const hours = Math.floor(validMinutes / 60);
+    const remainingMinutes = validMinutes % 60;
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
   }
-  return `${minutes}m`;
+  return `${validMinutes}m`;
 };
 
 const formatDate = (dateStr: string): string => {
+  if (!dateStr) {
+    return 'Invalid Date';
+  }
+
   const date = new Date(dateStr);
+
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string:', dateStr);
+    return 'Invalid Date';
+  }
+
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   if (date.toDateString() === today.toDateString()) {
     return '今天';
   } else if (date.toDateString() === yesterday.toDateString()) {
     return '昨天';
   } else {
-    return date.toLocaleDateString('zh-CN', { 
-      month: 'long', 
+    return date.toLocaleDateString('zh-CN', {
+      month: 'long',
       day: 'numeric',
       weekday: 'short'
     });
@@ -703,20 +721,26 @@ const loadFocusRecords = async (page: number = 1, reset: boolean = false) => {
   try {
     settingsStore.isLoadingFocus = true
     console.log('开始加载专注记录，页码:', page)
-    
+
     const response = await API.focus.getRecords(page, 10)
     console.log('专注记录API响应:', response)
-    
-    if (response.data) {
+
+    if (response.data && response.data.code === 200 && response.data.data) {
+      const recordsData = response.data.data
+      console.log('专注记录数据:', recordsData)
+
       if (page === 1) {
-        settingsStore.focusRecords = response.data.records || []
+        settingsStore.focusRecords = recordsData.records || []
       } else {
-        settingsStore.focusRecords.push(...(response.data.records || []))
+        settingsStore.focusRecords.push(...(recordsData.records || []))
       }
-      
+
       settingsStore.focusCurrentPage = page
-      settingsStore.focusTotal = response.data.total || 0
-      settingsStore.hasMoreRecords = settingsStore.focusRecords.length < (response.data.total || 0)
+      settingsStore.focusTotal = recordsData.total || 0
+      settingsStore.hasMoreRecords = settingsStore.focusRecords.length < (recordsData.total || 0)
+    } else {
+      console.warn('专注记录API响应格式错误:', response.data)
+      toast.error(response.data?.message || '加载专注记录失败')
     }
   } catch (error) {
     console.error('加载专注记录失败:', error)

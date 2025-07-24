@@ -180,7 +180,16 @@ export const useDocsStore = defineStore('docs', () => {
   const getDocumentViewUrl = async (fileId: number): Promise<string | null> => {
     try {
       const response = await API.document.getViewUrl(fileId)
-      return response.data || null
+
+      console.log('获取文档链接API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        return response.data.data
+      } else {
+        console.warn('获取文档链接API响应格式错误:', response.data)
+        toast.error(response.data?.message || '获取文档链接失败')
+        return null
+      }
     } catch (error) {
       console.error('获取文档链接失败:', error)
       toast.error('获取文档链接失败')
@@ -195,12 +204,18 @@ export const useDocsStore = defineStore('docs', () => {
     try {
       isLoading.value = true
       const response = await API.document.getMarkdownContent(fileId)
-      
-      if (response.data) {
-        currentMarkdownContent.value = response.data.content
-        currentMarkdownVersion.value = response.data.version
+
+      console.log('加载Markdown内容API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const markdownData = response.data.data
+        currentMarkdownContent.value = markdownData.content
+        currentMarkdownVersion.value = markdownData.version
         isMarkdownMode.value = true
         hasUnsavedChanges.value = false
+      } else {
+        console.warn('加载Markdown内容API响应格式错误:', response.data)
+        toast.error(response.data?.message || '加载Markdown内容失败')
       }
     } catch (error) {
       console.error('加载Markdown内容失败:', error)
@@ -236,12 +251,20 @@ export const useDocsStore = defineStore('docs', () => {
         version: currentMarkdownVersion.value
       }
       
-      await API.document.updateMarkdownContent(selectedDocument.value.id, updateData)
-      
-      hasUnsavedChanges.value = false
-      currentMarkdownVersion.value++ // 增加版本号
-      toast.success('文档保存成功')
-      return true
+      const response = await API.document.updateMarkdownContent(selectedDocument.value.id, updateData)
+
+      console.log('保存Markdown文档API响应:', response)
+
+      if (response.data && response.data.code === 200) {
+        hasUnsavedChanges.value = false
+        currentMarkdownVersion.value++ // 增加版本号
+        toast.success('文档保存成功')
+        return true
+      } else {
+        console.warn('保存Markdown文档API响应格式错误:', response.data)
+        toast.error(response.data?.message || '保存文档失败')
+        return false
+      }
     } catch (error) {
       console.error('保存Markdown文档失败:', error)
       toast.error('保存文档失败')
@@ -264,20 +287,27 @@ export const useDocsStore = defineStore('docs', () => {
       }
       
       const response = await API.document.createMarkdown(createData)
-      
-      if (response.data) {
+
+      console.log('创建Markdown文档API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const newDocumentId = response.data.data
         toast.success('Markdown文档创建成功')
-        
+
         // 刷新文档列表
         await loadDocumentsData()
-        
+
         // 如果当前在对应的笔记本中，自动选择新创建的文档
-        const newDocument = allDocuments.value.find(doc => doc.id === response.data)
+        const newDocument = allDocuments.value.find(doc => doc.id === newDocumentId)
         if (newDocument && currentBooklist.value?.id === folderId) {
           await selectDocument(newDocument)
         }
-        
+
         return true
+      } else {
+        console.warn('创建Markdown文档API响应格式错误:', response.data)
+        toast.error(response.data?.message || '创建文档失败')
+        return false
       }
       
       return false
@@ -338,13 +368,17 @@ export const useDocsStore = defineStore('docs', () => {
       }
       
       const response = await API.translate.translate(translateData)
-      
-      if (response.data) {
-        lastTranslation.value = response.data
-        return response.data
+
+      console.log('翻译API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        lastTranslation.value = response.data.data
+        return response.data.data
+      } else {
+        console.warn('翻译API响应格式错误:', response.data)
+        toast.error(response.data?.message || '翻译失败')
+        return null
       }
-      
-      return null
     } catch (error) {
       console.error('翻译失败:', error)
       toast.error('翻译失败')

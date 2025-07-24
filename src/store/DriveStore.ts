@@ -440,7 +440,14 @@ export const useDriveStore = defineStore('drive', () => {
   ): Promise<ItemDetailResp | null> => {
     try {
       const response = await API.item.getDetail(itemId, itemType)
-      return response.data || null
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        return response.data.data
+      } else {
+        console.warn('获取项目详情API响应格式错误:', response.data)
+        toast.error(response.data?.message || '获取项目详情失败')
+        return null
+      }
     } catch (error) {
       console.error('获取项目详情失败:', error)
       toast.error('获取项目详情失败')

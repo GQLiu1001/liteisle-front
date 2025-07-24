@@ -129,11 +129,17 @@ export const useMusicStore = defineStore('music', () => {
     try {
       isLoading.value = true
       const response = await API.music.getMusicView(content)
-      
-      if (response.data) {
-        playlists.value = response.data.playlists || []
-        allMusicFiles.value = response.data.files || []
+
+      console.log('音乐数据API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const musicData = response.data.data
+        playlists.value = musicData.playlists || []
+        allMusicFiles.value = musicData.files || []
         lastUpdated.value = new Date()
+      } else {
+        console.warn('音乐数据API响应格式错误:', response.data)
+        toast.error(response.data?.message || '加载音乐数据失败')
       }
     } catch (error) {
       console.error('加载音乐数据失败:', error)
@@ -209,19 +215,25 @@ export const useMusicStore = defineStore('music', () => {
       if (playlist) {
         currentPlaylist.value = playlist
       }
-      
+
       currentTrack.value = track
-      
+
       if (!audio.value) {
         initializeAudio()
       }
-      
+
       // 获取播放URL
       const response = await API.music.getPlayUrl(track.id)
-      if (response.data && audio.value) {
-        audio.value.src = response.data
+      console.log('播放URL API响应:', response)
+
+      if (response.data && response.data.code === 200 && response.data.data && audio.value) {
+        audio.value.src = response.data.data
         audio.value.currentTime = 0
         await audio.value.play()
+      } else {
+        console.warn('获取播放URL失败:', response.data)
+        toast.error(response.data?.message || '获取播放链接失败')
+        playState.value = PlayState.STOPPED
       }
     } catch (error) {
       console.error('播放失败:', error)

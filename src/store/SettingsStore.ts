@@ -327,20 +327,26 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       isLoadingFocus.value = true
       console.log('开始加载专注记录，页码:', page)
-      
+
       const response = await API.focus.getRecords(page, focusPageSize.value)
       console.log('专注记录API响应:', response)
-      
-      if (response.data) {
+
+      if (response.data && response.data.code === 200 && response.data.data) {
+        const recordsData = response.data.data
+        console.log('专注记录数据:', recordsData)
+
         if (page === 1) {
-          focusRecords.value = response.data.records || []
+          focusRecords.value = recordsData.records || []
         } else {
-          focusRecords.value.push(...(response.data.records || []))
+          focusRecords.value.push(...(recordsData.records || []))
         }
-        
+
         focusCurrentPage.value = page
-        focusTotal.value = response.data.total || 0
-        hasMoreRecords.value = focusRecords.value.length < (response.data.total || 0)
+        focusTotal.value = recordsData.total || 0
+        hasMoreRecords.value = focusRecords.value.length < (recordsData.total || 0)
+      } else {
+        console.warn('专注记录API响应格式错误:', response.data)
+        toast.error(response.data?.message || '加载专注记录失败')
       }
     } catch (error) {
       console.error('加载专注记录失败:', error)
