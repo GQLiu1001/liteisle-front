@@ -181,8 +181,7 @@
                   step="0.01"
                   :value="musicStore.volume"
                   @input="setVolume"
-                  class="w-2 h-16 bg-morandi-200 rounded-lg appearance-none cursor-pointer volume-slider"
-                  style="writing-mode: bt-lr; -webkit-appearance: slider-vertical;"
+                  class="w-2 h-16 bg-morandi-200 rounded-lg appearance-none cursor-pointer volume-slider vertical-slider"
                   title="音量"
                 />
               </div>
@@ -475,6 +474,15 @@ const getPlaylistTrackCount = (playlist: any) => {
 <style scoped>
 .volume-slider {
   background: linear-gradient(to top, #14B8A6 0%, #14B8A6 var(--value, 0%), #E2E8F0 var(--value, 0%), #E2E8F0 100%);
+}
+
+/* 垂直滑块样式 */
+.vertical-slider {
+  writing-mode: bt-lr; /* IE */
+  writing-mode: vertical-lr; /* 标准写法 */
+  -webkit-appearance: none;
+  appearance: none;
+  transform: rotate(180deg); /* 确保方向正确 */
 }
 
 .volume-slider::-webkit-slider-thumb {
