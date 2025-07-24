@@ -161,17 +161,15 @@
             </div>
 
             <!-- 第二栏：文档列表 -->
-            <div 
-              v-if="docsStore.currentBooklist" 
-              class="card flex-1 min-w-0"
-            >
+            <div class="card flex-1 min-w-0">
               <div class="h-full flex flex-col p-4">
                 <div class="flex items-center justify-between mb-4">
-                                      <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentBooklist?.folder_name || '文档'">
-                      {{ docsStore.currentBooklist?.folder_name || '文档' }}
+                                      <h2 class="text-lg font-bold text-morandi-900 truncate pr-2" :title="docsStore.currentBooklist?.folder_name || '选择书单'">
+                      {{ docsStore.currentBooklist?.folder_name || '选择书单' }}
                   </h2>
-                                      <div v-if="docsStore.currentBooklist" class="flex items-center gap-2">
+                  <div class="flex items-center gap-2">
                     <button
+                      v-if="docsStore.currentBooklist"
                       @click="showUploadDocumentDialog = true"
                       class="flex items-center gap-1 px-2 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-lg transition-colors text-sm"
                       title="上传文档"
@@ -180,6 +178,7 @@
                       上传文档
                     </button>
                     <button
+                      v-if="docsStore.currentBooklist"
                       @click="showAddMarkdownDialog = true"
                       class="flex items-center gap-1 px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 rounded-lg transition-colors text-sm"
                       title="新建Markdown文档"
@@ -190,10 +189,8 @@
                   </div>
                 </div>
 
-                <div 
-                  class="flex-1 overflow-y-auto -mr-2 pr-2"
-                  ref="scrollContainer"
-                >
+                <!-- 文档列表区域 -->
+                <div v-if="docsStore.filteredDocuments && docsStore.filteredDocuments.length > 0" class="flex-1 overflow-y-auto -mr-2 pr-2" ref="scrollContainer">
                   <draggable
                     v-if="!docsStore.searchQuery"
                     v-model="currentDocsList"
@@ -232,13 +229,6 @@
                       </div>
                     </template>
                   </draggable>
-                  
-                  <!-- 空状态提示 - 无搜索时 -->
-                  <div v-if="!docsStore.searchQuery && (!docsStore.filteredDocuments || docsStore.filteredDocuments.length === 0)" class="text-center py-12">
-                    <FileText :size="48" class="mx-auto mb-4 text-morandi-400" />
-                    <p class="text-lg text-morandi-600 mb-2">书单为空</p>
-                    <p class="text-sm text-morandi-500">请上传文档或新建MD文档</p>
-                  </div>
 
                   <div v-else class="space-y-1">
                     <div
@@ -262,12 +252,18 @@
                       </div>
                     </div>
                   </div>
-                  
-                  <!-- 空状态提示 - 搜索时 -->
-                  <div v-if="docsStore.searchQuery && docsStore.filteredDocuments.length === 0" class="text-center py-12">
+                </div>
+                
+                <!-- 空状态 -->
+                <div v-else class="flex-1 flex items-center justify-center">
+                  <div class="text-center">
                     <FileText :size="48" class="mx-auto mb-4 text-morandi-400" />
-                    <p class="text-lg text-morandi-600 mb-2">未找到匹配的文档</p>
-                    <p class="text-sm text-morandi-500">尝试其他搜索词或添加新文档</p>
+                    <h3 class="text-lg font-medium text-morandi-700 mb-2">
+                      {{ docsStore.searchQuery ? '未找到匹配的文档' : '书单为空' }}
+                    </h3>
+                    <p class="text-morandi-500">
+                      {{ docsStore.searchQuery ? '尝试其他搜索词或添加新文档' : '请先选择一个书单' }}
+                    </p>
                   </div>
                 </div>
               </div>
