@@ -51,12 +51,16 @@ export const useMusicStore = defineStore('music', () => {
   let progressTimer: number | null = null
   
   // === 计算属性 ===
+  const sortedPlaylists = computed(() => {
+    return [...playlists.value].sort((a, b) => b.sorted_order - a.sorted_order) // 按sorted_order降序排列
+  })
+  
   const currentPlaylistTracks = computed(() => {
     if (!currentPlaylist.value) return []
     return allMusicFiles.value.filter(file =>
       file.folder_id === currentPlaylist.value!.id &&
       (file.file_status === FileStatusEnum.AVAILABLE || !file.file_status) // 兼容没有file_status字段的情况
-    ).sort((a, b) => a.sorted_order - b.sorted_order)
+    ).sort((a, b) => b.sorted_order - a.sorted_order) // 按sorted_order降序排列
   })
   
   const currentTrackIndex = computed(() => {
@@ -611,29 +615,44 @@ export const useMusicStore = defineStore('music', () => {
     }
   })
   
+  // 防止重复排序的标志
+  let isReordering = false
+  
   /**
    * 重新排序播放列表（歌单）
    */
   const reorderPlaylists = async (oldIndex: number, newIndex: number): Promise<void> => {
+    // 防止重复调用
+    if (isReordering) {
+      console.log('正在排序中，忽略重复请求')
+      return
+    }
+    
     try {
-      const playlistsArray = [...playlists.value]
-      if (oldIndex < 0 || oldIndex >= playlistsArray.length || newIndex < 0 || newIndex >= playlistsArray.length) {
+      isReordering = true
+      
+      // 使用排序后的数组进行拖拽排序计算
+      const sortedPlaylistsArray = [...sortedPlaylists.value]
+      if (oldIndex < 0 || oldIndex >= sortedPlaylistsArray.length || newIndex < 0 || newIndex >= sortedPlaylistsArray.length) {
         console.error('排序索引超出范围')
         return
       }
 
-      const movedPlaylist = playlistsArray[oldIndex]
+      const movedPlaylist = sortedPlaylistsArray[oldIndex]
+      console.log(`正在移动歌单: ${movedPlaylist.folder_name} (ID: ${movedPlaylist.id}) 从位置 ${oldIndex} 到位置 ${newIndex}`)
 
       // 计算before_id和after_id
       let beforeId: number | null = null
       let afterId: number | null = null
 
       if (newIndex > 0) {
-        beforeId = playlistsArray[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+        beforeId = sortedPlaylistsArray[newIndex - (newIndex > oldIndex ? 0 : 1)].id
       }
-      if (newIndex < playlistsArray.length - 1) {
-        afterId = playlistsArray[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      if (newIndex < sortedPlaylistsArray.length - 1) {
+        afterId = sortedPlaylistsArray[newIndex + (newIndex > oldIndex ? 1 : 0)].id
       }
+
+      console.log(`排序参数: before_id=${beforeId}, after_id=${afterId}`)
 
       // 调用API设置排序
       await API.item.setOrder(movedPlaylist.id, 'folder', {
@@ -647,6 +666,8 @@ export const useMusicStore = defineStore('music', () => {
     } catch (error) {
       console.error('重新排序歌单失败:', error)
       toast.error('重新排序歌单失败')
+    } finally {
+      isReordering = false
     }
   }
 
@@ -717,6 +738,7 @@ export const useMusicStore = defineStore('music', () => {
     duration,
     
     // === 计算属性 ===
+    sortedPlaylists,
     currentPlaylistTracks,
     currentTrackIndex,
     hasNextTrack,

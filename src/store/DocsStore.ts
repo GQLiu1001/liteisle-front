@@ -41,12 +41,16 @@ export const useDocsStore = defineStore('docs', () => {
   const lastTranslation = ref<TranslateResp | null>(null)
   
   // === 计算属性 ===
+  const sortedBooklists = computed(() => {
+    return [...booklists.value].sort((a, b) => b.sorted_order - a.sorted_order) // 按sorted_order降序排列
+  })
+  
   const currentBooklistDocuments = computed(() => {
     if (!currentBooklist.value) return []
     return allDocuments.value.filter(file => 
       file.folder_id === currentBooklist.value!.id &&
       file.file_status === FileStatusEnum.AVAILABLE
-    ).sort((a, b) => a.sorted_order - b.sorted_order)
+    ).sort((a, b) => b.sorted_order - a.sorted_order) // 按sorted_order降序排列
   })
   
   const filteredDocuments = computed(() => {
@@ -519,29 +523,44 @@ export const useDocsStore = defineStore('docs', () => {
     }
   }
 
+  // 防止重复排序的标志
+  let isReorderingCategories = false
+  
   /**
    * 重新排序分类（笔记本）
    */
   const reorderCategories = async (oldIndex: number, newIndex: number): Promise<void> => {
+    // 防止重复调用
+    if (isReorderingCategories) {
+      console.log('正在排序分类中，忽略重复请求')
+      return
+    }
+    
     try {
-      const categories = [...booklists.value]
-      if (oldIndex < 0 || oldIndex >= categories.length || newIndex < 0 || newIndex >= categories.length) {
+      isReorderingCategories = true
+      
+      // 使用排序后的数组进行拖拽排序计算
+      const sortedCategoriesArray = [...sortedBooklists.value]
+      if (oldIndex < 0 || oldIndex >= sortedCategoriesArray.length || newIndex < 0 || newIndex >= sortedCategoriesArray.length) {
         console.error('排序索引超出范围')
         return
       }
 
-      const movedCategory = categories[oldIndex]
+      const movedCategory = sortedCategoriesArray[oldIndex]
+      console.log(`正在移动分类: ${movedCategory.folder_name} (ID: ${movedCategory.id}) 从位置 ${oldIndex} 到位置 ${newIndex}`)
 
       // 计算before_id和after_id
       let beforeId: number | null = null
       let afterId: number | null = null
 
       if (newIndex > 0) {
-        beforeId = categories[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+        beforeId = sortedCategoriesArray[newIndex - (newIndex > oldIndex ? 0 : 1)].id
       }
-      if (newIndex < categories.length - 1) {
-        afterId = categories[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      if (newIndex < sortedCategoriesArray.length - 1) {
+        afterId = sortedCategoriesArray[newIndex + (newIndex > oldIndex ? 1 : 0)].id
       }
+
+      console.log(`排序参数: before_id=${beforeId}, after_id=${afterId}`)
 
       // 调用API设置排序
       await API.item.setOrder(movedCategory.id, 'folder', {
@@ -555,6 +574,8 @@ export const useDocsStore = defineStore('docs', () => {
     } catch (error) {
       console.error('重新排序分类失败:', error)
       toast.error('重新排序分类失败')
+    } finally {
+      isReorderingCategories = false
     }
   }
 
@@ -623,6 +644,7 @@ export const useDocsStore = defineStore('docs', () => {
     lastTranslation,
     
     // 计算属性
+    sortedBooklists,
     currentBooklistDocuments,
     filteredDocuments,
     

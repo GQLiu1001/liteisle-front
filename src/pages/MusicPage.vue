@@ -193,7 +193,7 @@
               </draggable>
 
               <!-- 空状态 -->
-              <div v-if="playlists.length === 0" class="text-center py-8">
+              <div v-if="musicStore.sortedPlaylists.length === 0" class="text-center py-8">
                 <Music :size="32" class="mx-auto mb-3 text-morandi-400" />
                 <p class="text-sm text-morandi-500">暂无歌单</p>
                 <p class="text-xs text-morandi-400 mt-1">请先在云盘中上传音乐文件</p>
@@ -687,19 +687,10 @@ const isPlaying = computed(() => musicStore.playState === musicStore.PlayState.P
 
 // 可拖动的歌单
 const currentPlaylistsList = computed({
-  get: () => playlists.value || [],
-  set: (newPlaylists: any[]) => { // Playlist type is not directly imported, use 'any' for now
-    if (!draggedPlaylistId.value) return;
-
-    const oldIndex = playlists.value.findIndex((p: any) => p.id.toString() === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
-    const newIndex = newPlaylists.findIndex((p: any) => p.id.toString() === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
-
-    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      // 实现播放列表重排序
-      musicStore.reorderPlaylists(oldIndex, newIndex);
-    }
-
-    draggedPlaylistId.value = null;
+  get: () => musicStore.sortedPlaylists || [],
+  set: (newPlaylists: any[]) => { 
+    // 不在这里处理排序，避免与@end事件重复调用
+    // 排序逻辑统一在onPlaylistDragEnd中处理
   }
 })
 

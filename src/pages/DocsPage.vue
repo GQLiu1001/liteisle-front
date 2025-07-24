@@ -153,7 +153,7 @@
                   </draggable>
                   
                   <!-- 空状态提示 -->
-                  <div v-if="!docsStore.booklists || docsStore.booklists.length === 0" class="text-center py-8">
+                  <div v-if="!docsStore.sortedBooklists || docsStore.sortedBooklists.length === 0" class="text-center py-8">
                     <BookImage :size="32" class="mx-auto mb-2 text-morandi-400" />
                     <p class="text-sm text-morandi-500">暂无书单</p>
                     <p class="text-xs text-morandi-400 mt-1">点击上方"添加书单"开始创建</p>
@@ -718,20 +718,12 @@ const currentDocsList = computed({
 // 可拖动的分类列表
 const currentCategoriesList = computed({
   get() {
-    console.log('获取分类列表:', docsStore.booklists)
-    return docsStore.booklists || [];
+    console.log('获取分类列表:', docsStore.sortedBooklists)
+    return docsStore.sortedBooklists || [];
   },
   set(newCategories: FolderInfo[]) {
-    if (!draggedCategoryId.value) return;
-
-    const oldIndex = docsStore.booklists.findIndex((c: FolderInfo) => c.id.toString() === draggedCategoryId.value);
-    const newIndex = newCategories.findIndex((c: FolderInfo) => c.id.toString() === draggedCategoryId.value);
-
-    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-      docsStore.reorderCategories(oldIndex, newIndex);
-    }
-
-    draggedCategoryId.value = null;
+    // 不在这里处理排序，避免与@end事件重复调用
+    // 排序逻辑统一在onCategoryDragEnd中处理
   }
 });
 
