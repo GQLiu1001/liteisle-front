@@ -34,7 +34,7 @@
       <div class="relative user-menu" @click="toggleUserMenu">
         <div class="w-8 h-8 rounded-full bg-white border-2 border-morandi-400 flex items-center justify-center cursor-pointer hover:border-teal-400 transition-colors overflow-hidden">
           <img 
-            :src="authStore.user?.picture || defaultUserPic" 
+            :src="authStore.user?.avatar || defaultUserPic" 
             alt="用户头像" 
             class="w-full h-full object-cover"
           />

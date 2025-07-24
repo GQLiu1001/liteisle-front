@@ -230,8 +230,23 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       const response = await API.auth.uploadAvatar(file)
       
+      console.log('头像上传API响应:', response)
+      
+      // 处理嵌套的API响应结构
       if (response.data && user.value) {
-        user.value.avatar = response.data
+        const apiResponse = response.data
+        console.log('API响应数据:', apiResponse)
+        
+        // 检查是否是标准的ApiResponse格式
+        if (apiResponse.code === 200 && apiResponse.data) {
+          user.value.avatar = apiResponse.data
+          console.log('头像URL已更新:', apiResponse.data)
+        } else if (typeof apiResponse === 'string') {
+          // 如果直接返回URL字符串
+          user.value.avatar = apiResponse
+          console.log('头像URL已更新(直接):', apiResponse)
+        }
+        
         toast.success('头像上传成功')
         return true
       }
@@ -245,6 +260,11 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = false
     }
   }
+
+  /**
+   * 更新用户头像 (别名方法，兼容前端调用)
+   */
+  const updateUserPicture = uploadAvatar
   
   /**
    * 重置头像
@@ -254,8 +274,23 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       const response = await API.auth.resetAvatar()
       
+      console.log('重置头像API响应:', response)
+      
+      // 处理嵌套的API响应结构
       if (response.data && user.value) {
-        user.value.avatar = response.data
+        const apiResponse = response.data
+        console.log('API响应数据:', apiResponse)
+        
+        // 检查是否是标准的ApiResponse格式
+        if (apiResponse.code === 200 && apiResponse.data) {
+          user.value.avatar = apiResponse.data
+          console.log('头像URL已重置:', apiResponse.data)
+        } else if (typeof apiResponse === 'string') {
+          // 如果直接返回URL字符串
+          user.value.avatar = apiResponse
+          console.log('头像URL已重置(直接):', apiResponse)
+        }
+        
         toast.success('头像已重置')
         return true
       }
@@ -373,6 +408,7 @@ export const useAuthStore = defineStore('auth', () => {
     getCurrentUser,
     resetPassword,
     uploadAvatar,
+    updateUserPicture,
     resetAvatar,
     logout,
     initializeAuth,

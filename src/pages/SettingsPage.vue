@@ -152,7 +152,7 @@
                   class="w-32 h-32 bg-teal-100 rounded-full flex items-center justify-center cursor-pointer hover:bg-teal-200 transition-colors relative overflow-hidden"
                 >
                   <img 
-                    :src="authStore.user?.picture || defaultUserPic" 
+                    :src="authStore.user?.avatar || defaultUserPic" 
                     alt="用户头像" 
                     class="w-full h-full object-cover"
                   />
@@ -217,7 +217,7 @@
                   修改密码
                 </button>
                 <button 
-                  v-if="authStore.user?.picture"
+                  v-if="authStore.user?.avatar"
                   @click="resetUserPicture"
                   class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
                 >
@@ -554,12 +554,7 @@ const handleFileChange = async (event: Event) => {
 const resetUserPicture = async () => {
   if (confirm('确定要恢复默认头像吗？')) {
     try {
-      // 更新用户信息，清空头像
-      if (authStore.user) {
-        authStore.user.picture = undefined;
-        localStorage.setItem('user_info', JSON.stringify(authStore.user));
-        alert('头像已重置');
-      }
+      await authStore.resetAvatar();
     } catch (error) {
       alert('重置头像失败: ' + (error instanceof Error ? error.message : '未知错误'));
     }
@@ -627,9 +622,9 @@ const { focusRecords, focusTotal, isLoadingFocus, shareRecords, isLoadingShare, 
 
 // 专注统计
 const focusStats = computed(() => ({
-  totalMinutes: focusStore.totalFocusTime / (1000 * 60), // 转换为分钟
+  totalMinutes: focusStore.calendarData?.total_focus_minutes || 0, // 使用日历数据中的总专注分钟数
   totalDays: focusStore.totalFocusCount,
-  streakDays: focusStore.getCheckInStats.consecutiveCheckins
+  streakDays: focusStore.getFocusStreak() // 调用方法获取连续天数
 }));
 
 // 格式化方法

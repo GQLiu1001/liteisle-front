@@ -400,10 +400,18 @@ const handleClearCompleted = (deleteFiles: boolean) => {
 
 const cancelTask = async (id: number) => {
     try {
-        const taskType = activeCategory.value;
-        const taskId = `${taskType}-${id}`;
-        await transferStore.cancelTask(taskId);
-        toast.info('任务已取消');
+        // 根据任务类型调用不同的取消方法
+        const task = [...transferStore.processingTasks, ...transferStore.completedTasks].find(t => t.log_id === id);
+        if (task) {
+            if (task.transfer_type === 'upload') {
+                await transferStore.cancelUpload(id);
+            } else {
+                transferStore.cancelDownload(id);
+            }
+            toast.info('任务已取消');
+        } else {
+            toast.error('任务不存在');
+        }
     } catch (error) {
         toast.error('取消任务失败');
     }
