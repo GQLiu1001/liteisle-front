@@ -427,11 +427,11 @@ export const useDocsStore = defineStore('docs', () => {
   const loadCategoriesFromDrive = async (): Promise<void> => {
     try {
       isLoading.value = true
-             const response = await API.document.getDocumentView()
-      
+      const response = await API.document.getDocumentView()
+
       if (response.data) {
         booklists.value = response.data.booklists || []
-        allDocuments.value = response.data.documents || []
+        allDocuments.value = response.data.files || []  // 修复：使用 files 而不是 documents
         lastUpdated.value = new Date()
       }
     } catch (error) {

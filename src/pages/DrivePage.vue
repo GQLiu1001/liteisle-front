@@ -1627,7 +1627,7 @@ const showRenameDialog = () => {
   closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
 
-const confirmRename = () => {
+const confirmRename = async () => {
   const newName = renameValue.value.trim()
   if (!newName || !selectedItem.value) return
 
@@ -1644,17 +1644,24 @@ const confirmRename = () => {
     return
   }
 
-  const itemId = selectedItem.value.id
-  const oldName = selectedItem.value.name
-  
-  // 调用DriveStore的重命名方法
-  const success = driveStore.renameItem(itemId, newName)
-  
-  if (success) {
+  const item = selectedItem.value
+  const oldName = item.name
+
+  try {
+    // 调用DriveStore的重命名方法，传递正确的参数格式
+    const renameData = {
+      file_id: item.type === 'folder' ? null : item.id,
+      folder_id: item.type === 'folder' ? item.id : null,
+      new_name: newName
+    }
+
+    await driveStore.renameItem(renameData)
+
     showRenameDialogState.value = false
     renameValue.value = ''
-    toast.success(`"${oldName}" 已重命名为 "${newName}"`)
-  } else {
+    // DriveStore 已经显示了成功提示
+  } catch (error) {
+    console.error('重命名失败:', error)
     toast.error('重命名失败，请重试')
   }
 }
@@ -1989,7 +1996,7 @@ const selectSort = async (criteria: 'name' | 'size' | 'modifiedAt' | 'createdAt'
       backendSortBy = 'update_time'
       break
     case 'size':
-      backendSortBy = 'size'
+      backendSortBy = 'file_size'
       break
     case 'default':
     default:

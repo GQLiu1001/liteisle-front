@@ -468,10 +468,10 @@ export const useMusicStore = defineStore('music', () => {
     try {
       isLoading.value = true
       const response = await API.music.getMusicView()
-      
+
       if (response.data) {
-                 playlists.value = response.data.playlists || []
-         allMusicFiles.value = response.data.files || []
+        playlists.value = response.data.playlists || []
+        allMusicFiles.value = response.data.files || []
         lastUpdated.value = new Date()
       }
     } catch (error) {
