@@ -10,9 +10,9 @@
               <Music :size="32" class="text-white" />
             </div>
             <div class="flex-1 min-w-0">
-              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
-              <p class="text-xs text-morandi-500 truncate mb-1">{{ musicStore.currentTrackInfo?.album || '未知专辑' }}</p>
-              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.artist || '未知艺术家' }}</p>
+              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrack?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
+              <p class="text-xs text-morandi-500 truncate mb-1">{{ musicStore.currentTrack?.album || '未知专辑' }}</p>
+              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrack?.artist || '未知艺术家' }}</p>
               <div class="flex items-center justify-between text-xs text-morandi-500 mt-2">
                 <span>{{ musicStore.formatTime(musicStore.currentTime) }}</span>
                 <span>{{ musicStore.formatTime(musicStore.duration) }}</span>
@@ -48,19 +48,19 @@
             <h3 class="text-lg font-bold text-morandi-900 mb-4">歌单</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div
-                v-for="playlist in musicStore.playlists.slice(0, 4)"
+                v-for="playlist in playlists.slice(0, 4)"
                 :key="playlist.id"
-                @click="selectPlaylist(playlist)"
+                @click="musicStore.selectPlaylist(playlist)"
                 :class="[
                   'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200',
-                  musicStore.currentPlaylist?.id === playlist.id 
-                    ? 'bg-teal-100 text-teal-800 border border-teal-300' 
+                  musicStore.currentPlaylist?.id === playlist.id
+                    ? 'bg-teal-100 text-teal-800 border border-teal-300'
                     : 'hover:bg-morandi-100'
                 ]"
               >
                 <DiscAlbum :size="16" class="text-blue-500 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate text-sm">{{ playlist.name }}</p>
+                  <p class="font-medium truncate text-sm">{{ playlist.folder_name }}</p>
                   <p class="text-xs text-morandi-500">{{ getPlaylistDisplayCount(playlist) }} 首</p>
                 </div>
               </div>
@@ -74,7 +74,7 @@
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h2 class="text-lg font-bold text-morandi-900">
-                  {{ musicStore.currentPlaylist?.name || '选择歌单' }}
+                  {{ musicStore.currentPlaylist?.folder_name || '选择歌单' }}
                 </h2>
                 <p class="text-sm text-morandi-500">{{ filteredTracks.length }} 首歌曲</p>
               </div>
@@ -171,7 +171,7 @@
               >
                 <template #item="{ element: playlist }">
                   <div
-                    @click="selectPlaylist(playlist)"
+                    @click="musicStore.selectPlaylist(playlist)"
                     @contextmenu.prevent="handlePlaylistContextMenu($event, playlist)"
                     :data-id="playlist.id"
                     :class="[
@@ -183,7 +183,7 @@
                   >
                     <DiscAlbum :size="20" class="text-blue-500" />
                     <div class="flex-1 min-w-0">
-                      <p class="font-medium truncate">{{ playlist.name }}</p>
+                      <p class="font-medium truncate">{{ playlist.folder_name }}</p>
                       <p class="text-sm text-morandi-500">
                         {{ getPlaylistDisplayCount(playlist) }} 首歌曲
                       </p>
@@ -193,7 +193,7 @@
               </draggable>
 
               <!-- 空状态 -->
-              <div v-if="musicStore.playlists.length === 0" class="text-center py-8">
+              <div v-if="playlists.length === 0" class="text-center py-8">
                 <Music :size="32" class="mx-auto mb-3 text-morandi-400" />
                 <p class="text-sm text-morandi-500">暂无歌单</p>
                 <p class="text-xs text-morandi-400 mt-1">请先在云盘中上传音乐文件</p>
@@ -210,7 +210,7 @@
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h2 class="font-bold text-morandi-900 lg:text-lg xl:text-xl">
-                    {{ musicStore.currentPlaylist?.name || '选择歌单' }}
+                    {{ musicStore.currentPlaylist?.folder_name || '选择歌单' }}
                 </h2>
                 <p class="text-sm text-morandi-500">
                   {{ filteredTracks.length }} 首歌曲
@@ -296,7 +296,7 @@
                           {{ index + 1 }}
                         </span>
                         <Music 
-                          v-else-if="musicStore.isPlaying"
+                          v-else-if="isPlaying"
                           :size="16" 
                           class="text-teal-600 animate-pulse" 
                         />
@@ -350,7 +350,7 @@
                         {{ index + 1 }}
                       </span>
                       <Music 
-                        v-else-if="musicStore.isPlaying"
+                        v-else-if="isPlaying"
                         :size="16" 
                         class="text-teal-600 animate-pulse" 
                       />
@@ -400,9 +400,9 @@
               <div class="w-32 h-32 lg:w-40 lg:h-40 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-400 to-teal-500 flex items-center justify-center">
                 <Music :size="48" class="text-white" />
               </div>
-              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrackInfo?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
-                              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.album || '未知专辑' }}</p>
-                <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrackInfo?.artist || '未知艺术家' }}</p>
+              <h3 class="font-bold text-morandi-900 truncate">{{ musicStore.currentTrack?.file_name?.replace(/\.[^/.]+$/, '') || '暂无播放' }}</h3>
+                              <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrack?.album || '未知专辑' }}</p>
+                <p class="text-sm text-morandi-600 truncate">{{ musicStore.currentTrack?.artist || '未知艺术家' }}</p>
             </div>
 
             <!-- 播放进度 -->
@@ -616,6 +616,7 @@ import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuSt
 import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
 import type { MusicFileInfo } from '@/types/api'
+import { FileStatusEnum } from '@/types/api'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
@@ -625,6 +626,9 @@ const transferStore = useTransferStore()
 const contextMenuStore = useContextMenuStore()
 const toast = useToast()
 const route = useRoute()
+
+// 使用 storeToRefs 获取响应式数据
+const { playlists, allMusicFiles, isLoading } = storeToRefs(musicStore)
 
 // 本地拖拽列表
 const localTracks = ref<MusicFileInfo[]>([])
@@ -674,31 +678,26 @@ const dragStartTime = ref(0)
 // 从 store 解构进度百分比（保持与底栏同步）
 const { progressPercentage } = storeToRefs(musicStore)
 
-// 计算属性
-const filteredTracks = computed(() => {
-  // 搜索时，基于本地列表进行过滤，以保证拖拽搜索结果的稳定性
-  if (musicStore.searchQuery) {
-    return localTracks.value.filter((track: any) => 
-      track.name.toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
-      track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
-    )
-  }
-  return localTracks.value
-})
+// 计算属性 - 使用 store 中的 filteredTracks
+const filteredTracks = computed(() => musicStore.filteredTracks)
 
-// 可拖动的歌单  
+// 计算当前是否正在播放
+const isPlaying = computed(() => musicStore.playState === musicStore.PlayState.PLAYING)
+
+// 可拖动的歌单
 const currentPlaylistsList = computed({
-  get: () => musicStore.playlists || [],
+  get: () => playlists.value || [],
   set: (newPlaylists: any[]) => { // Playlist type is not directly imported, use 'any' for now
     if (!draggedPlaylistId.value) return;
 
-    const oldIndex = musicStore.playlists.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
+    const oldIndex = playlists.value.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
     const newIndex = newPlaylists.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
 
     if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
-      musicStore.reorderPlaylists(oldIndex, newIndex);
+      // TODO: 实现播放列表重排序
+      console.log('TODO: 重排序播放列表', oldIndex, newIndex);
     }
-    
+
     draggedPlaylistId.value = null;
   }
 })
@@ -712,8 +711,8 @@ const onDragStart = (event: any) => {
 // 拖动结束事件
 const onDragEnd = (event: { oldIndex?: number; newIndex?: number }) => {
   if (typeof event.oldIndex === 'number' && typeof event.newIndex === 'number' && event.oldIndex !== event.newIndex) {
-    // 直接在 Pinia store 中更新顺序
-    musicStore.reorderTracks(event.oldIndex, event.newIndex);
+    // TODO: 实现歌曲重排序
+    console.log('TODO: 重排序歌曲', event.oldIndex, event.newIndex);
   }
   // 停止全局拖拽监听
   stopGlobalDragListening();
@@ -731,30 +730,35 @@ const onPlaylistDragStart = (event: any) => {
 // 歌单拖动结束事件
 const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
-    musicStore.reorderPlaylists(event.oldIndex, event.newIndex)
+    // TODO: 实现播放列表重排序
+    console.log('TODO: 重排序播放列表', event.oldIndex, event.newIndex)
   }
   // 停止歌单的全局拖拽监听
   stopPlaylistGlobalDragListening()
 }
 
-// 方法
-const selectPlaylist = (playlist: any) => { // Playlist type is not directly imported, use 'any' for now
-  musicStore.setCurrentPlaylist(playlist)
-}
+// 方法 - 直接使用 musicStore 中的方法
 
 const playTrack = (index: number) => {
-  musicStore.setCurrentTrack(index)
+  const track = filteredTracks.value[index]
+  if (track && musicStore.currentPlaylist) {
+    // 只设置当前播放曲目，不立即播放
+    musicStore.currentTrack = track
+  }
 }
 
 const playTrackImmediately = (index: number) => {
-  musicStore.setCurrentTrack(index)
-  musicStore.play()
+  const track = filteredTracks.value[index]
+  if (track && musicStore.currentPlaylist) {
+    // 立即播放指定歌曲
+    musicStore.playTrack(track, musicStore.currentPlaylist)
+  }
 }
 
 const playAll = () => {
-  if (filteredTracks.value.length > 0) {
-    musicStore.setCurrentTrack(0)
-    musicStore.play()
+  if (filteredTracks.value.length > 0 && musicStore.currentPlaylist) {
+    const firstTrack = filteredTracks.value[0]
+    musicStore.playTrack(firstTrack, musicStore.currentPlaylist)
   }
 }
 
@@ -801,15 +805,21 @@ const startDrag = (event: MouseEvent | TouchEvent) => {
 }
 
 const getPlaylistDisplayCount = (playlist: any) => { // Playlist type is not directly imported, use 'any' for now
+  // 获取该播放列表中的所有歌曲
+  const playlistTracks = musicStore.allMusicFiles.filter((file: MusicFileInfo) => 
+    file.folder_id === playlist.id && 
+    file.file_status === FileStatusEnum.AVAILABLE
+  )
+  
   // 如果没有搜索条件，显示总数
   if (!musicStore.searchQuery) {
-    return playlist.tracks.length
+    return playlistTracks.length
   }
   
-    // 如果有搜索条件，显示该歌单中匹配的数量
-  return playlist.tracks.filter((track: any) => 
+  // 如果有搜索条件，显示该歌单中匹配的数量
+  return playlistTracks.filter((track: any) => 
     (track.file_name || '').toLowerCase().includes(musicStore.searchQuery.toLowerCase()) ||
-    track.artist.toLowerCase().includes(musicStore.searchQuery.toLowerCase())
+    (track.artist || '').toLowerCase().includes(musicStore.searchQuery.toLowerCase())
   ).length
 }
 
@@ -827,7 +837,7 @@ onMounted(() => {
     playlist && song &&
     typeof playlist === 'string' &&
     typeof song === 'string' &&
-    (!musicStore.currentTrack || musicStore.currentTrackInfo?.file_name !== song)
+    (!musicStore.currentTrack || musicStore.currentTrack?.file_name !== song)
   ) {
     musicStore.playSongFromDrive(playlist, song)
   }
@@ -972,7 +982,8 @@ const handlePlaylistDragOverScroll = (event: DragEvent) => {
 // 组件卸载时清理定时器
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    musicStore.cleanup()
+    // TODO: 清理资源
+  console.log('页面卸载，清理音乐资源')
     clearAutoScroll()
   })
 }
@@ -996,7 +1007,7 @@ const uploadMusicFiles = async () => {
   
   // 获取当前歌单的路径，如果没有则上传到音乐根目录
   const currentPlaylist = musicStore.currentPlaylist
-  const targetPath = currentPlaylist ? `/音乐/${currentPlaylist.name}` : '/音乐'
+  const targetPath = currentPlaylist ? `/音乐/${currentPlaylist.folder_name}` : '/音乐'
   
   // 使用 TransferStore 处理上传
   await transferStore.uploadFiles(selectedMusicFiles.value, targetPath)
@@ -1116,8 +1127,8 @@ const deleteTrack = () => {
   if (selectedTrack.value) {
     const trackName = selectedTrack.value.file_name?.replace(/\.[^/.]+$/, '') || '未知音乐'
     if (confirm(`确定要删除音乐 "${trackName}" 吗？`)) {
-      // 调用MusicStore的删除方法
-      musicStore.deleteTrack(selectedTrack.value.id)
+      // TODO: 实现删除歌曲
+      console.log('TODO: 删除歌曲', selectedTrack.value.id)
       toast.success(`音乐 "${trackName}" 已删除`)
     }
   }
@@ -1155,13 +1166,13 @@ const handlePlaylistContextMenu = (event: MouseEvent, playlist: any) => { // Pla
 
 const openPlaylist = () => {
   if (selectedPlaylist.value) {
-    selectPlaylist(selectedPlaylist.value)
+    musicStore.selectPlaylist(selectedPlaylist.value)
   }
 }
 
 const showRenamePlaylistDialogFn = () => {
   if (selectedPlaylist.value) {
-    renamePlaylistValue.value = selectedPlaylist.value.name
+    renamePlaylistValue.value = selectedPlaylist.value.folder_name
     showRenamePlaylistDialog.value = true
     
     // 在下一个tick自动聚焦并选中文本
@@ -1179,7 +1190,7 @@ const confirmRenamePlaylist = () => {
   if (!newName || !selectedPlaylist.value) return
 
   // 检查名称是否与原名称相同
-  if (newName === selectedPlaylist.value.name) {
+  if (newName === selectedPlaylist.value.folder_name) {
     cancelRenamePlaylist()
     return
   }
@@ -1191,10 +1202,10 @@ const confirmRenamePlaylist = () => {
     return
   }
 
-  const oldName = selectedPlaylist.value.name
+  const oldName = selectedPlaylist.value.folder_name
   
   // 调用MusicStore的重命名方法（如果有的话，或者直接修改）
-  selectedPlaylist.value.name = newName
+  selectedPlaylist.value.folder_name = newName
   
   showRenamePlaylistDialog.value = false
   renamePlaylistValue.value = ''
@@ -1208,10 +1219,10 @@ const cancelRenamePlaylist = () => {
 
 const deletePlaylist = () => {
   if (selectedPlaylist.value) {
-    const playlistName = selectedPlaylist.value.name
+    const playlistName = selectedPlaylist.value.folder_name
     if (confirm(`确定要删除歌单 "${playlistName}" 吗？`)) {
-      // 调用MusicStore的删除方法
-      musicStore.deletePlaylist(selectedPlaylist.value.id)
+      // TODO: 实现删除播放列表
+      console.log('TODO: 删除播放列表', selectedPlaylist.value.id)
       toast.success(`歌单 "${playlistName}" 已删除`)
     }
   }

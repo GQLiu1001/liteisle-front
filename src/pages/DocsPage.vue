@@ -542,6 +542,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useDocsStore } from '../store/DocsStore';
 import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
@@ -570,6 +571,9 @@ const uiStore = useUIStore();
 const contextMenuStore = useContextMenuStore();
 const toast = useToast();
 const route = useRoute();
+
+// 使用 storeToRefs 获取响应式数据
+const { booklists, allDocuments, isLoading } = storeToRefs(docsStore);
 const showAddDocumentDialog = ref(false);
 const showUploadDocumentDialog = ref(false);
 const showAddMarkdownDialog = ref(false);
@@ -655,7 +659,7 @@ const currentDocsList = computed({
   set(newDocs: any[]) { // Changed to any[] as Document type is removed
     if (!draggedItemId.value) return;
 
-    const oldIndex = docsStore.currentCategoryData?.documents.findIndex((d: any) => d.id === draggedItemId.value); // Changed to any
+    const oldIndex = docsStore.currentBooklistDocuments.findIndex((d: any) => d.id === draggedItemId.value); // Changed to any
     const newIndex = newDocs.findIndex((d: any) => d.id === draggedItemId.value); // Changed to any
 
     if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {

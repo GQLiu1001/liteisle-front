@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { API } from '@/utils/api'
 import { onFileStatusUpdated } from '@/utils/websocket'
 import { useToast } from 'vue-toastification'
@@ -461,18 +461,42 @@ export const useMusicStore = defineStore('music', () => {
     }
   }
   
-  /**
-   * 从云盘加载播放列表
-   */
+  // 从云盘加载播放列表
   const loadPlaylistsFromDrive = async (): Promise<void> => {
     try {
       isLoading.value = true
+      console.log('开始加载音乐数据...')
       const response = await API.music.getMusicView()
+      console.log('Music API response:', response)
 
-      if (response.data) {
-        playlists.value = response.data.playlists || []
-        allMusicFiles.value = response.data.files || []
+          if (response.data) {
+      // 检查数据结构，适配不同的响应格式
+      const actualData = (response.data as any).data || response.data
+      console.log('实际数据结构:', actualData)
+      console.log('API返回的playlists:', actualData.playlists)
+      console.log('API返回的files:', actualData.files)
+      
+      // 确保数据类型正确
+      const playlistsData = actualData.playlists || []
+      const filesData = actualData.files || []
+        
+        console.log('处理后的playlistsData:', playlistsData)
+        console.log('处理后的filesData:', filesData)
+        
+        // 使用nextTick确保DOM更新完成后再赋值
+        await nextTick()
+        
+        // 直接赋值新数组，避免响应式问题
+        playlists.value = [...playlistsData]
+        allMusicFiles.value = [...filesData]
+        
+        console.log('赋值后 - playlists.value:', playlists.value)
+        console.log('赋值后 - playlists.value.length:', playlists.value.length)
+        console.log('赋值后 - allMusicFiles.value:', allMusicFiles.value)
+        
         lastUpdated.value = new Date()
+      } else {
+        console.warn('API响应中没有data字段')
       }
     } catch (error) {
       console.error('加载音乐数据失败:', error)
