@@ -186,6 +186,11 @@ const changeQuote = () => {
 
 // 组件挂载时初始化
 onMounted(async () => {
+  // 每次进入首页都刷新用户信息（获取最新的用户名、头像等）
+  if (authStore.isAuthenticated) {
+    await authStore.getCurrentUser()
+  }
+  
   // 加载今日名言
   currentQuote.value = selectRandomQuote()
   

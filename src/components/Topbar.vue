@@ -271,8 +271,13 @@ const handleClickOutside = () => {
 }
 
 // 组件挂载时添加全局点击监听
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
+
+  // 每次组件挂载都刷新用户信息（获取最新的头像、用户名等）
+  if (authStore.isAuthenticated) {
+    await authStore.getCurrentUser()
+  }
 
   // 检查electronAPI状态
   console.log('=== ElectronAPI 状态检查 ===')

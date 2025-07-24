@@ -930,6 +930,12 @@ watch(() => settingsStore.currentCategoryId, async (newCategoryId) => {
   } else if (newCategoryId === 'focus') {
     console.log('加载专注记录数据...')
     await loadFocusRecords(1);
+  } else if (newCategoryId === 'account') {
+    console.log('切换到账户设置，刷新用户信息...')
+    // 切换到账户设置时重新获取用户信息（额度、头像等）
+    if (authStore.isAuthenticated) {
+      await authStore.getCurrentUser();
+    }
   }
 }, { immediate: true }); // immediate: true 确保初始时也会执行
 
@@ -937,8 +943,8 @@ watch(() => settingsStore.currentCategoryId, async (newCategoryId) => {
 onMounted(async () => {
   // 加载保存的设置
   await settingsStore.loadSettings();
-  // 确保用户信息已加载（获取最新的云盘容量信息）
-  if (authStore.isAuthenticated && !authStore.user) {
+  // 每次打开设置页面都重新请求用户信息（获取最新的额度、头像等信息）
+  if (authStore.isAuthenticated) {
     await authStore.getCurrentUser();
   }
 });
