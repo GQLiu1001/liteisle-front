@@ -563,12 +563,15 @@
 import { ref, computed, watch, onUnmounted, onMounted, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useDocsStore } from '../store/DocsStore';
+import { useDriveStore } from '../store/DriveStore';
 import { useTransferStore } from '../store/TransferStore';
 import { useUIStore } from '@/store/UIStore';
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore';
 import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import type { FolderInfo, FileInfo } from '@/types/api';
+import { FolderTypeEnum } from '@/types/api';
+import { API } from '@/utils/api';
 import { 
   Upload,
   FileText, 
@@ -585,6 +588,7 @@ import ExcelViewer from '@/components/ExcelViewer.vue';
 import MarkdownViewer from '@/components/MarkdownViewer.vue';
 
 const docsStore = useDocsStore();
+const driveStore = useDriveStore();
 const transferStore = useTransferStore();
 const uiStore = useUIStore();
 const contextMenuStore = useContextMenuStore();
@@ -889,13 +893,70 @@ const addDocument = () => {
 }
 
 // 创建新分类的方法
-const createNewCategory = () => {
+const createNewCategory = async () => {
   const categoryName = newCategoryName.value.trim()
   if (!categoryName) return
 
-  // 这里调用创建分类的逻辑，相当于在云盘文档目录下创建文件夹
-  console.log('创建新分类:', categoryName)
-  
+  try {
+    // 首先加载文件夹层级以获取系统文件夹信息
+    await driveStore.loadFolderHierarchy()
+
+    console.log('所有文件夹层级:', driveStore.folderHierarchy)
+    const systemFolders = driveStore.folderHierarchy.filter(f => f.folder_type === 'system')
+    console.log('系统文件夹:', systemFolders)
+    console.log('系统文件夹名称:', systemFolders.map(f => f.folder_name))
+
+    // 查找"书单"或"文档"系统文件夹
+    const docSystemFolder = driveStore.folderHierarchy.find(
+      folder => folder.folder_type === 'system' && (folder.folder_name === '书单' || folder.folder_name === '文档')
+    )
+
+    console.log('找到的文档文件夹:', docSystemFolder)
+
+    if (!docSystemFolder) {
+      console.error('未找到书单/文档系统文件夹，可用的系统文件夹:', driveStore.folderHierarchy.filter(f => f.folder_type === 'system'))
+
+      // 尝试从根目录加载文件夹
+      await driveStore.loadFolderContent(0)
+      const rootDocFolder = driveStore.folders.find(
+        folder => folder.folder_type === 'system' && (folder.folder_name === '书单' || folder.folder_name === '文档')
+      )
+
+      if (rootDocFolder) {
+        console.log('从根目录找到文档文件夹:', rootDocFolder)
+        // 使用找到的文件夹继续创建
+        await API.folder.createFolder({
+          name: categoryName,
+          parent_id: rootDocFolder.id,
+          folder_type: FolderTypeEnum.BOOKLIST
+        })
+
+        toast.success(`书单 "${categoryName}" 创建成功`)
+        await docsStore.loadCategoriesFromDrive()
+        showCreateCategoryDialog.value = false
+        newCategoryName.value = ''
+        return
+      }
+
+      toast.error('未找到书单系统文件夹')
+      return
+    }
+
+    // 直接调用API创建书单文件夹
+    await API.folder.createFolder({
+      name: categoryName,
+      parent_id: docSystemFolder.id,
+      folder_type: FolderTypeEnum.BOOKLIST
+    })
+
+    toast.success(`书单 "${categoryName}" 创建成功`)
+    // 重新加载文档数据以显示新创建的书单
+    await docsStore.loadCategoriesFromDrive()
+  } catch (error) {
+    console.error('创建书单失败:', error)
+    toast.error('创建书单失败')
+  }
+
   showCreateCategoryDialog.value = false
   newCategoryName.value = ''
 }

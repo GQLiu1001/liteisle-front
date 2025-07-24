@@ -235,14 +235,27 @@ export const useDriveStore = defineStore('drive', () => {
     try {
       isLoading.value = true
       
-      // 验证创建规则
-      if (currentFolderId.value === 0) {
+      // 验证创建规则 - 不允许在根目录下直接创建文件夹
+      if (data.parent_id === 0) {
         toast.error('根目录下不允许创建文件夹')
         return false
       }
       
       // 检查父文件夹类型，确保遵循二级目录结构
-      const parentFolder = folders.value.find(f => f.id === data.parent_id)
+      console.log('创建文件夹请求:', data)
+      console.log('当前文件夹列表:', folders.value)
+      console.log('文件夹层级:', folderHierarchy.value)
+
+      // 首先尝试从当前文件夹列表中查找
+      let parentFolder = folders.value.find(f => f.id === data.parent_id)
+      console.log('从当前文件夹列表找到的父文件夹:', parentFolder)
+
+      // 如果在当前文件夹列表中找不到，从文件夹层级中查找
+      if (!parentFolder) {
+        parentFolder = folderHierarchy.value.find(f => f.id === data.parent_id)
+        console.log('从文件夹层级找到的父文件夹:', parentFolder)
+      }
+
       if (parentFolder && parentFolder.folder_type === FolderTypeEnum.SYSTEM) {
         // 在系统文件夹下创建的只能是playlist或booklist
         if (parentFolder.folder_name === '歌单' && data.folder_type !== FolderTypeEnum.PLAYLIST) {

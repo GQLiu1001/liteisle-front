@@ -616,7 +616,8 @@ import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuSt
 import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
 import type { MusicFileInfo } from '@/types/api'
-import { FileStatusEnum } from '@/types/api'
+import { FileStatusEnum, FolderTypeEnum } from '@/types/api'
+import { API } from '@/utils/api'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 
@@ -990,14 +991,70 @@ if (typeof window !== 'undefined') {
 }
 
 // 新建歌单的方法
-const createNewPlaylist = () => {
+const createNewPlaylist = async () => {
   const playlistName = newPlaylistName.value.trim()
   if (!playlistName) return
 
-  // 这里调用创建歌单的逻辑，相当于在云盘音乐目录下创建文件夹
-  // 实际实现需要与DriveStore配合
-  console.log('创建新歌单:', playlistName)
-  
+  try {
+    // 首先加载文件夹层级以获取系统文件夹信息
+    await driveStore.loadFolderHierarchy()
+
+    console.log('所有文件夹层级:', driveStore.folderHierarchy)
+    const systemFolders = driveStore.folderHierarchy.filter(f => f.folder_type === 'system')
+    console.log('系统文件夹:', systemFolders)
+    console.log('系统文件夹名称:', systemFolders.map(f => f.folder_name))
+
+    // 查找"歌单"系统文件夹
+    const musicSystemFolder = driveStore.folderHierarchy.find(
+      folder => folder.folder_type === 'system' && folder.folder_name === '歌单'
+    )
+
+    console.log('找到的歌单文件夹:', musicSystemFolder)
+
+    if (!musicSystemFolder) {
+      console.error('未找到歌单系统文件夹，可用的系统文件夹:', driveStore.folderHierarchy.filter(f => f.folder_type === 'system'))
+
+      // 尝试从根目录加载文件夹
+      await driveStore.loadFolderContent(0)
+      const rootMusicFolder = driveStore.folders.find(
+        folder => folder.folder_type === 'system' && folder.folder_name === '歌单'
+      )
+
+      if (rootMusicFolder) {
+        console.log('从根目录找到歌单文件夹:', rootMusicFolder)
+        // 使用找到的文件夹继续创建
+        await API.folder.createFolder({
+          name: playlistName,
+          parent_id: rootMusicFolder.id,
+          folder_type: FolderTypeEnum.PLAYLIST
+        })
+
+        toast.success(`歌单 "${playlistName}" 创建成功`)
+        await musicStore.loadPlaylistsFromDrive()
+        showCreatePlaylistDialog.value = false
+        newPlaylistName.value = ''
+        return
+      }
+
+      toast.error('未找到歌单系统文件夹')
+      return
+    }
+
+    // 直接调用API创建歌单文件夹
+    await API.folder.createFolder({
+      name: playlistName,
+      parent_id: musicSystemFolder.id,
+      folder_type: FolderTypeEnum.PLAYLIST
+    })
+
+    toast.success(`歌单 "${playlistName}" 创建成功`)
+    // 重新加载音乐数据以显示新创建的歌单
+    await musicStore.loadPlaylistsFromDrive()
+  } catch (error) {
+    console.error('创建歌单失败:', error)
+    toast.error('创建歌单失败')
+  }
+
   showCreatePlaylistDialog.value = false
   newPlaylistName.value = ''
 }
