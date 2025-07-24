@@ -129,9 +129,6 @@
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" @click="showNewIsleDialog=false">
       <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" @click.stop>
         <div class="text-center mb-4">
-          <div class="w-12 h-12 mx-auto mb-3 bg-teal-100 rounded-full flex items-center justify-center">
-            <ImageIcon :size="24" class="text-teal-600" />
-          </div>
           <h3 class="text-lg font-semibold text-gray-900 mb-2">恭喜获得新岛屿！</h3>
           <p class="text-sm text-gray-600">返回首页查看你的岛屿吧~</p>
           <img v-if="newIsleImageUrl" :src="newIsleImageUrl" alt="isle" class="w-full rounded-lg mt-4" />
@@ -149,10 +146,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { PenTool, Minus, Square, X, LogOut, CircleEqual, Minimize, Image as ImageIcon } from 'lucide-vue-next'
+import { PenTool, Minus, Square, X, LogOut, CircleEqual, Minimize } from 'lucide-vue-next'
 // 默认用户头像
 const defaultUserPic = '/defaultuserpic (2).png'
 import { http } from '@/utils/http'
+import { API } from '@/utils/api'
+import { useToast } from 'vue-toastification'
 import { useFocusStore } from '@/store/FocusStore'
 import { useAuthStore } from '@/store/AuthStore'
 import { useUIStore } from '@/store/UIStore'
@@ -161,6 +160,7 @@ import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 const focusStore = useFocusStore()
 const authStore = useAuthStore()
 const uiStore = useUIStore()
@@ -184,16 +184,35 @@ const newIsleImageUrl = ref('')
 
 const toggleFocus = async () => {
   if (isFocusing.value) {
-    focusStore.stopFocus()
-    try {
-      const resp = await http.post('/v1/focus/stop')
-      if (resp.data && resp.data.code === 200 && resp.data.data?.island_id) {
-        newIsleImageUrl.value = resp.data.data.image_url || ''
-        showNewIsleDialog.value = true
+    // 如果已经专注了至少5分钟，记录专注时长
+    // if (focusStore.focusElapsedMinutes >= 5) {
+    if (focusStore.focusElapsedMinutes >= 0.1) {
+      try {
+        const completedMinutes = focusStore.focusElapsedMinutes
+        const response = await API.focus.recordFocus(completedMinutes)
+
+        // 检查是否获得新岛屿
+        // API返回的实际结构是嵌套的: { data: { code: 200, data: "岛屿URL", message: "操作成功" } }
+        const apiResponse = response as any
+        const islandUrl = apiResponse.data?.data
+
+        if (islandUrl && typeof islandUrl === 'string' && islandUrl.trim() !== '') {
+          newIsleImageUrl.value = islandUrl
+          showNewIsleDialog.value = true
+        }
+
+        toast.success(`🎉 专注完成！用时 ${completedMinutes} 分钟`)
+      } catch (error) {
+        console.error('记录专注时长失败:', error)
+        toast.error('记录专注失败')
       }
-    } catch (e) {
-      console.error('停止专注请求失败', e)
+    } else {
+      // 少于5分钟，只是提示停止
+      toast.info('专注已停止（少于5分钟不记录）')
     }
+
+    // 停止专注
+    focusStore.stopFocus()
   } else {
     focusStore.startFocus()
   }

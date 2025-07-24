@@ -82,9 +82,25 @@ export const useFocusStore = defineStore('focus', () => {
     try {
       isLoading.value = true
       const response = await API.focus.getTotalCount()
-      
+
+      console.log('🔢 专注次数API响应:', response)
+
+      // 处理嵌套的API响应结构
       if (response.data !== undefined) {
-        totalFocusCount.value = response.data
+        const apiResponse = response.data
+        console.log('🔢 API响应数据:', apiResponse)
+
+        // 检查是否是标准的ApiResponse格式
+        if (typeof apiResponse === 'object' && apiResponse.code === 200 && apiResponse.data !== undefined) {
+          totalFocusCount.value = typeof apiResponse.data === 'number' ? apiResponse.data : 0
+          console.log('🔢 设置专注次数:', apiResponse.data)
+        } else if (typeof apiResponse === 'number') {
+          // 如果直接返回数字
+          totalFocusCount.value = apiResponse
+          console.log('🔢 设置专注次数(直接):', apiResponse)
+        } else {
+          totalFocusCount.value = 0
+        }
       }
     } catch (error) {
       console.error('加载专注总次数失败:', error)
@@ -142,17 +158,33 @@ export const useFocusStore = defineStore('focus', () => {
   const loadFocusCalendar = async (year?: number, month?: number): Promise<void> => {
     try {
       isLoading.value = true
-      
-      const targetDate = new Date(year || currentCalendarDate.value.getFullYear(), 
+
+      const targetDate = new Date(year || currentCalendarDate.value.getFullYear(),
                                   (month || currentCalendarDate.value.getMonth() + 1) - 1)
-      
+
       const response = await API.focus.getCalendar(
         targetDate.getFullYear(),
         targetDate.getMonth() + 1
       )
-      
+
+      console.log('📅 专注日历API响应:', response)
+
+      // 处理嵌套的API响应结构
       if (response.data) {
-        calendarData.value = response.data
+        const apiResponse = response.data
+        console.log('📅 API响应数据:', apiResponse)
+
+        // 检查是否是标准的ApiResponse格式
+        if (apiResponse.code === 200 && apiResponse.data) {
+          calendarData.value = apiResponse.data
+          console.log('📅 设置日历数据:', apiResponse.data)
+        } else if (apiResponse.year_month) {
+          // 如果直接返回日历数据
+          calendarData.value = apiResponse
+          console.log('📅 设置日历数据(直接):', apiResponse)
+        } else {
+          calendarData.value = null
+        }
         currentCalendarDate.value = targetDate
       }
     } catch (error) {
@@ -184,7 +216,7 @@ export const useFocusStore = defineStore('focus', () => {
       }
     }, 1000)
     
-    toast.success(`开始 ${targetMinutes} 分钟专注`)
+    toast.success('开始专注')
   }
   
   /**

@@ -25,9 +25,25 @@ export const useIslandStore = defineStore('island', () => {
     try {
       isLoading.value = true
       const response = await API.island.getUserIslands()
-      
+
+      console.log('🏝️ 岛屿API响应:', response)
+
+      // 处理嵌套的API响应结构
       if (response.data) {
-        userIslands.value = response.data || []
+        const apiResponse = response.data
+        console.log('🏝️ API响应数据:', apiResponse)
+
+        // 检查是否是标准的ApiResponse格式
+        if (apiResponse.code === 200 && apiResponse.data) {
+          userIslands.value = Array.isArray(apiResponse.data) ? apiResponse.data : []
+          console.log('🏝️ 设置岛屿数据:', userIslands.value)
+        } else if (Array.isArray(apiResponse)) {
+          // 如果直接返回数组数据
+          userIslands.value = apiResponse
+          console.log('🏝️ 设置岛屿数据(直接):', userIslands.value)
+        } else {
+          userIslands.value = []
+        }
         lastUpdated.value = new Date()
       }
     } catch (error) {

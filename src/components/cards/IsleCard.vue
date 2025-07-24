@@ -50,14 +50,12 @@
           </div>
           <!-- 图片 -->
           <Transition name="fade" mode="out-in">
-            <img 
-              v-show="!singleIsleLoading"
+            <img
+              v-if="!singleIsleLoading && singleIsleImage"
               :key="currentSingleIsleIndex"
-              :src="singleIsleImage" 
+              :src="singleIsleImage"
               :alt="`岛屿 ${currentSingleIsleIndex + 1}`"
               class="max-w-full max-h-full object-contain transition-all duration-300 rounded-lg"
-              @load="handleImageLoad('single')"
-              @error="handleImageError"
             />
           </Transition>
         </div>
@@ -78,13 +76,12 @@
                 </div>
               </div>
               <!-- 网格项图片 -->
-              <img 
+              <img
                 v-show="!gridImageLoading[isle.id]"
-                :src="isle.image_url" 
-                :alt="`岛屿 ${isle.id}`" 
-                class="max-w-full max-h-full object-contain" 
-                @load="handleImageLoad('grid', isle.id)"
-                @error="handleImageError" 
+                :src="isle.image_url"
+                :alt="`岛屿 ${isle.id}`"
+                class="max-w-full max-h-full object-contain"
+                @error="handleImageError"
               />
             </div>
           </div>
@@ -124,6 +121,7 @@ const { islandProgress } = storeToRefs(islandStore)
 const singleIsleLoading = ref(true)
 const gridImageLoading = reactive<Record<number, boolean>>({})
 const initialLoadComplete = ref(false)
+const allImagesLoaded = ref(false)
 
 // 用户已收集的岛屿（从后端获取）
 const isles = computed((): Island[] => {
@@ -163,12 +161,59 @@ const prevSingleIsle = () => {
   }
 }
 
-// 监听单岛屿图片URL变化，重置加载状态
-watch(() => singleIsleImage.value, () => {
-  if (singleIsleImage.value && !initialLoadComplete.value) {
-    singleIsleLoading.value = true
+// 预加载所有图片
+const preloadAllImages = async (): Promise<void> => {
+  if (isles.value.length === 0) return
+
+  const imagePromises = isles.value.map((isle) => {
+    return new Promise<void>((resolve) => {
+      const img = new Image()
+      img.onload = () => resolve()
+      img.onerror = () => resolve() // 即使加载失败也继续
+      img.src = isle.image_url
+    })
+  })
+
+  try {
+    await Promise.all(imagePromises)
+    console.log('所有岛屿图片预加载完成')
+    allImagesLoaded.value = true
+    singleIsleLoading.value = false
+
+    // 设置所有网格图片为已加载状态
+    isles.value.forEach(isle => {
+      gridImageLoading[isle.id] = false
+    })
+  } catch (error) {
+    console.warn('图片预加载失败:', error)
+    singleIsleLoading.value = false
+
+    // 即使预加载失败，也设置网格图片为已加载状态
+    isles.value.forEach(isle => {
+      gridImageLoading[isle.id] = false
+    })
   }
-})
+}
+
+// 监听岛屿数据变化，启动自动轮播和预加载
+watch(() => isles.value, async (newIsles) => {
+  if (newIsles.length > 0) {
+    // 初始化网格加载状态
+    newIsles.forEach(isle => {
+      gridImageLoading[isle.id] = true
+    })
+
+    // 预加载所有图片
+    await preloadAllImages()
+
+    // 如果有多张图片，启动自动轮播
+    if (newIsles.length > 1) {
+      startAutoPlay()
+    }
+  } else {
+    stopAutoPlay()
+  }
+}, { immediate: true })
 
 // B. 三岛屿静态分页
 const maxThreeIslePage = computed(() => Math.max(0, Math.ceil(isles.value.length / 3) - 1))
@@ -205,16 +250,6 @@ const checkScreenMode = () => {
     currentScreenMode.value = 'single'
   } else {
     currentScreenMode.value = 'grid'
-  }
-}
-
-// 图片加载完成处理
-const handleImageLoad = (type: 'single' | 'grid', islandId?: number) => {
-  if (type === 'single') {
-    singleIsleLoading.value = false
-    initialLoadComplete.value = true
-  } else if (type === 'grid' && islandId !== undefined) {
-    gridImageLoading[islandId] = false
   }
 }
 
@@ -269,11 +304,10 @@ onMounted(async () => {
   } catch (error) {
     console.warn('岛屿数据加载失败:', error)
   }
-  
-  // 图片加载处理
-  setTimeout(() => {
-    initialLoadComplete.value = true
-  }, 1000)
+
+  // 检测屏幕模式并添加监听器
+  checkScreenMode()
+  window.addEventListener('resize', checkScreenMode)
 })
 
 // 在组件卸载时清理
