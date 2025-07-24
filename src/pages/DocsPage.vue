@@ -126,6 +126,7 @@
                     ghost-class="ghost"
                     chosen-class="chosen"
                     drag-class="drag"
+                    @start="onCategoryDragStart"
                     @end="onCategoryDragEnd"
                     :force-fallback="false"
                     :disabled="false"
@@ -134,6 +135,7 @@
                       <button
                         @click="docsStore.selectBooklist(category)"
                         @contextmenu.prevent="handleCategoryContextMenu($event, category)"
+                        :data-id="category.id"
                         :class="[
                           'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 cursor-pointer',
                           docsStore.currentBooklist?.id === category.id
@@ -602,6 +604,7 @@ const newCategoryName = ref('');
 const selectedDocumentFiles = ref<File[]>([]);
 const documentFileInput = ref<HTMLInputElement | null>(null);
 const draggedItemId = ref<string | null>(null);
+const draggedCategoryId = ref<string | null>(null);
 
 // 拖拽自动滚动相关
 const scrollContainer = ref<HTMLElement | null>(null);
@@ -666,11 +669,21 @@ const onDragStart = (event: any) => {
   startGlobalDragListening();
 };
 
+// 分类拖动开始事件
+const onCategoryDragStart = (event: any) => {
+  if (event.item) {
+    draggedCategoryId.value = event.item.dataset.id;
+  }
+  // 开始全局拖拽监听
+  startGlobalDragListening();
+};
+
 // 分类拖动结束事件
 const onCategoryDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
     docsStore.reorderCategories(event.oldIndex, event.newIndex);
   }
+  draggedCategoryId.value = null;
 };
 
 // 文档拖动结束事件
@@ -698,15 +711,23 @@ const currentDocsList = computed({
   }
 });
 
-// 可拖动的分类列表  
+// 可拖动的分类列表
 const currentCategoriesList = computed({
   get() {
     console.log('获取分类列表:', docsStore.booklists)
     return docsStore.booklists || [];
   },
   set(newCategories: FolderInfo[]) {
-    // TODO: 实现分类重排序
-    console.log('TODO: 重排序分类', newCategories);
+    if (!draggedCategoryId.value) return;
+
+    const oldIndex = docsStore.booklists.findIndex((c: FolderInfo) => c.id.toString() === draggedCategoryId.value);
+    const newIndex = newCategories.findIndex((c: FolderInfo) => c.id.toString() === draggedCategoryId.value);
+
+    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      docsStore.reorderCategories(oldIndex, newIndex);
+    }
+
+    draggedCategoryId.value = null;
   }
 });
 

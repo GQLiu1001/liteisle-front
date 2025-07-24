@@ -690,12 +690,12 @@ const currentPlaylistsList = computed({
   set: (newPlaylists: any[]) => { // Playlist type is not directly imported, use 'any' for now
     if (!draggedPlaylistId.value) return;
 
-    const oldIndex = playlists.value.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
-    const newIndex = newPlaylists.findIndex((p: any) => p.id === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
+    const oldIndex = playlists.value.findIndex((p: any) => p.id.toString() === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
+    const newIndex = newPlaylists.findIndex((p: any) => p.id.toString() === draggedPlaylistId.value); // Playlist type is not directly imported, use 'any' for now
 
-    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1) {
-      // TODO: 实现播放列表重排序
-      console.log('TODO: 重排序播放列表', oldIndex, newIndex);
+    if (oldIndex !== undefined && oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+      // 实现播放列表重排序
+      musicStore.reorderPlaylists(oldIndex, newIndex);
     }
 
     draggedPlaylistId.value = null;
@@ -711,8 +711,8 @@ const onDragStart = (event: any) => {
 // 拖动结束事件
 const onDragEnd = (event: { oldIndex?: number; newIndex?: number }) => {
   if (typeof event.oldIndex === 'number' && typeof event.newIndex === 'number' && event.oldIndex !== event.newIndex) {
-    // TODO: 实现歌曲重排序
-    console.log('TODO: 重排序歌曲', event.oldIndex, event.newIndex);
+    // 实现歌曲重排序
+    musicStore.reorderTracksInCurrentPlaylist(event.oldIndex, event.newIndex);
   }
   // 停止全局拖拽监听
   stopGlobalDragListening();
@@ -730,11 +730,12 @@ const onPlaylistDragStart = (event: any) => {
 // 歌单拖动结束事件
 const onPlaylistDragEnd = (event: {oldIndex: number, newIndex: number}) => {
   if (event.oldIndex !== event.newIndex) {
-    // TODO: 实现播放列表重排序
-    console.log('TODO: 重排序播放列表', event.oldIndex, event.newIndex)
+    // 实现播放列表重排序
+    musicStore.reorderPlaylists(event.oldIndex, event.newIndex);
   }
   // 停止歌单的全局拖拽监听
   stopPlaylistGlobalDragListening()
+  draggedPlaylistId.value = null;
 }
 
 // 方法 - 直接使用 musicStore 中的方法

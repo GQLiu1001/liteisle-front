@@ -158,7 +158,7 @@ export const itemAPI = {
 
   // 设置排序
   setOrder: (itemId: number, itemType: 'file' | 'folder', data: SetOrderReq): Promise<ApiResponse<null>> => {
-    return http.put(`/items/${itemId}/set-order`, data, { params: { item_type: itemType } })
+    return http.put(`/items/${itemId}/set-order`, data, { params: { itemType: itemType } })
   }
 }
 

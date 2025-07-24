@@ -484,7 +484,90 @@ export const useDocsStore = defineStore('docs', () => {
       hasUnsavedChanges.value = false
     }
   }
-  
+
+  /**
+   * 重新排序分类（笔记本）
+   */
+  const reorderCategories = async (oldIndex: number, newIndex: number): Promise<void> => {
+    try {
+      const categories = [...booklists.value]
+      if (oldIndex < 0 || oldIndex >= categories.length || newIndex < 0 || newIndex >= categories.length) {
+        console.error('排序索引超出范围')
+        return
+      }
+
+      const movedCategory = categories[oldIndex]
+
+      // 计算before_id和after_id
+      let beforeId: number | null = null
+      let afterId: number | null = null
+
+      if (newIndex > 0) {
+        beforeId = categories[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+      }
+      if (newIndex < categories.length - 1) {
+        afterId = categories[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      }
+
+      // 调用API设置排序
+      await API.item.setOrder(movedCategory.id, 'folder', {
+        before_id: beforeId,
+        after_id: afterId
+      })
+
+      // 重新加载数据以获取最新排序
+      await loadCategoriesFromDrive()
+      toast.success('分类排序已更新')
+    } catch (error) {
+      console.error('重新排序分类失败:', error)
+      toast.error('重新排序分类失败')
+    }
+  }
+
+  /**
+   * 重新排序当前分类中的文档
+   */
+  const reorderDocumentsInCurrentCategory = async (oldIndex: number, newIndex: number): Promise<void> => {
+    try {
+      if (!currentBooklist.value) {
+        console.error('没有选择当前分类')
+        return
+      }
+
+      const documents = [...currentBooklistDocuments.value]
+      if (oldIndex < 0 || oldIndex >= documents.length || newIndex < 0 || newIndex >= documents.length) {
+        console.error('排序索引超出范围')
+        return
+      }
+
+      const movedDocument = documents[oldIndex]
+
+      // 计算before_id和after_id
+      let beforeId: number | null = null
+      let afterId: number | null = null
+
+      if (newIndex > 0) {
+        beforeId = documents[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+      }
+      if (newIndex < documents.length - 1) {
+        afterId = documents[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      }
+
+      // 调用API设置排序
+      await API.item.setOrder(movedDocument.id, 'file', {
+        before_id: beforeId,
+        after_id: afterId
+      })
+
+      // 重新加载数据以获取最新排序
+      await loadCategoriesFromDrive()
+      toast.success('文档排序已更新')
+    } catch (error) {
+      console.error('重新排序文档失败:', error)
+      toast.error('重新排序文档失败')
+    }
+  }
+
   // 初始化WebSocket监听
   setupWebSocketListeners()
   
@@ -529,6 +612,8 @@ export const useDocsStore = defineStore('docs', () => {
     reset,
     loadCategoriesFromDrive,
     loadDocumentByPath,
-    setCurrentDocument
+    setCurrentDocument,
+    reorderCategories,
+    reorderDocumentsInCurrentCategory
   }
 }) 

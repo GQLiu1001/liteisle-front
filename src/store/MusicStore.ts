@@ -538,10 +538,93 @@ export const useMusicStore = defineStore('music', () => {
     }
   })
   
+  /**
+   * 重新排序播放列表（歌单）
+   */
+  const reorderPlaylists = async (oldIndex: number, newIndex: number): Promise<void> => {
+    try {
+      const playlistsArray = [...playlists.value]
+      if (oldIndex < 0 || oldIndex >= playlistsArray.length || newIndex < 0 || newIndex >= playlistsArray.length) {
+        console.error('排序索引超出范围')
+        return
+      }
+
+      const movedPlaylist = playlistsArray[oldIndex]
+
+      // 计算before_id和after_id
+      let beforeId: number | null = null
+      let afterId: number | null = null
+
+      if (newIndex > 0) {
+        beforeId = playlistsArray[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+      }
+      if (newIndex < playlistsArray.length - 1) {
+        afterId = playlistsArray[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      }
+
+      // 调用API设置排序
+      await API.item.setOrder(movedPlaylist.id, 'folder', {
+        before_id: beforeId,
+        after_id: afterId
+      })
+
+      // 重新加载数据以获取最新排序
+      await loadPlaylistsFromDrive()
+      toast.success('歌单排序已更新')
+    } catch (error) {
+      console.error('重新排序歌单失败:', error)
+      toast.error('重新排序歌单失败')
+    }
+  }
+
+  /**
+   * 重新排序当前播放列表中的歌曲
+   */
+  const reorderTracksInCurrentPlaylist = async (oldIndex: number, newIndex: number): Promise<void> => {
+    try {
+      if (!currentPlaylist.value) {
+        console.error('没有选择当前播放列表')
+        return
+      }
+
+      const tracks = [...currentPlaylistTracks.value]
+      if (oldIndex < 0 || oldIndex >= tracks.length || newIndex < 0 || newIndex >= tracks.length) {
+        console.error('排序索引超出范围')
+        return
+      }
+
+      const movedTrack = tracks[oldIndex]
+
+      // 计算before_id和after_id
+      let beforeId: number | null = null
+      let afterId: number | null = null
+
+      if (newIndex > 0) {
+        beforeId = tracks[newIndex - (newIndex > oldIndex ? 0 : 1)].id
+      }
+      if (newIndex < tracks.length - 1) {
+        afterId = tracks[newIndex + (newIndex > oldIndex ? 1 : 0)].id
+      }
+
+      // 调用API设置排序
+      await API.item.setOrder(movedTrack.id, 'file', {
+        before_id: beforeId,
+        after_id: afterId
+      })
+
+      // 重新加载数据以获取最新排序
+      await loadPlaylistsFromDrive()
+      toast.success('歌曲排序已更新')
+    } catch (error) {
+      console.error('重新排序歌曲失败:', error)
+      toast.error('重新排序歌曲失败')
+    }
+  }
+
   // 初始化
   initializeAudio()
   setupWebSocketListeners()
-  
+
   return {
     // === 数据状态 ===
     playlists,
@@ -589,7 +672,9 @@ export const useMusicStore = defineStore('music', () => {
     reset,
     loadPlaylistsFromDrive,
     playSongFromDrive,
-    
+    reorderPlaylists,
+    reorderTracksInCurrentPlaylist,
+
     // === 枚举 ===
     PlayMode,
     PlayState
