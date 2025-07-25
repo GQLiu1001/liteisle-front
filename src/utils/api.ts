@@ -1,4 +1,5 @@
 import { http } from './http'
+import type { AxiosResponse } from 'axios'
 import type {
   ApiResponse,
   // 认证相关
@@ -183,7 +184,7 @@ export const documentAPI = {
   },
 
   // 获取非MD文档预览链接
-  getViewUrl: (fileId: number): Promise<ApiResponse<string>> => {
+  getViewUrl: (fileId: number): Promise<AxiosResponse<ApiResponse<string>>> => {
     return http.get(`/documents/${fileId}/view`)
   },
 

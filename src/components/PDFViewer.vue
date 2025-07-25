@@ -56,7 +56,18 @@
     </div>
     
     <!-- PDF内容区域 -->
-    <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="pdfContainer">
+    <div 
+      class="flex-1 bg-gray-100 p-4" 
+      ref="pdfContainer"
+      :style="{
+        overflow: 'auto',
+        position: 'relative'
+      }"
+      @mousedown="handleMouseDown"
+      @mousemove="handleMouseMove"
+      @mouseup="handleMouseUp"
+      @mouseleave="handleMouseUp"
+    >
       <!-- 加载状态 -->
       <div v-if="isLoading" class="flex items-center justify-center h-full">
         <div class="text-center">
@@ -78,28 +89,38 @@
       </div>
 
       <!-- PDF渲染区域 -->
-      <div v-else class="flex justify-center">
+      <div v-else 
+        class="w-full h-full"
+        :style="{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minWidth: scale > 1 ? `${scale * 100}%` : '100%',
+          minHeight: scale > 1 ? `${scale * 100}%` : '100%'
+        }"
+      >
         <div
-          class="bg-white shadow-lg rounded-xl"
-          :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
+          class="bg-white shadow-lg rounded-xl relative"
+          :class="{ 'cursor-grab': scale > 1 && !isDragging, 'cursor-grabbing': isDragging }"
+          :style="{ 
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center',
+            willChange: 'transform'
+          }"
         >
-          <!-- 调试信息 -->
-          <div class="p-4 text-sm text-gray-500 border-b">
-            <p>调试信息:</p>
-            <p>isLoading: {{ isLoading }}</p>
-            <p>error: {{ error }}</p>
-            <p>totalPages: {{ totalPages }}</p>
-            <p>currentPage: {{ currentPage }}</p>
-            <p>canvas ref: {{ pdfCanvas ? '已获取' : '未获取' }}</p>
-          </div>
-
           <!-- PDF页面画布 -->
           <canvas
             ref="pdfCanvas"
             class="block rounded-xl"
+          ></canvas>
+          
+          <!-- 文本选择层 -->
+          <div
+            ref="textLayer"
+            class="textLayer absolute top-0 left-0 rounded-xl"
             @mouseup="handleTextSelection"
             @contextmenu="handleContextMenu"
-          ></canvas>
+          ></div>
         </div>
       </div>
     </div>
@@ -147,6 +168,18 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-vue-next'
 import { API } from '@/utils/api'
 
+// 1. 引入 pdfjs-dist 主模块
+import * as pdfjsLib from 'pdfjs-dist'
+
+// 2. 引入 worker
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
+// 修复1: 引入 pdf.js 的文本层 CSS
+import 'pdfjs-dist/web/pdf_viewer.css'
+
+// 3. 在组件脚本加载时，全局设置一次 workerSrc
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker
+
 interface Props {
   filePath: string
   fileName: string
@@ -165,6 +198,7 @@ const totalPages = ref(0)
 const scale = ref(1)
 const pdfContainer = ref<HTMLElement>()
 const pdfCanvas = ref<HTMLCanvasElement>()
+const textLayer = ref<HTMLElement>()
 const selectedText = ref('')
 const showContextMenu = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
@@ -173,72 +207,69 @@ const isTranslating = ref(false)
 const isLoading = ref(true)
 const error = ref('')
 
+// 拖拽相关状态
+const isDragging = ref(false)
+const dragStart = ref({ x: 0, y: 0 })
+const scrollPosition = ref({ x: 0, y: 0 })
+
 // PDF相关状态
 let pdfDocument: any = null
 let currentPageObject: any = null
+let currentRenderTask: any = null
 
 // PDF加载函数
 const loadPDF = async () => {
-  console.log('开始加载PDF，文件路径:', props.filePath)
-
   try {
     isLoading.value = true
     error.value = ''
 
-    console.log('设置加载状态为true')
-
     // 获取PDF文件的下载URL
-    console.log('调用API获取PDF文件URL')
     const response = await API.document.getViewUrl(parseInt(props.filePath))
-    console.log('API响应:', response)
-
-    if (!response.data || response.data.code !== 200) {
-      throw new Error('获取PDF文件URL失败')
+    const apiResponse = response.data as any
+    if (!apiResponse || apiResponse.code !== 200 || !apiResponse.data) {
+      throw new Error(apiResponse?.message || '获取PDF文件URL失败')
     }
 
-    const pdfUrl = response.data.data
-    console.log('获取到PDF URL:', pdfUrl)
-
-    // 动态导入PDF.js (如果已安装)
-    // 注意：这里使用一个简化的实现，实际项目中需要安装pdfjs-dist
-    // const pdfjsLib = await import('pdfjs-dist')
-
-    // 临时使用fetch获取PDF数据并显示提示
-    console.log('开始下载PDF文件')
+    const pdfUrl = apiResponse.data
+    
+    // 下载PDF文件到内存
     const pdfResponse = await fetch(pdfUrl)
     if (!pdfResponse.ok) {
       throw new Error('PDF文件下载失败')
     }
-
-    console.log('PDF文件下载成功')
-
-    // 这里应该使用PDF.js解析PDF，现在先显示一个占位符
-    totalPages.value = 1
+    
+    const pdfArrayBuffer = await pdfResponse.arrayBuffer()
+    
+    // 使用ArrayBuffer加载PDF文档
+    const loadingTask = pdfjsLib.getDocument({
+      data: pdfArrayBuffer
+    })
+    
+    pdfDocument = await loadingTask.promise
+    totalPages.value = pdfDocument.numPages
     currentPage.value = 1
 
-    console.log('设置页面信息，准备渲染')
-
-    // 等待DOM更新后再渲染
+    // 设置加载状态为false，然后等待DOM更新
+    isLoading.value = false
     await nextTick()
-    console.log('DOM更新完成，开始渲染')
     await renderPage()
 
   } catch (err: any) {
     console.error('PDF加载失败:', err)
     error.value = err.message || 'PDF加载失败'
-  } finally {
-    console.log('设置加载状态为false')
     isLoading.value = false
   }
 }
 
 // 渲染PDF页面
 const renderPage = async () => {
-  console.log('开始渲染PDF页面')
-  console.log('pdfCanvas.value:', pdfCanvas.value)
+  if (!pdfCanvas.value || !textLayer.value) {
+    console.error('Canvas 或 TextLayer 元素未找到')
+    return
+  }
 
-  if (!pdfCanvas.value) {
-    console.error('Canvas元素未找到')
+  if (!pdfDocument) {
+    console.error('PDF文档未加载')
     return
   }
 
@@ -249,44 +280,86 @@ const renderPage = async () => {
     return
   }
 
-  console.log('Canvas元素和上下文获取成功')
+  try {
+    // 取消之前的渲染任务
+    if (currentRenderTask) {
+      currentRenderTask.cancel()
+    }
 
-  // 设置画布大小 (A4比例)
-  const width = 595 // A4宽度 (点)
-  const height = 842 // A4高度 (点)
+    const page = await pdfDocument.getPage(currentPage.value)
+    currentPageObject = page
+    
+    const devicePixelRatio = window.devicePixelRatio || 1
+    
+    // 使用基础视窗来设置 CSS 大小和文本层  
+    const viewport = page.getViewport({ scale: 1.0 }) // 使用固定比例 1.0
+    
+    // 使用高分辨率视窗来渲染 Canvas
+    const scaledViewport = page.getViewport({ scale: 1.0 * devicePixelRatio })
+    
+    canvas.width = scaledViewport.width
+    canvas.height = scaledViewport.height
+    canvas.style.width = viewport.width + 'px'
+    canvas.style.height = viewport.height + 'px'
+    
+    // 设置文本层容器的尺寸，与视窗匹配
+    textLayer.value.style.width = viewport.width + 'px'
+    textLayer.value.style.height = viewport.height + 'px'
 
-  canvas.width = width
-  canvas.height = height
-  canvas.style.width = width + 'px'
-  canvas.style.height = height + 'px'
+    const renderContext = {
+      canvasContext: ctx,
+      viewport: scaledViewport
+    }
 
-  console.log(`Canvas大小设置为: ${width}x${height}`)
+    // 保存当前渲染任务的引用
+    currentRenderTask = page.render(renderContext)
+    await currentRenderTask.promise
+    currentRenderTask = null
 
-  // 清空画布
-  ctx.fillStyle = 'white'
-  ctx.fillRect(0, 0, width, height)
+    await renderTextLayer(page, viewport)
 
-  // 绘制占位符内容
-  ctx.fillStyle = '#333'
-  ctx.font = '24px Arial'
-  ctx.textAlign = 'center'
-  ctx.fillText('PDF渲染器', width / 2, 100)
+  } catch (err: any) {
+    if (err.name === 'RenderingCancelledException') {
+      console.log('渲染被取消')
+      return
+    }
+    console.error('PDF页面渲染失败:', err)
+    error.value = 'PDF页面渲染失败'
+  }
+}
 
-  ctx.font = '16px Arial'
-  ctx.fillText(`文件名: ${props.fileName}`, width / 2, 150)
-  ctx.fillText(`页面: ${currentPage.value} / ${totalPages.value}`, width / 2, 180)
+// 修复1: 重写 renderTextLayer，使用 pdf.js 官方辅助函数
+const renderTextLayer = async (page: any, viewport: any) => {
+  if (!textLayer.value) return
 
-  ctx.font = '14px Arial'
-  ctx.fillStyle = '#666'
-  ctx.fillText('注意：这是一个简化的PDF渲染器', width / 2, 250)
-  ctx.fillText('完整功能需要安装pdfjs-dist库', width / 2, 280)
+  // 清空现有的文本层
+  textLayer.value.innerHTML = ''
 
-  // 绘制边框
-  ctx.strokeStyle = '#ddd'
-  ctx.lineWidth = 1
-  ctx.strokeRect(0, 0, width, height)
+  try {
+    const textContent = await page.getTextContent()
 
-  console.log('PDF页面渲染完成')
+    // 手动渲染文本层，但使用正确的坐标计算
+    textContent.items.forEach((textItem: any) => {
+      const span = document.createElement('span')
+      span.textContent = textItem.str
+      span.style.position = 'absolute'
+      span.style.left = textItem.transform[4] + 'px'
+      span.style.top = (viewport.height - textItem.transform[5]) + 'px'
+      span.style.fontSize = textItem.transform[0] + 'px'
+      span.style.fontFamily = textItem.fontName || 'sans-serif'
+      span.style.color = 'transparent'
+      span.style.userSelect = 'text'
+      span.style.pointerEvents = 'auto'
+      span.style.cursor = 'text'
+      span.style.lineHeight = '1'
+      span.style.whiteSpace = 'pre'
+      
+      textLayer.value!.appendChild(span)
+    })
+
+  } catch (err) {
+    console.warn('无法渲染文本层:', err)
+  }
 }
 
 // 页面导航
@@ -308,16 +381,14 @@ const nextPage = async () => {
 const zoomIn = async () => {
   if (scale.value < 3) {
     scale.value = Math.min(3, scale.value + 0.25)
-    await nextTick()
-    await renderPage()
+    // 不需要重新渲染，CSS transform 会处理缩放
   }
 }
 
 const zoomOut = async () => {
   if (scale.value > 0.25) {
     scale.value = Math.max(0.25, scale.value - 0.25)
-    await nextTick()
-    await renderPage()
+    // 不需要重新渲染，CSS transform 会处理缩放
   }
 }
 
@@ -437,6 +508,39 @@ const closeContextMenu = () => {
   isTranslating.value = false
 }
 
+// 拖拽功能
+const handleMouseDown = (event: MouseEvent) => {
+  // 检查是否点击的是文本层或其中的文本元素
+  const target = event.target as HTMLElement
+  if (target && (target.tagName === 'SPAN' || target.classList.contains('textLayer'))) {
+    return // 如果点击的是文本相关元素，允许文本选择
+  }
+  
+  if (scale.value > 1 && event.button === 0) { // 只在放大时启用拖拽，且只响应左键
+    isDragging.value = true
+    dragStart.value = {
+      x: event.clientX + (pdfContainer.value?.scrollLeft || 0),
+      y: event.clientY + (pdfContainer.value?.scrollTop || 0)
+    }
+    event.preventDefault()
+  }
+}
+
+const handleMouseMove = (event: MouseEvent) => {
+  if (isDragging.value && pdfContainer.value) {
+    const deltaX = dragStart.value.x - event.clientX
+    const deltaY = dragStart.value.y - event.clientY
+    
+    pdfContainer.value.scrollLeft = deltaX
+    pdfContainer.value.scrollTop = deltaY
+    event.preventDefault()
+  }
+}
+
+const handleMouseUp = () => {
+  isDragging.value = false
+}
+
 // 点击其他地方关闭右键菜单
 const handleClickOutside = (event: MouseEvent) => {
   if (showContextMenu.value) {
@@ -489,6 +593,34 @@ onUnmounted(() => {
 .select-text::-moz-selection {
   background-color: #3b82f6;
   color: white;
+}
+
+/* 文本层选择样式 */
+:deep(.textLayer span::selection) {
+  background-color: #3b82f6;
+  color: white;
+}
+
+:deep(.textLayer span::-moz-selection) {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* 拖拽光标 */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grab .textLayer {
+  cursor: text !important;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.cursor-grabbing .textLayer {
+  cursor: grabbing;
 }
 
 /* 滚动条样式 */
