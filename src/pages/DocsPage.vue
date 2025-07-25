@@ -791,8 +791,12 @@ const stopGlobalDragListening = () => {
 }
 
 const handleGlobalDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  handleDragOverScroll(event)
+  try {
+    event.preventDefault()
+    handleDragOverScroll(event)
+  } catch (error) {
+    console.error('DocsPage handleGlobalDragOver error:', error)
+  }
 }
 
 // 辅助函数

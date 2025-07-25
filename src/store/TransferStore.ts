@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { API } from '@/utils/api'
-import { onTransferLogUpdated } from '@/utils/websocket'
+import { onTransferLogUpdated, onFileStatusUpdated, connectWebSocket } from '@/utils/websocket'
 import { useToast } from 'vue-toastification'
 import { TransferTypeEnum, TransferStatusEnum } from '@/types/api'
 import type {
@@ -75,7 +75,27 @@ export const useTransferStore = defineStore('transfer', () => {
    */
   const setupWebSocketListeners = () => {
     onTransferLogUpdated((payload) => {
-      updateTransferTaskStatus(payload.log_id, payload.log_status, payload.error_message)
+      console.log('📋 收到传输日志更新:', payload)
+      if (payload && payload.log_id) {
+        updateTransferTaskStatus(payload.log_id, payload.log_status, payload.error_message)
+      }
+    })
+
+    onFileStatusUpdated((payload: any) => {
+      console.log('📁 收到文件状态更新:', payload)
+      // 根据实际消息格式，字段名是 logId, transferStatus, errorMessage, progress
+      if (payload && payload.logId) {
+        // 如果有进度信息，先更新进度
+        if (payload.progress !== undefined) {
+          updateTaskProgress(payload.logId, payload.progress)
+        }
+
+        // 如果有状态信息，更新状态
+        if (payload.transferStatus) {
+          console.log(`🔄 更新任务状态: logId=${payload.logId}, status=${payload.transferStatus}`)
+          updateTransferTaskStatus(payload.logId, payload.transferStatus, payload.errorMessage)
+        }
+      }
     })
   }
 
@@ -187,7 +207,8 @@ export const useTransferStore = defineStore('transfer', () => {
 
       console.log('上传文件API响应:', response)
 
-      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+      // 根据API文档，上传接口返回 202 状态码表示文件已接收，正在后台处理
+      if (response.data && ((response.data as any).code === 200 || (response.data as any).code === 202) && (response.data as any).data) {
         const uploadData = (response.data as any).data
 
         // 添加到处理中的任务列表
@@ -205,16 +226,30 @@ export const useTransferStore = defineStore('transfer', () => {
         // 更新统计
         uploadCount.value++
 
-        toast.success('文件开始上传')
+        // 如果有 initial_file_data，可以在这里处理文件的初始状态
+        if (uploadData.initial_file_data) {
+          console.log('文件初始数据:', uploadData.initial_file_data)
+          // 这里可以根据需要更新相关的文件列表状态
+        }
+
+        toast.success('文件已接收，正在后台处理')
         return uploadData
       } else {
         console.warn('上传文件API响应格式错误:', response.data)
-        toast.error((response.data as any)?.message || '上传文件失败')
+        const errorMessage = (response.data as any)?.message || '上传文件失败'
+
+        // 特殊处理上传文件夹不存在的错误
+        if (errorMessage.includes('上传文件夹不存在') || errorMessage.includes('文件夹不存在')) {
+          toast.error('上传文件夹不存在，请确保您的账户已正确初始化系统文件夹')
+          console.error('系统文件夹缺失，建议检查用户账户初始化状态')
+        } else {
+          toast.error(errorMessage)
+        }
         return null
       }
     } catch (error) {
       console.error('上传文件失败:', error)
-      toast.error('上传文件失败')
+      toast.error('网络错误，上传文件失败')
       return null
     }
   }
@@ -232,13 +267,29 @@ export const useTransferStore = defineStore('transfer', () => {
       return []
     }
 
+    // 在上传前确保WebSocket连接
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      connectWebSocket(token)
+    }
+
     try {
-      // 首先需要根据路径获取文件夹ID
-      // 这里需要调用API来获取或创建目标文件夹
-      const folderId = await getFolderIdByPath(targetPath)
-      if (!folderId) {
-        toast.error('无法确定上传目标文件夹')
-        return []
+      let folderId: number
+
+      // 特殊处理：如果是传输页面的上传任务（路径为 '/上传'）
+      if (targetPath === '/上传') {
+        // 直接使用 folder_id: 0，让后端自动处理
+        // 根据后端代码，当 folderId 为 0 时会自动查找用户的上传系统文件夹
+        folderId = 0
+        console.log('传输页面上传任务，使用 folder_id: 0，后端将自动查找上传系统文件夹')
+      } else {
+        // 其他情况需要根据路径获取文件夹ID
+        const resolvedFolderId = await getFolderIdByPath(targetPath)
+        if (!resolvedFolderId) {
+          toast.error('无法确定上传目标文件夹')
+          return []
+        }
+        folderId = resolvedFolderId
       }
 
       const results: FileUploadAsyncResp[] = []
@@ -248,7 +299,10 @@ export const useTransferStore = defineStore('transfer', () => {
       // 逐个上传文件
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        console.log(`开始上传文件 ${i + 1}/${files.length}: ${file.name}`)
+        const logMessage = folderId === 0
+          ? `开始上传文件 ${i + 1}/${files.length}: ${file.name} (传输页面上传任务)`
+          : `开始上传文件 ${i + 1}/${files.length}: ${file.name}`
+        console.log(logMessage)
 
         const result = await uploadFile(file, folderId, (progress) => {
           if (onProgress) {
@@ -279,6 +333,8 @@ export const useTransferStore = defineStore('transfer', () => {
       return []
     }
   }
+
+
 
   /**
    * 根据路径获取文件夹ID（如果不存在则创建）
@@ -655,6 +711,14 @@ export const useTransferStore = defineStore('transfer', () => {
     const processingTask = processingTasks.value.find(task => task.log_id === logId)
     if (processingTask) {
       processingTask.progress = progress
+      console.log(`📊 更新任务进度: ${processingTask.item_name} -> ${progress}%`)
+
+      // 如果进度达到100%，任务即将完成
+      if (progress === 100) {
+        console.log(`✅ 任务即将完成: ${processingTask.item_name}`)
+      }
+    } else {
+      console.warn(`⚠️ 未找到任务: logId=${logId}`)
     }
   }
   
@@ -698,7 +762,7 @@ export const useTransferStore = defineStore('transfer', () => {
       }
     }
   }
-  
+
   /**
    * 格式化文件大小
    */

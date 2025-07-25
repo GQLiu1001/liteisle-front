@@ -900,8 +900,12 @@ const stopGlobalDragListening = () => {
 }
 
 const handleGlobalDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  handleDragOverScroll(event)
+  try {
+    event.preventDefault()
+    handleDragOverScroll(event)
+  } catch (error) {
+    console.error('MusicPage handleGlobalDragOver error:', error)
+  }
 }
 
 // 歌单全局拖拽监听
@@ -920,8 +924,12 @@ const stopPlaylistGlobalDragListening = () => {
 }
 
 const handlePlaylistGlobalDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  handlePlaylistDragOverScroll(event)
+  try {
+    event.preventDefault()
+    handlePlaylistDragOverScroll(event)
+  } catch (error) {
+    console.error('MusicPage handlePlaylistGlobalDragOver error:', error)
+  }
 }
 
 // 歌单拖拽滚动处理

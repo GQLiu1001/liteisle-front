@@ -75,10 +75,10 @@ export const useAuthStore = defineStore('auth', () => {
         
         // 获取用户详细信息
         await getCurrentUser()
-        
-        // 暂时不自动连接WebSocket，只有在需要时才连接
+
+        // 不在登录时自动连接WebSocket，只在需要时连接
         // connectWebSocket(authData.token)
-        
+
         toast.success('登录成功')
         
         return true
@@ -117,10 +117,10 @@ export const useAuthStore = defineStore('auth', () => {
         
         // 获取用户详细信息
         await getCurrentUser()
-        
-        // 暂时不自动连接WebSocket
+
+        // 不在注册时自动连接WebSocket，只在需要时连接
         // connectWebSocket(authData.token)
-        
+
         toast.success('注册成功')
         
         return true
@@ -340,9 +340,9 @@ export const useAuthStore = defineStore('auth', () => {
       if (savedToken) {
         token.value = savedToken
         await getCurrentUser()
-        
-        // 连接WebSocket
-        connectWebSocket(savedToken)
+
+        // 不在初始化时自动连接WebSocket，只在需要时连接
+        // connectWebSocket(savedToken)
       }
     } catch (error) {
       console.warn('初始化认证状态失败:', error)

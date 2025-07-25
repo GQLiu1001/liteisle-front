@@ -2499,8 +2499,12 @@ const stopGlobalDragListening = () => {
 }
 
 const handleGlobalDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  handleDragOverScroll(event)
+  try {
+    event.preventDefault()
+    handleDragOverScroll(event)
+  } catch (error) {
+    console.error('DrivePage handleGlobalDragOver error:', error)
+  }
 }
 
 // 添加新的响应式数据

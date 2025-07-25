@@ -102,11 +102,18 @@
                         <p class="font-medium text-gray-800">{{ task.name }}</p>
                         <div class="text-sm text-gray-500 flex items-center gap-4 mt-1">
                           <span>{{ task.size }}</span>
-                          <div v-if="activeStatus === 'progressing'" class="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div class="h-full bg-teal-500" :style="{ width: task.progress + '%' }"></div>
+                          <div v-if="activeStatus === 'progressing'" class="flex items-center">
+                            <!-- 如果进度是100%显示完成，否则显示转圈 -->
+                            <div v-if="task.progress === 100" class="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                              <div class="h-full bg-green-500 w-full"></div>
+                            </div>
+                            <div v-else class="flex items-center">
+                              <div class="animate-spin rounded-full h-3 w-3 border-2 border-teal-500 border-t-transparent"></div>
+                              <span class="ml-2 text-xs text-gray-500">处理中</span>
+                            </div>
                           </div>
                           <span v-if="activeStatus === 'progressing'">{{ task.speed }}</span>
-                          <span :class="task.status === 'completed' ? 'text-green-600' : 'text-blue-600'">{{ getStatusText(task.status) }}</span>
+                          <span :class="getStatusClass(task)">{{ getStatusText(task) }}</span>
                         </div>
                       </div>
                     </div>
@@ -395,7 +402,7 @@ const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   if (target.files) {
     const files = Array.from(target.files);
-    // 使用 TransferStore 处理上传到"上传"文件夹
+    // 使用 TransferStore 处理传输页面上传任务（folder_id: 0）
     await transferStore.uploadFiles(files, '/上传');
     activeCategory.value = 'upload';
     activeStatus.value = 'progressing';
@@ -622,7 +629,23 @@ const loadAvailableFolders = async () => {
   }
 };
 
-const getStatusText = (status: StatusType) => status === 'progressing' ? '进行中' : '已完成';
+const getStatusText = (task: any) => {
+  if (task.status === 'completed') {
+    return '已完成';
+  } else if (task.progress === 100) {
+    return '完成';
+  } else {
+    return '上传中';
+  }
+};
+
+const getStatusClass = (task: any) => {
+  if (task.status === 'completed' || task.progress === 100) {
+    return 'text-green-600';
+  } else {
+    return 'text-blue-600';
+  }
+};
 
 const isDragging = ref(false);
 
@@ -651,7 +674,7 @@ const handlePaste = async (event: ClipboardEvent) => {
     .filter(item => item.kind === 'file')
     .map(item => item.getAsFile())
     .filter((file): file is File => file !== null);
-    
+
   if (files.length > 0) {
     await transferStore.uploadFiles(files, '/上传');
     activeCategory.value = 'upload';

@@ -33,81 +33,75 @@ class WebSocketManager {
 
   // 连接WebSocket
   connect(token?: string) {
-    // 暂时禁用WebSocket连接
-    console.log('🔌 WebSocket连接已禁用，只有在需要实时功能时才会连接')
-    return
+    console.log('🔌 正在尝试连接WebSocket...')
     
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.log('🔌 WebSocket已连接')
       return
     }
-    
-    if (this.isConnecting) {
+
+    if (this.connectionStatus.value === 'connecting') {
       console.log('🔌 WebSocket正在连接中...')
       return
     }
-    
-    this.isConnecting = true
+
+    this.connectionStatus.value = 'connecting'
     console.log('🔌 正在连接WebSocket...')
-    
+
     try {
       // 确保WebSocket连接的URL正确
-      const wsUrl = import.meta.env.PROD ? 'wss://your-production-url/ws' : 'ws://localhost:8002/ws'
+      let wsUrl = import.meta.env.PROD ? 'wss://your-production-url/ws' : 'ws://localhost:8002/ws'
+
+      // 通过URL参数传递token（最常用的方案）
+      if (token) {
+        wsUrl += `?token=${encodeURIComponent(token)}`
+      }
+
+      console.log('🔌 尝试连接WebSocket:', wsUrl.replace(/token=[^&?]+/, 'token=***'))
 
       // 创建WebSocket连接
       const socket = new WebSocket(wsUrl)
 
-      // 处理WebSocket错误
-      socket.onerror = (event) => {
-        console.error('WebSocket错误:', event)
-        // 这里可以添加统一的错误提示
-        alert('WebSocket连接失败，请检查服务器配置。')
+      this.ws = socket
+
+      this.ws.onopen = () => {
+        console.log('🔌 WebSocket连接成功，认证已通过')
+        this.connectionStatus.value = 'connected'
+        this.reconnectAttempts = 0
+        this.startHeartbeat()
+
+        // 认证已在握手时完成，无需再次发送认证信息
+        console.log('✅ WebSocket认证成功，开始监听事件')
       }
 
-      // 处理WebSocket关闭
-      socket.onclose = (event) => {
-        console.warn('WebSocket连接已关闭:', event.code)
-        // 这里可以添加重连逻辑
-        setTimeout(() => {
-          console.log('尝试重连...')
-          connectWebSocket()
-        }, 1000)
-      }
-      
-      this.ws = socket
-       
-      this.ws.onopen = () => {
-        console.log('🔌 WebSocket连接成功')
-        this.isConnected = true
-        this.isConnecting = false
-        this.reconnectAttempts = 0
-        
-        // 发送认证信息
-        if (token) {
-          this.send('auth', { token })
-        }
-      }
-       
       this.ws.onmessage = (event) => {
         try {
+          // 处理心跳响应
+          if (event.data === 'pong') {
+            console.log('💓 收到心跳响应')
+            return
+          }
+
           const message = JSON.parse(event.data)
+          console.log('📨 收到WebSocket消息:', message)
           this.handleMessage(message)
         } catch (error) {
-          console.error('解析WebSocket消息失败:', error)
+          console.error('解析WebSocket消息失败:', error, 'Raw data:', event.data)
         }
       }
-       
+
       this.ws.onerror = (event) => {
         console.error('WebSocket错误:', event)
-        this.isConnecting = false
+        this.connectionStatus.value = 'error'
+        this.lastError.value = 'WebSocket连接错误'
       }
-       
+
       this.ws.onclose = (event) => {
         console.log('WebSocket连接已关闭:', event.code)
-        this.isConnected = false
-        this.isConnecting = false
+        this.connectionStatus.value = 'disconnected'
         this.ws = null
-        
+        this.stopHeartbeat()
+
         // 只有在不是主动关闭的情况下才重连
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
           this.scheduleReconnect()
@@ -115,7 +109,8 @@ class WebSocketManager {
       }
     } catch (error) {
       console.error('创建WebSocket连接失败:', error)
-      this.isConnecting = false
+      this.connectionStatus.value = 'error'
+      this.lastError.value = '创建WebSocket连接失败'
     }
   }
 
@@ -147,10 +142,11 @@ class WebSocketManager {
 
   private startHeartbeat() {
     this.stopHeartbeat()
-    
+
     this.heartbeatInterval = window.setInterval(() => {
       if (this.ws?.readyState === WebSocket.OPEN) {
-        this.send('ping', {})
+        // 发送纯字符串心跳，符合后端期望
+        this.ws.send('ping')
       }
     }, 30000) // 30秒心跳
   }
@@ -169,17 +165,22 @@ class WebSocketManager {
     }
   }
 
-  private handleMessage(message: WebSocketEvent) {
+  private handleMessage(message: any) {
+    console.log('🔄 处理WebSocket事件:', message.event, 'Data:', message.data)
     const handlers = this.eventHandlers.get(message.event as WebSocketEventType)
-    
+
     if (handlers) {
+      console.log(`📢 找到 ${handlers.size} 个事件处理器`)
       handlers.forEach(handler => {
         try {
-          handler(message.payload)
+          // 使用 message.data 而不是 message.payload
+          handler(message.data || message.payload)
         } catch (error) {
           console.error('WebSocket事件处理器错误:', error)
         }
       })
+    } else {
+      console.warn('⚠️ 没有找到事件处理器:', message.event)
     }
   }
 
