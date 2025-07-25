@@ -258,21 +258,19 @@
                         <div class="flex items-center justify-between mb-2">
                           <div class="flex items-center gap-3">
                             <div class="text-sm font-medium text-morandi-900">
-                              {{ share.name }}
+                              {{ share.share_item_name }}
                             </div>
                             <div class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                              {{ share.type === 'folder' ? '文件夹' : '文件' }}
+                              {{ share.folder_id ? '文件夹' : '文件' }}
                             </div>
-                            <div 
+                            <div
                               :class="[
                                 'px-2 py-1 text-xs rounded-full',
-                                share.status === 'active' ? 'bg-green-100 text-green-800' : 
-                                share.status === 'expired' ? 'bg-red-100 text-red-800' : 
-                                'bg-gray-100 text-gray-800'
+                                !share.expire_time || new Date(share.expire_time) > new Date() ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                               ]"
                             >
-                              {{ share.status === 'active' ? '永久有效' : 
-                                  share.status === 'expired' ? '已过期' : '已禁用' }}
+                              {{ !share.expire_time ? '永久有效' :
+                                  new Date(share.expire_time) > new Date() ? '有效' : '已过期' }}
                             </div>
                           </div>
                           <div class="flex items-center gap-2">
@@ -293,10 +291,9 @@
                         
                         <!-- 第二行：分享信息 -->
                         <div class="text-sm text-morandi-600 space-y-1">
-                          <div>分享链接: {{ settingsStore.generateShareLink(share.shareToken) }}</div>
-                          <div>访问密码: {{ share.sharePassword }}</div>
-                          <div>有效期: {{ share.expiryDate }}</div>
-                          <div>分享时间: {{ share.createdAt }}</div>
+                          <div>分享码: {{ share.share_token }}{{ share.share_password ? '&' + share.share_password : '' }}</div>
+                          <div>有效期: {{ share.expire_time ? new Date(share.expire_time).toLocaleDateString() : '永久' }}</div>
+                          <div>分享时间: {{ new Date(share.create_time).toLocaleDateString() }}</div>
                         </div>
                       </div>
                     </div>
@@ -899,24 +896,33 @@ const checkForUpdates = async () => {
 };
 
 // 取消分享
-const cancelShare = (shareId: number) => {
+const cancelShare = async (shareId: number) => {
   if (confirm('确定要取消这个分享吗？')) {
-    const success = settingsStore.cancelShare(shareId);
-    if (success) {
-      alert('分享已取消');
-    } else {
-      alert('取消分享失败');
+    try {
+      const success = await settingsStore.cancelShare(shareId);
+      if (success) {
+        // toast 消息已在 store 中处理
+      }
+    } catch (error) {
+      console.error('取消分享失败:', error);
+      toast.error('取消分享失败');
     }
   }
 };
 
-// 一键复制分享信息
+// 一键复制分享信息 - 使用 token&password 格式
 const copyShareInfo = async (share: any) => {
-  const success = await settingsStore.copyShareInfo(share.shareToken, share.sharePassword);
-  if (success) {
-    alert('分享信息已复制到剪贴板');
-  } else {
-    alert('复制失败');
+  try {
+    let copyContent = share.share_token;
+    if (share.share_password) {
+      copyContent += `&${share.share_password}`;
+    }
+
+    await navigator.clipboard.writeText(copyContent);
+    toast.success('分享链接已复制到剪贴板');
+  } catch (error) {
+    console.error('复制失败:', error);
+    toast.error('复制失败');
   }
 };
 

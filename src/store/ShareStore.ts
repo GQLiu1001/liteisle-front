@@ -148,12 +148,13 @@ export const useShareStore = defineStore('share', () => {
     try {
       isVerifying.value = true
       const response = await API.share.verify(data)
-      
-      if (response.data) {
-        verifiedShareInfo.value = response.data
-        return response.data
+
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const shareData = (response.data as any).data
+        verifiedShareInfo.value = shareData
+        return shareData
       }
-      
+
       return null
     } catch (error) {
       console.error('验证分享链接失败:', error)
@@ -172,12 +173,12 @@ export const useShareStore = defineStore('share', () => {
     try {
       isLoading.value = true
       const response = await API.share.save(data)
-      
-      if (response.data) {
-        toast.success(`开始转存 ${response.data.total_files_to_save || 0} 个文件`)
-        return response.data
+
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        // 不在这里显示toast，让调用方处理
+        return (response.data as any).data
       }
-      
+
       return null
     } catch (error) {
       console.error('保存分享内容失败:', error)
@@ -210,8 +211,19 @@ export const useShareStore = defineStore('share', () => {
    */
   const parseShareLink = (shareText: string): { token: string; password?: string } | null => {
     const trimmed = shareText.trim()
-    
-    // 检查是否包含密码（格式：token & password）
+
+    // 检查是否包含密码（新格式：token&password）
+    if (trimmed.includes('&')) {
+      const parts = trimmed.split('&')
+      if (parts.length === 2) {
+        return {
+          token: parts[0].trim(),
+          password: parts[1].trim()
+        }
+      }
+    }
+
+    // 兼容旧格式（token & password，带空格）
     if (trimmed.includes(' & ')) {
       const parts = trimmed.split(' & ')
       if (parts.length === 2) {
@@ -221,14 +233,14 @@ export const useShareStore = defineStore('share', () => {
         }
       }
     }
-    
+
     // 只有token
     if (trimmed.length > 0) {
       return {
         token: trimmed
       }
     }
-    
+
     return null
   }
   

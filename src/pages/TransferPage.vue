@@ -155,10 +155,10 @@
           </button>
           <button
             @click="startLinkDownload"
-            :disabled="!linkUrl.trim()"
+            :disabled="!linkUrl.trim() || shareStore.isVerifying"
             class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50"
           >
-            下载
+            {{ shareStore.isVerifying ? '验证中...' : '验证链接' }}
           </button>
         </div>
       </div>
@@ -214,6 +214,65 @@
         </div>
       </div>
     </div>
+
+    <!-- 分享内容确认对话框 -->
+    <div v-if="showShareConfirmDialog && shareConfirmInfo" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-96 shadow-xl">
+        <h3 class="text-lg font-bold mb-4">确认转存</h3>
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-medium text-gray-700">类型:</span>
+            <span class="text-sm text-gray-600">{{ shareConfirmInfo.verifyResult.item_type?.toLowerCase() === 'file' ? '文件' : '文件夹' }}</span>
+          </div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-medium text-gray-700">名称:</span>
+            <span class="text-sm text-gray-600 truncate">{{ shareConfirmInfo.verifyResult.item_name }}</span>
+          </div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-sm font-medium text-gray-700">大小:</span>
+            <span class="text-sm text-gray-600">{{ transferStore.formatFileSize(shareConfirmInfo.verifyResult.item_size) }}</span>
+          </div>
+          <div v-if="shareConfirmInfo.verifyResult.total_files && shareConfirmInfo.verifyResult.total_files > 1" class="flex items-center gap-2">
+            <span class="text-sm font-medium text-gray-700">文件数:</span>
+            <span class="text-sm text-gray-600">{{ shareConfirmInfo.verifyResult.total_files }} 个文件</span>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">选择保存位置:</label>
+          <select
+            v-model="selectedTargetFolderId"
+            :disabled="isLoadingFolders"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+          >
+            <option value="0">🏠 根目录</option>
+            <option v-if="isLoadingFolders" disabled>加载文件夹中...</option>
+            <option
+              v-for="folder in availableFolders"
+              :key="folder.id"
+              :value="folder.id"
+            >
+              {{ folder.name }}
+            </option>
+          </select>
+        </div>
+        <p class="text-sm text-gray-600 mb-6">确认要将此内容转存到您的网盘吗？</p>
+        <div class="flex justify-end gap-3">
+          <button
+            @click="cancelSaveShare"
+            class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="confirmSaveShare"
+            :disabled="shareStore.isLoading"
+            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50"
+          >
+            {{ shareStore.isLoading ? '转存中...' : '确认转存' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -224,6 +283,8 @@ import { useToast } from 'vue-toastification'
 import { useDriveStore } from '@/store/DriveStore';
 import { useTransferStore } from '@/store/TransferStore';
 import { useShareStore } from '@/store/ShareStore';
+import { API } from '@/utils/api';
+import type { FileInfo } from '@/types/api';
 
 const toast = useToast()
 
@@ -247,8 +308,16 @@ const activeStatus = ref<StatusType>('progressing');
 const showLinkDialog = ref(false);
 const showDeleteConfirm = ref(false);
 const showClearConfirm = ref(false);
+const showShareConfirmDialog = ref(false);
 const taskToDelete = ref<Task | null>(null);
 const linkUrl = ref('');
+const shareConfirmInfo = ref<{
+  shareInfo: { token: string; password?: string };
+  verifyResult: any;
+} | null>(null);
+const selectedTargetFolderId = ref<number>(0);
+const availableFolders = ref<Array<{ id: number; name: string }>>([]);
+const isLoadingFolders = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const driveStore = useDriveStore();
@@ -424,29 +493,132 @@ const startLinkDownload = async () => {
       return; // 错误信息已在store中显示
     }
 
-    // 显示确认对话框，让用户选择保存位置
-    // 使用当前文件夹作为保存位置，如果在根目录则保存到根目录
-    const targetFolderId = driveStore.currentFolderId || 0;
+    // 加载可用文件夹列表
+    await loadAvailableFolders();
+
+    // 设置默认保存位置为当前文件夹
+    selectedTargetFolderId.value = driveStore.currentFolderId || 0;
+
+    // 显示确认对话框
+    shareConfirmInfo.value = {
+      shareInfo,
+      verifyResult
+    };
+    showShareConfirmDialog.value = true;
+
+    // 关闭分享链接输入对话框
+    showLinkDialog.value = false;
+
+  } catch (error) {
+    console.error('分享链接验证失败:', error);
+    toast.error('分享链接验证失败');
+  }
+};
+
+// 确认保存分享内容
+const confirmSaveShare = async () => {
+  if (!shareConfirmInfo.value) return;
+
+  try {
+    // 使用用户选择的文件夹作为保存位置
     const saveResult = await shareStore.saveShare({
-      share_token: shareInfo.token,
-      share_password: shareInfo.password,
-      target_folder_id: targetFolderId
+      share_token: shareConfirmInfo.value.shareInfo.token,
+      share_password: shareConfirmInfo.value.shareInfo.password,
+      target_folder_id: selectedTargetFolderId.value
     });
 
     if (saveResult) {
+      // 将返回的文件数据添加到传输任务列表中
+      if (saveResult.initial_file_data_list && saveResult.initial_file_data_list.length > 0) {
+        saveResult.initial_file_data_list.forEach((fileData: FileInfo) => {
+          const newTask = {
+            log_id: fileData.id, // 使用文件ID作为log_id
+            item_name: fileData.file_name,
+            item_size: fileData.file_size || 0,
+            transfer_type: 'DOWNLOAD' as any, // 转存作为下载任务处理
+            create_time: fileData.create_time || new Date().toISOString(),
+            progress: 0
+          };
+
+          transferStore.processingTasks.unshift(newTask);
+        });
+      }
+
       // 切换到下载标签页
       activeCategory.value = 'download';
       activeStatus.value = 'progressing';
 
-      // 刷新传输记录
-      await transferStore.loadTransferHistory('processing', true);
+      toast.success(`开始转存 ${saveResult.total_files_to_save || 0} 个文件`);
     }
 
-    showLinkDialog.value = false;
+    // 关闭确认对话框
+    showShareConfirmDialog.value = false;
+    shareConfirmInfo.value = null;
     linkUrl.value = '';
+
   } catch (error) {
-    console.error('处理分享链接失败:', error);
-    toast.error('处理分享链接失败');
+    console.error('保存分享内容失败:', error);
+    toast.error('保存分享内容失败');
+  }
+};
+
+// 取消保存分享内容
+const cancelSaveShare = () => {
+  showShareConfirmDialog.value = false;
+  shareConfirmInfo.value = null;
+  // 重新显示分享链接输入对话框
+  showLinkDialog.value = true;
+};
+
+// 加载可用文件夹列表
+const loadAvailableFolders = async () => {
+  try {
+    isLoadingFolders.value = true;
+    // 获取文件夹层级信息
+    const response = await API.folder.getFolderHierarchy();
+
+    if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+      const folderHierarchy = (response.data as any).data as any[];
+
+      // 构建文件夹选项列表
+      const folders: Array<{ id: number; name: string }> = [];
+
+      // 添加系统文件夹（一级文件夹）
+      folderHierarchy.forEach((folder: any) => {
+        if (folder.folder_type === 'system') {
+          folders.push({
+            id: folder.id,
+            name: `📁 ${folder.folder_name}`
+          });
+        }
+      });
+
+      // 加载所有系统文件夹的子文件夹
+      for (const systemFolder of folderHierarchy.filter((f: any) => f.folder_type === 'system')) {
+        try {
+          const contentResponse = await API.folder.getFolderContent(systemFolder.id);
+          if (contentResponse.data && (contentResponse.data as any).code === 200 && (contentResponse.data as any).data) {
+            const content = (contentResponse.data as any).data;
+            content.folders.forEach((subfolder: any) => {
+              folders.push({
+                id: subfolder.id,
+                name: `📁 ${systemFolder.folder_name} / ${subfolder.folder_name}`
+              });
+            });
+          }
+        } catch (error) {
+          console.warn(`加载 ${systemFolder.folder_name} 子文件夹失败:`, error);
+        }
+      }
+
+      availableFolders.value = folders;
+    }
+  } catch (error) {
+    console.error('加载文件夹列表失败:', error);
+    // 如果加载失败，至少提供根目录选项
+    availableFolders.value = [];
+  } finally {
+    isLoadingFolders.value = false;
   }
 };
 

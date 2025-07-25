@@ -974,6 +974,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDriveStore } from '../store/DriveStore'
 import { useTransferStore } from '../store/TransferStore'
 import { useSettingsStore } from '../store/SettingsStore'
+import { useShareStore } from '../store/ShareStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import type { FolderInfo, FileInfo } from '@/types/api'
@@ -1013,6 +1014,7 @@ interface BreadcrumbPath {
 const driveStore = useDriveStore()
 const transferStore = useTransferStore()
 const settingsStore = useSettingsStore()
+const shareStore = useShareStore()
 const router = useRouter()
 
 // 响应式数据
@@ -2107,7 +2109,7 @@ const pasteItem = async () => {
 
   try {
     // 准备API请求数据
-    const fileIds = clipboard.value.filter(item => item.type === 'file').map(item => item.id)
+    const fileIds = clipboard.value.filter(item => item.type !== 'folder').map(item => item.id)
     const folderIds = clipboard.value.filter(item => item.type === 'folder').map(item => item.id)
 
     const operationData = {
@@ -2192,51 +2194,44 @@ const generateShareLink = async () => {
   isGeneratingShare.value = true
 
   try {
-    // 模拟调用后端API生成分享链接
-    const response = await new Promise((resolve) => {
-      setTimeout(() => {
-        const shareId = Math.random().toString(36).substring(2, 15)
-        const shareLink = `https://liteisle.com/share/${shareId}`
-        const sharePassword = enableSharePassword.value ? 
-          Math.random().toString(36).substring(2, 8).toUpperCase() : null
-        
-        resolve({
-          shareLink,
-          sharePassword,
-          expiresAt: shareExpireTime.value === 0 ? null : 
-            new Date(Date.now() + shareExpireTime.value * 24 * 60 * 60 * 1000)
-        })
-      }, 1000) // 模拟网络延迟
-    })
-
-    const { shareLink, sharePassword } = response as any
-
-    // 准备复制内容
-    let copyContent = `分享链接: ${shareLink}`
-    if (sharePassword) {
-      copyContent += `\n访问密码: ${sharePassword}`
-    }
-    copyContent += `\n有效期: ${shareExpireTime.value === 0 ? '永久' : shareExpireTime.value + '天'}`
-
-    // 复制到剪贴板
-    try {
-      await navigator.clipboard.writeText(copyContent)
-      toast.success('分享链接已复制到剪贴板')
-    } catch (err) {
-      // 降级方案
-      const textArea = document.createElement('textarea')
-      textArea.value = copyContent
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      toast.success('分享链接已复制到剪贴板')
+    // 调用真实的分享API
+    const shareData = {
+      file_id: selectedItem.value.type !== 'folder' ? selectedItem.value.id : null,
+      folder_id: selectedItem.value.type === 'folder' ? selectedItem.value.id : null,
+      is_encrypted: enableSharePassword.value,
+      expires_in_days: shareExpireTime.value
     }
 
-    // 关闭分享对话框
-    closeShareDialog()
+    const response = await shareStore.createShare(shareData)
+
+    if (response) {
+      // 准备复制内容 - 使用 token&password 格式
+      let copyContent = response.share_token
+      if (response.share_password) {
+        copyContent += `&${response.share_password}`
+      }
+
+      // 复制到剪贴板
+      try {
+        await navigator.clipboard.writeText(copyContent)
+        toast.success('分享链接已复制到剪贴板')
+      } catch (err) {
+        // 降级方案
+        const textArea = document.createElement('textarea')
+        textArea.value = copyContent
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+        toast.success('分享链接已复制到剪贴板')
+      }
+
+      // 关闭分享对话框
+      closeShareDialog()
+    }
 
   } catch (error) {
+    console.error('生成分享链接失败:', error)
     toast.error('生成分享链接失败，请重试')
   } finally {
     isGeneratingShare.value = false
@@ -2551,7 +2546,7 @@ const handleTrashDrop = async (event: DragEvent) => {
       }
       
       // 调用API删除所有选中的项目
-      const fileIds = itemsToDelete.filter(item => item.type === 'file').map(item => item.id)
+      const fileIds = itemsToDelete.filter(item => item.type !== 'folder').map(item => item.id)
       const folderIds = itemsToDelete.filter(item => item.type === 'folder').map(item => item.id)
 
       try {
@@ -2858,29 +2853,7 @@ const isles = computed((): Island[] => {
   return []
 })
 
-// 移除模拟分享功能，改为真实API调用
-const handleShare = async () => {
-  if (!selectedItem.value) return
-  
-  try {
-    const response = await API.share.create({
-      file_ids: selectedItem.value.type === 'file' ? [selectedItem.value.id] : [],
-      folder_ids: selectedItem.value.type === 'folder' ? [selectedItem.value.id] : [],
-      expire_days: 7,
-      password: ''
-    })
-    
-    if (response.data) {
-      navigator.clipboard.writeText(response.data.share_url)
-      toast.success('分享链接已复制到剪贴板')
-    }
-  } catch (error) {
-    console.error('创建分享失败:', error)
-    toast.error('创建分享失败')
-  }
-  
-  hideContextMenu()
-}
+// 移除重复的分享函数，使用 generateShareLink 函数
 
 // 初始化数据
 onMounted(async () => {

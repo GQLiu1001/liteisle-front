@@ -301,16 +301,18 @@ export const useSettingsStore = defineStore('settings', () => {
       const response = await API.share.getMyShares(page, sharePageSize.value)
       console.log('分享记录API响应:', response)
       
-      if (response.data) {
+      if (response.data && response.data.data) {
+        const apiData = response.data.data
+
         if (page === 1) {
-          shareRecords.value = response.data.records || []
+          shareRecords.value = apiData.records || []
         } else {
-          shareRecords.value.push(...(response.data.records || []))
+          shareRecords.value.push(...(apiData.records || []))
         }
-        
+
         shareCurrentPage.value = page
-        shareTotal.value = response.data.total || 0
-        shareHasMore.value = shareRecords.value.length < (response.data.total || 0)
+        shareTotal.value = apiData.total || 0
+        shareHasMore.value = shareRecords.value.length < (apiData.total || 0)
       }
     } catch (error) {
       console.error('加载分享记录失败:', error)
