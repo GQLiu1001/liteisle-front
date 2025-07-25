@@ -554,19 +554,29 @@ export const useTransferStore = defineStore('transfer', () => {
   /**
    * 取消下载任务
    */
-  const cancelDownload = (logId: number): boolean => {
+  const cancelDownload = async (logId: number): Promise<boolean> => {
     const downloadState = activeDownloads.value.get(logId)
     if (downloadState?.controller) {
       downloadState.controller.abort()
       activeDownloads.value.delete(logId)
-      
-      // 更新任务状态
+
+      // 通知后端更新状态
+      try {
+        await updateTransferStatus(logId, {
+          log_status: TransferStatusEnum.CANCELED,
+          error_message: '用户取消下载'
+        })
+      } catch (error) {
+        console.error('通知后端下载取消失败:', error)
+      }
+
+      // 更新本地任务状态
       updateTransferTaskStatus(logId, TransferStatusEnum.CANCELED)
-      
+
       toast.success('下载任务已取消')
       return true
     }
-    
+
     return false
   }
   

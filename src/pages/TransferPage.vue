@@ -219,10 +219,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Upload, Download, Link, Trash2, FolderOpen, File as FileIcon, Film, X } from 'lucide-vue-next';
+import { Upload, Download, Link, Trash2, FolderOpen, X } from 'lucide-vue-next';
 import { useToast } from 'vue-toastification'
 import { useDriveStore } from '@/store/DriveStore';
 import { useTransferStore } from '@/store/TransferStore';
+import { useShareStore } from '@/store/ShareStore';
 
 const toast = useToast()
 
@@ -252,6 +253,7 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 const driveStore = useDriveStore();
 const transferStore = useTransferStore();
+const shareStore = useShareStore();
 
 const categories: { type: CategoryType; label: string; icon: any; }[] = [
   { type: 'upload', label: '上传', icon: Upload },
@@ -263,8 +265,9 @@ const statuses: { type: StatusType; label: string; }[] = [
   { type: 'completed', label: '已完成' },
 ];
 
-const allTasks = ref<Task[]>([]);
-let taskIdCounter = 0;
+// 移除未使用的模拟数据
+// const allTasks = ref<Task[]>([]);
+// let taskIdCounter = 0;
 
 const getTaskCount = (category: CategoryType) => {
   const allTasks = [...transferStore.processingTasks, ...transferStore.completedTasks];
@@ -311,65 +314,9 @@ const filteredTasks = computed(() => {
   )
 });
 
-const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
+// formatBytes 函数已在 TransferStore 中提供，这里不需要重复定义
 
-const getFileType = (name: string): 'audio' | 'document' | 'other' => {
-  const ext = name.split('.').pop()?.toLowerCase();
-  if (['mp3', 'wav', 'flac', 'aac'].includes(ext || '')) return 'audio';
-  if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(ext || '')) return 'document';
-  return 'other';
-};
-
-const addToSpecialFolder = (folderName: '上传' | '分享', fileName: string, size: number = 0) => {
-  // 这个功能需要与新的DriveStore结构适配
-  // 暂时注释掉，等待后续实现
-  console.log(`添加文件 ${fileName} 到 ${folderName} 文件夹`);
-};
-
-const addTask = (file: File) => {
-  taskIdCounter++;
-  const newTask: Task = {
-    id: taskIdCounter,
-    name: file.name,
-    category: 'upload',
-    status: 'progressing',
-    size: formatBytes(file.size),
-    speed: '0 KB/s',
-    progress: 0,
-    icon: Film, // Could be determined by file type
-  };
-
-  allTasks.value.unshift(newTask);
-  activeCategory.value = 'upload';
-  activeStatus.value = 'progressing';
-
-  const interval = setInterval(() => {
-    const task = allTasks.value.find(t => t.id === newTask.id);
-    if (task) {
-      task.progress += Math.random() * 20; // More realistic progress
-      task.speed = formatBytes(Math.random() * 1024 * 1024 * 2) + '/s';
-      if (task.progress >= 100) {
-        task.progress = 100;
-        task.status = 'completed';
-        task.speed = '0 KB/s';
-        clearInterval(interval);
-        task.intervalId = undefined;
-        // 上传完成后，将文件加入"上传"文件夹
-        addToSpecialFolder('上传', file.name, file.size);
-      }
-    } else {
-      clearInterval(interval);
-    }
-  }, 500);
-  newTask.intervalId = interval as unknown as number;
-};
+// 移除未使用的模拟函数，现在使用真实的TransferStore
 
 const triggerFileUpload = () => {
   fileInput.value?.click();
@@ -386,15 +333,20 @@ const handleFileSelect = async (event: Event) => {
   }
 };
 
-const handleClearCompleted = (deleteFiles: boolean) => {
-    if (deleteFiles) {
-        // Here you would add the actual file deletion logic for all completed tasks
-        const completedCount = allTasks.value.filter(t => t.status === 'completed').length;
-        toast.success(`${completedCount}个文件的记录和本体已删除`);
-    } else {
-        toast.success(`所有已完成记录已清空`);
+const handleClearCompleted = async (deleteFiles: boolean) => {
+    try {
+        const success = await transferStore.clearCompletedTasks(deleteFiles);
+        if (success) {
+            if (deleteFiles) {
+                toast.success(`已清空所有已完成记录并删除关联文件`);
+            } else {
+                toast.success(`已清空所有已完成记录`);
+            }
+        }
+    } catch (error) {
+        console.error('清空已完成记录失败:', error);
+        toast.error('清空已完成记录失败');
     }
-    allTasks.value = allTasks.value.filter(t => t.status !== 'completed');
     showClearConfirm.value = false;
 };
 
@@ -406,13 +358,14 @@ const cancelTask = async (id: number) => {
             if (task.transfer_type === 'upload') {
                 await transferStore.cancelUpload(id);
             } else {
-                transferStore.cancelDownload(id);
+                await transferStore.cancelDownload(id);
             }
-            toast.info('任务已取消');
+            // toast 消息已在 store 中处理，这里不需要重复显示
         } else {
             toast.error('任务不存在');
         }
     } catch (error) {
+        console.error('取消任务失败:', error);
         toast.error('取消任务失败');
     }
 };
@@ -422,17 +375,19 @@ const showDeleteConfirmDialog = (task: Task) => {
     showDeleteConfirm.value = true;
 };
 
-const handleDeleteTask = (deleteFile: boolean) => {
+const handleDeleteTask = async (deleteFile: boolean) => {
     if (!taskToDelete.value) return;
 
-    if (deleteFile) {
-        // Here you would add the actual file deletion logic
-        toast.success(`文件 "${taskToDelete.value.name}" 和记录已删除`);
-    } else {
-        toast.success(`记录 "${taskToDelete.value.name}" 已删除`);
+    try {
+        const success = await transferStore.deleteTransferRecord(taskToDelete.value.id, deleteFile);
+        if (success) {
+            // toast 消息已在 store 中处理，这里不需要重复显示
+        }
+    } catch (error) {
+        console.error('删除传输记录失败:', error);
+        toast.error('删除传输记录失败');
     }
 
-    allTasks.value = allTasks.value.filter(t => t.id !== taskToDelete.value!.id);
     showDeleteConfirm.value = false;
     taskToDelete.value = null;
 };
@@ -445,44 +400,54 @@ const pasteFromClipboard = async () => {
   }
 };
 
-const startLinkDownload = () => {
-  taskIdCounter++;
-  const newTask: Task = {
-    id: taskIdCounter,
-    name: linkUrl.value.split('/').pop() || `下载任务-${taskIdCounter}`,
-    category: 'download',
-    status: 'progressing',
-    size: '未知',
-    speed: '0 KB/s',
-    progress: 0,
-    icon: FileIcon,
-  };
-  allTasks.value.unshift(newTask);
-  activeCategory.value = 'download';
-  activeStatus.value = 'progressing';
-  showLinkDialog.value = false;
-  linkUrl.value = '';
+const startLinkDownload = async () => {
+  if (!linkUrl.value.trim()) {
+    toast.error('请输入分享链接');
+    return;
+  }
 
-  // Simulate download progress
-  const interval = setInterval(() => {
-    const task = allTasks.value.find(t => t.id === newTask.id);
-    if (task) {
-      task.progress += Math.random() * 15;
-      task.speed = formatBytes(Math.random() * 1024 * 1024 * 5) + '/s';
-      if (task.progress >= 100) {
-        task.progress = 100;
-        task.status = 'completed';
-        task.speed = '0 KB/s';
-        clearInterval(interval);
-        task.intervalId = undefined;
-        // 下载完成后，将文件加入"分享"文件夹（假定下载的是分享文件）
-        addToSpecialFolder('分享', newTask.name, 0);
-      }
-    } else {
-      clearInterval(interval);
+  try {
+    // 解析分享链接
+    const shareInfo = shareStore.parseShareLink(linkUrl.value.trim());
+    if (!shareInfo) {
+      toast.error('分享链接格式不正确');
+      return;
     }
-  }, 500);
-  newTask.intervalId = interval as unknown as number;
+
+    // 验证分享链接
+    const verifyResult = await shareStore.verifyShare({
+      share_token: shareInfo.token,
+      share_password: shareInfo.password
+    });
+
+    if (!verifyResult) {
+      return; // 错误信息已在store中显示
+    }
+
+    // 显示确认对话框，让用户选择保存位置
+    // 使用当前文件夹作为保存位置，如果在根目录则保存到根目录
+    const targetFolderId = driveStore.currentFolderId || 0;
+    const saveResult = await shareStore.saveShare({
+      share_token: shareInfo.token,
+      share_password: shareInfo.password,
+      target_folder_id: targetFolderId
+    });
+
+    if (saveResult) {
+      // 切换到下载标签页
+      activeCategory.value = 'download';
+      activeStatus.value = 'progressing';
+
+      // 刷新传输记录
+      await transferStore.loadTransferHistory('processing', true);
+    }
+
+    showLinkDialog.value = false;
+    linkUrl.value = '';
+  } catch (error) {
+    console.error('处理分享链接失败:', error);
+    toast.error('处理分享链接失败');
+  }
 };
 
 const getStatusText = (status: StatusType) => status === 'progressing' ? '进行中' : '已完成';
