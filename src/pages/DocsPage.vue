@@ -261,11 +261,18 @@
                   <div class="text-center">
                     <FileText :size="48" class="mx-auto mb-4 text-morandi-400" />
                     <h3 class="text-lg font-medium text-morandi-700 mb-2">
-                      {{ docsStore.searchQuery ? '未找到匹配的文档' : '书单为空' }}
+                      {{ docsStore.searchQuery ? '未找到匹配的文档' : (docsStore.currentBooklist ? '书单为空' : '请选择一个书单') }}
                     </h3>
                     <p class="text-morandi-500">
-                      {{ docsStore.searchQuery ? '尝试其他搜索词或添加新文档' : '请先选择一个书单' }}
+                      {{ docsStore.searchQuery ? '尝试其他搜索词或添加新文档' : (docsStore.currentBooklist ? '点击上传按钮添加文档' : '从左侧选择一个书单查看文档') }}
                     </p>
+                    <!-- 调试信息 -->
+                    <div class="mt-4 text-xs text-gray-400" v-if="docsStore.currentBooklist">
+                      <p>当前书单ID: {{ docsStore.currentBooklist.id }}</p>
+                      <p>所有文档数量: {{ docsStore.allDocuments.length }}</p>
+                      <p>当前书单文档数量: {{ docsStore.currentBooklistDocuments.length }}</p>
+                      <p>过滤后文档数量: {{ docsStore.filteredDocuments.length }}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -586,6 +593,7 @@ import WordViewer from '@/components/WordViewer.vue';
 import PowerPointViewer from '@/components/PowerPointViewer.vue';
 import ExcelViewer from '@/components/ExcelViewer.vue';
 import MarkdownViewer from '@/components/MarkdownViewer.vue';
+import { ensureWebSocketForUpload, onUploadComplete } from '@/utils/websocket';
 
 const docsStore = useDocsStore();
 const driveStore = useDriveStore();
@@ -646,12 +654,21 @@ onUnmounted(() => {
   clearAutoScroll();
 });
 
-onMounted(() => {
+onMounted(async () => {
   console.log('DocsPage mounted, 开始加载分类数据')
-  docsStore.loadCategoriesFromDrive()
-  const { path } = route.query
+
+  // 先加载分类数据
+  await docsStore.loadCategoriesFromDrive()
+
+  // 处理路由参数
+  const { path, fileName, fileId } = route.query
+  console.log('路由参数:', { path, fileName, fileId })
+
   if (path && typeof path === 'string') {
-    docsStore.loadDocumentByPath(path)
+    // 优先使用文件名或ID来查找文档
+    const searchKey = (fileName as string) || path
+    console.log('尝试加载文档:', searchKey)
+    await docsStore.loadDocumentByPath(searchKey)
   }
 })
 
@@ -663,7 +680,18 @@ watch(() => docsStore.booklists, (newBooklists) => {
 
 watch(() => docsStore.currentBooklist, (newBooklist) => {
   console.log('当前选中分类变化:', newBooklist)
+  if (newBooklist) {
+    console.log('当前分类的文档数量:', docsStore.currentBooklistDocuments.length)
+    console.log('当前分类的文档列表:', docsStore.currentBooklistDocuments)
+    console.log('过滤后的文档列表:', docsStore.filteredDocuments)
+  }
 }, { immediate: true })
+
+// 监听所有文档数据变化
+watch(() => docsStore.allDocuments, (newDocs) => {
+  console.log('所有文档数据变化:', newDocs)
+  console.log('文档总数:', newDocs?.length || 0)
+}, { immediate: true, deep: true })
 
 const onDragStart = (event: any) => {
   if (event.item) {
@@ -960,17 +988,28 @@ const createNewCategory = async () => {
 // 上传文档文件的方法
 const uploadDocumentFiles = async () => {
   if (selectedDocumentFiles.value.length === 0) return
-  
+
   // 获取当前分类的路径，如果没有则上传到书单根目录
   const currentCategory = docsStore.currentCategoryData
   const targetPath = currentCategory ? `/书单/${currentCategory.folder_name}` : '/书单'
-  
+
+  // 确保WebSocket连接已建立
+  ensureWebSocketForUpload()
+
+  const fileCount = selectedDocumentFiles.value.length
+
   // 使用 TransferStore 处理上传
   await transferStore.uploadFiles(selectedDocumentFiles.value, targetPath)
-  
+
   showUploadDocumentDialog.value = false
   selectedDocumentFiles.value = []
-  toast.success(`已开始上传 ${selectedDocumentFiles.value.length} 个文档文件`)
+  toast.success(`已开始上传 ${fileCount} 个文档文件`)
+
+  // 监听上传完成事件，刷新分类数据
+  const unsubscribe = onUploadComplete(() => {
+    docsStore.loadCategoriesFromDrive()
+    unsubscribe() // 取消监听
+  })
 }
 
 // 新建Markdown文档的方法

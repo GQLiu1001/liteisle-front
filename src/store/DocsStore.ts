@@ -47,9 +47,10 @@ export const useDocsStore = defineStore('docs', () => {
   
   const currentBooklistDocuments = computed(() => {
     if (!currentBooklist.value) return []
-    return allDocuments.value.filter(file => 
-      file.folder_id === currentBooklist.value!.id &&
-      file.file_status === FileStatusEnum.AVAILABLE
+    return allDocuments.value.filter(file =>
+      file.folder_id === currentBooklist.value!.id
+      // 移除file_status过滤，因为API返回的数据可能不包含此字段
+      // && file.file_status === FileStatusEnum.AVAILABLE
     ).sort((a, b) => b.sorted_order - a.sorted_order) // 按sorted_order降序排列
   })
   
@@ -69,6 +70,10 @@ export const useDocsStore = defineStore('docs', () => {
   
   const isMarkdownDocument = computed(() => {
     return selectedDocument.value?.file_name.toLowerCase().endsWith('.md') || false
+  })
+
+  const currentCategoryData = computed(() => {
+    return currentBooklist.value
   })
   
   /**
@@ -130,8 +135,12 @@ export const useDocsStore = defineStore('docs', () => {
    * 选择笔记本
    */
   const selectBooklist = (booklist: FolderInfo): void => {
+    console.log('选择书单:', booklist)
+    console.log('所有文档:', allDocuments.value)
+    console.log('书单ID匹配的文档:', allDocuments.value.filter(file => file.folder_id === booklist.id))
+
     currentBooklist.value = booklist
-    
+
     // 如果当前选择的文档不在新选择的笔记本中，清除选择
     if (selectedDocument.value) {
       const booklistDocuments = allDocuments.value.filter(file => file.folder_id === booklist.id)
@@ -145,6 +154,8 @@ export const useDocsStore = defineStore('docs', () => {
    * 选择文档
    */
   const selectDocument = async (document: FileInfo): Promise<void> => {
+    console.log('选择文档:', document)
+
     // 如果有未保存的更改，提示用户
     if (hasUnsavedChanges.value) {
       const confirmed = confirm('您有未保存的更改，是否要放弃更改？')
@@ -152,12 +163,15 @@ export const useDocsStore = defineStore('docs', () => {
         return
       }
     }
-    
+
     selectedDocument.value = document
-    
+    console.log('已设置selectedDocument:', selectedDocument.value)
+
     if (isMarkdownDocument.value) {
+      console.log('这是Markdown文档，加载内容')
       await loadMarkdownContent(document.id)
     } else {
+      console.log('这不是Markdown文档，文件类型:', document.file_name)
       // 对于非Markdown文档，退出编辑模式
       exitMarkdownMode()
     }
@@ -499,10 +513,37 @@ export const useDocsStore = defineStore('docs', () => {
    */
   const loadDocumentByPath = async (path: string): Promise<void> => {
     try {
+      console.log('尝试根据路径加载文档:', path)
+      console.log('当前所有文档:', allDocuments.value)
+
+      // 首先确保文档数据已加载
+      if (allDocuments.value.length === 0) {
+        console.log('文档数据未加载，先加载文档数据')
+        await loadCategoriesFromDrive()
+      }
+
       // 根据路径找到对应的文档
-             const document = allDocuments.value.find(doc => doc.file_name === path)
+      // 支持多种匹配方式：完整路径、文件名、或路径包含文件名
+      const document = allDocuments.value.find(doc => {
+        const fileName = doc.file_name
+        return fileName === path ||
+               path.endsWith(fileName) ||
+               path.includes(fileName)
+      })
+
+      console.log('找到的文档:', document)
+
       if (document) {
-        await selectDocument(document)
+        console.log('设置当前文档:', document)
+        selectedDocument.value = document
+
+        // 如果是Markdown文档，加载内容
+        if (isMarkdownDocument.value) {
+          await loadMarkdownContent(document.id)
+        }
+      } else {
+        console.warn('未找到匹配的文档:', path)
+        toast.warning(`未找到文档: ${path}`)
       }
     } catch (error) {
       console.error('加载文档失败:', error)
@@ -647,6 +688,7 @@ export const useDocsStore = defineStore('docs', () => {
     sortedBooklists,
     currentBooklistDocuments,
     filteredDocuments,
+    currentCategoryData,
     
     // 方法
     loadDocumentsData,

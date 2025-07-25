@@ -22,7 +22,7 @@
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-sub": "^2.0.0",
     "markdown-it-sup": "^2.0.0",
-    "pdfjs-dist": "^5.3.31",
+    "pdfjs-dist": "^5.3.93",
     "pinia": "^2.1.7",
     "turndown": "^7.2.0",
     "vditor": "^3.11.1",

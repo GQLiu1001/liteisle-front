@@ -620,6 +620,7 @@ import { FileStatusEnum, FolderTypeEnum } from '@/types/api'
 import { API } from '@/utils/api'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { ensureWebSocketForUpload, onUploadComplete } from '@/utils/websocket'
 
 const musicStore = useMusicStore()
 const driveStore = useDriveStore()
@@ -1061,11 +1062,14 @@ const createNewPlaylist = async () => {
 // 上传音乐文件的方法
 const uploadMusicFiles = async () => {
   if (selectedMusicFiles.value.length === 0) return
-  
+
   // 获取当前歌单的路径，如果没有则上传到歌单根目录
   const currentPlaylist = musicStore.currentPlaylist
   const targetPath = currentPlaylist ? `/歌单/${currentPlaylist.folder_name}` : '/歌单'
-  
+
+  // 确保WebSocket连接已建立
+  ensureWebSocketForUpload()
+
   // 使用 TransferStore 处理上传
   const fileCount = selectedMusicFiles.value.length
   await transferStore.uploadFiles(selectedMusicFiles.value, targetPath)
@@ -1073,6 +1077,12 @@ const uploadMusicFiles = async () => {
   showUploadMusicDialog.value = false
   selectedMusicFiles.value = []
   toast.success(`已开始上传 ${fileCount} 个音乐文件`)
+
+  // 监听上传完成事件，刷新歌单数据
+  const unsubscribe = onUploadComplete(() => {
+    musicStore.loadPlaylistsFromDrive()
+    unsubscribe() // 取消监听
+  })
 }
 
 // 处理音乐文件选择

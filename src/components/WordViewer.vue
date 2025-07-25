@@ -55,129 +55,39 @@
       
       <!-- Word内容区域 -->
       <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="wordContainer">
-        <div class="flex justify-center">
-          <div 
+        <!-- 加载状态 -->
+        <div v-if="isLoading" class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-gray-600">正在加载Word文档...</p>
+          </div>
+        </div>
+
+        <!-- 错误状态 -->
+        <div v-else-if="error" class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <div class="text-red-500 text-6xl mb-4">⚠️</div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">加载失败</h3>
+            <p class="text-gray-600 mb-4">{{ error }}</p>
+            <button @click="loadDocument" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+              重试
+            </button>
+          </div>
+        </div>
+
+        <!-- Word文档内容 -->
+        <div v-else class="flex justify-center">
+          <div
             class="bg-white shadow-lg rounded-xl max-w-[210mm] w-full"
             :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
           >
-            <!-- 模拟Word文档内容 -->
-            <div 
+            <!-- 渲染的Word内容 -->
+            <div
               class="p-8 min-h-[297mm] text-gray-800 leading-relaxed select-text"
               @mouseup="handleTextSelection"
               @contextmenu="handleContextMenu"
-            >
-              <div v-if="currentPage === 1">
-                <div class="text-center mb-8">
-                  <h1 class="text-3xl font-bold mb-4">{{ fileName.replace(/\.(doc|docx)$/, '') }}</h1>
-                  <hr class="border-gray-300 mb-6">
-                </div>
-                
-                <div class="mb-6">
-                  <h2 class="text-xl font-semibold mb-3 text-blue-700">文档概述</h2>
-                  <p class="mb-4 text-justify">
-                    这是一个Word文档的预览界面。在实际应用中，这里会显示真实的Word文档内容。
-                    Word文档支持丰富的格式设置，包括字体样式、段落格式、表格、图片等多种元素。
-                  </p>
-                  <p class="mb-4 text-justify">
-                    您可以使用以下功能来浏览文档：
-                  </p>
-                  <ul class="list-disc list-inside mb-4 space-y-2 ml-4">
-                    <li>使用工具栏按钮进行页面导航</li>
-                    <li>调整文档的缩放比例</li>
-                    <li>选择文本进行复制或翻译</li>
-                    <li>使用键盘快捷键快速操作</li>
-                  </ul>
-                </div>
-                
-                <div class="mb-6">
-                  <h2 class="text-xl font-semibold mb-3 text-blue-700">主要特性</h2>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="border border-gray-300 rounded p-4 bg-blue-50">
-                      <h3 class="font-medium mb-2 text-blue-800">📝 格式支持</h3>
-                      <p class="text-sm text-blue-700 mb-3">支持Word文档的基本格式显示，保持A4标准比例</p>
-                    </div>
-                    <div class="border border-gray-300 rounded p-4 bg-green-50">
-                      <h3 class="font-medium mb-2 text-green-800">🔍 文本操作</h3>
-                      <p class="text-sm text-green-700 mb-3">支持文本选择、复制和翻译功能</p>
-                    </div>
-                    <div class="border border-gray-300 rounded p-4 bg-yellow-50">
-                      <h3 class="font-medium mb-2 text-yellow-800">⌨️ 快捷键</h3>
-                      <p class="text-sm text-yellow-700">支持键盘快捷键操作，提高使用效率</p>
-                    </div>
-                    <div class="border border-gray-300 rounded p-4 bg-purple-50">
-                      <h3 class="font-medium mb-2 text-purple-800">📄 标准格式</h3>
-                      <p class="text-sm text-purple-700">保持标准A4文档比例和布局</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div v-else-if="currentPage === 2">
-                <h1 class="text-2xl font-bold mb-6 text-blue-700">第二页内容</h1>
-                
-                <div class="mb-6">
-                  <h2 class="text-xl font-semibold mb-3">技术说明</h2>
-                  <p class="mb-4 text-justify">
-                    此Word查看器采用模拟方式展示文档内容。在实际应用中，可以集成专业的文档预览库，
-                    如Microsoft Office Online、OnlyOffice等，以实现完整的Word文档渲染。
-                  </p>
-                  
-                  <table class="w-full border-collapse border border-gray-300 mb-4 text-sm">
-                    <thead>
-                      <tr class="bg-gray-100">
-                        <th class="border border-gray-300 p-2 text-left">功能</th>
-                        <th class="border border-gray-300 p-2 text-left">支持情况</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td class="border border-gray-300 p-2">文本显示</td>
-                        <td class="border border-gray-300 p-2">✅ 完全支持</td>
-                      </tr>
-                      <tr>
-                        <td class="border border-gray-300 p-2">图片显示</td>
-                        <td class="border border-gray-300 p-2">⚠️ 部分支持</td>
-                      </tr>
-                      <tr>
-                        <td class="border border-gray-300 p-2">表格显示</td>
-                        <td class="border border-gray-300 p-2">✅ 完全支持</td>
-                      </tr>
-                      <tr>
-                        <td class="border border-gray-300 p-2">A4格式</td>
-                        <td class="border border-gray-300 p-2">✅ 标准支持</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              
-              <div v-else>
-                <h1 class="text-2xl font-bold mb-6 text-blue-700">第{{ currentPage }}页</h1>
-                
-                <div class="mb-6">
-                  <h2 class="text-xl font-semibold mb-3">示例内容</h2>
-                  <p class="mb-4 text-justify">
-                    这是第{{ currentPage }}页的内容。在真实的Word查看器中，这里会显示Word文档的实际内容，
-                    包括文本、图片、表格、图表等各种元素。文档保持标准A4比例显示。
-                  </p>
-                  
-                  <div class="bg-yellow-50 border border-yellow-200 p-4 rounded mb-4">
-                    <h3 class="font-medium text-yellow-800 mb-2">💡 快捷键提示</h3>
-                    <p class="text-yellow-700 text-sm">
-                      • 使用方向键（←→）或空格键来翻页<br>
-                      • 使用+/-键调整缩放比例<br>
-                      • 使用Ctrl+滚轮进行缩放<br>
-                      • 选择文本后右键可进行复制或翻译
-                    </p>
-                  </div>
-                  
-                  <div class="text-center text-gray-500 text-sm mt-8">
-                    <p>页面 {{ currentPage }} / {{ totalPages }}</p>
-                    <p class="mt-2">A4标准格式 (210mm × 297mm)</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              v-html="documentContent"
+            ></div>
           </div>
         </div>
       </div>
@@ -238,7 +148,7 @@
   
   // 状态
   const currentPage = ref(1)
-  const totalPages = ref(4) // 模拟4页文档
+  const totalPages = ref(1)
   const scale = ref(1)
   const wordContainer = ref<HTMLElement>()
   const selectedText = ref('')
@@ -246,14 +156,79 @@
   const contextMenuPosition = ref({ x: 0, y: 0 })
   const translatedText = ref('')
   const isTranslating = ref(false)
+  const isLoading = ref(true)
+  const error = ref('')
+  const documentContent = ref('')
   
+  // 文档加载函数
+  const loadDocument = async () => {
+    try {
+      isLoading.value = true
+      error.value = ''
+
+      // 获取Word文件的下载URL
+      const response = await API.document.getViewUrl(parseInt(props.filePath))
+      if (!response.data || response.data.code !== 200) {
+        throw new Error('获取Word文件URL失败')
+      }
+
+      const docUrl = response.data.data
+
+      // 这里应该使用mammoth.js或类似库来解析Word文档
+      // 现在先显示一个占位符内容
+      documentContent.value = `
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold mb-4">${props.fileName.replace(/\.(doc|docx)$/, '')}</h1>
+          <hr class="border-gray-300 mb-6">
+        </div>
+
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-3 text-blue-700">Word文档渲染器</h2>
+          <p class="mb-4 text-justify">
+            这是一个改进的Word文档查看器。当前显示的是占位符内容，
+            实际项目中需要集成mammoth.js或类似的库来解析真实的Word文档内容。
+          </p>
+          <p class="mb-4 text-justify">
+            文档URL: <a href="${docUrl}" target="_blank" class="text-blue-600 hover:underline">点击下载原文档</a>
+          </p>
+        </div>
+
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-3 text-blue-700">功能特性</h2>
+          <ul class="list-disc list-inside mb-4 space-y-2 ml-4">
+            <li>支持.doc和.docx格式</li>
+            <li>保持原始文档格式</li>
+            <li>支持文本选择和复制</li>
+            <li>支持缩放查看</li>
+            <li>支持翻译功能</li>
+          </ul>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded">
+          <p class="text-yellow-800 text-sm">
+            💡 提示：完整的Word文档渲染需要安装mammoth.js库并实现文档解析功能。
+          </p>
+        </div>
+      `
+
+      totalPages.value = 1
+      currentPage.value = 1
+
+    } catch (err: any) {
+      console.error('Word文档加载失败:', err)
+      error.value = err.message || 'Word文档加载失败'
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // 页面导航
   const previousPage = () => {
     if (currentPage.value > 1) {
       currentPage.value--
     }
   }
-  
+
   const nextPage = () => {
     if (currentPage.value < totalPages.value) {
       currentPage.value++
@@ -386,10 +361,13 @@
     }
   }
   
-  onMounted(() => {
+  onMounted(async () => {
     document.addEventListener('keydown', handleKeydown)
     document.addEventListener('wheel', handleWheel, { passive: false })
     document.addEventListener('click', handleClickOutside)
+
+    // 加载Word文档
+    await loadDocument()
   })
   
   onUnmounted(() => {

@@ -1378,9 +1378,14 @@ const handleItemDoubleClick = (item: DriveItem) => {
       router.push({ path: '/music', query: { song: item.name } })
     }
   } else if (item.type === 'document') {
+    console.log('跳转到文档页面，文档信息:', item)
     router.push({
       path: '/docs',
-      query: { path: item.path } // 传递唯一的文档路径
+      query: {
+        path: item.path,
+        fileName: item.name,
+        fileId: item.id.toString()
+      }
     })
   } else {
     // 文档或其他文件类型的点击逻辑 - 之后实现

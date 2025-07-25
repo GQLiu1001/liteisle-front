@@ -256,4 +256,35 @@ export function disconnectWebSocket() {
   wsManager.disconnect()
 }
 
-export default wsManager 
+/**
+ * 确保WebSocket连接用于上传操作
+ * 在上传前自动建立连接，并返回一个清理函数
+ */
+export function ensureWebSocketForUpload(): () => void {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    connectWebSocket(token)
+  }
+
+  // 返回一个空的清理函数，因为WebSocket连接是全局管理的
+  // 实际的连接关闭由页面卸载事件或手动调用处理
+  return () => {
+    // 可以在这里添加特定的清理逻辑，如果需要的话
+  }
+}
+
+/**
+ * 监听上传完成并执行回调
+ * @param callback 上传完成后的回调函数
+ * @returns 取消监听的函数
+ */
+export function onUploadComplete(callback: () => void): () => void {
+  return onFileStatusUpdated((payload) => {
+    if (payload.transferStatus === 'SUCCESS') {
+      // 延迟执行回调，确保后端数据已更新
+      setTimeout(callback, 1000)
+    }
+  })
+}
+
+export default wsManager

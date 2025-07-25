@@ -7,47 +7,49 @@
           <ChevronLeft :size="20" />
           <span>返回列表</span>
         </button>
-        
+
         <!-- 文档信息 -->
         <div class="flex-1 min-w-0 ml-4 border-l border-gray-300 pl-4">
           <h3 class="font-medium text-gray-900 truncate">{{ fileName }}</h3>
+          <div v-if="isLoading" class="text-xs text-gray-500">加载中...</div>
+          <div v-else-if="error" class="text-xs text-red-500">{{ error }}</div>
         </div>
       </div>
-      
+
       <!-- 页面控制 -->
       <div class="flex items-center gap-3">
-        <button 
-          @click="previousPage" 
-          :disabled="currentPage <= 1"
+        <button
+          @click="previousPage"
+          :disabled="currentPage <= 1 || isLoading"
           class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft :size="20" />
         </button>
-        
+
         <span class="text-sm text-gray-600">
-          {{ currentPage }} / {{ totalPages }}
+          {{ currentPage }} / {{ totalPages || '?' }}
         </span>
-        
-        <button 
-          @click="nextPage" 
-          :disabled="currentPage >= totalPages"
+
+        <button
+          @click="nextPage"
+          :disabled="currentPage >= totalPages || isLoading"
           class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight :size="20" />
         </button>
-        
+
         <!-- 缩放控制 -->
         <div class="border-l border-gray-300 pl-3 ml-3 flex items-center gap-2">
-          <button @click="zoomOut" class="p-2 rounded hover:bg-gray-200">
+          <button @click="zoomOut" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
             <Minus :size="16" />
           </button>
-          
+
           <span class="text-sm text-gray-600 min-w-[4rem] text-center">
             {{ Math.round(scale * 100) }}%
           </span>
-          
-          <button @click="zoomIn" class="p-2 rounded hover:bg-gray-200">
-            <FileText :size="16" />
+
+          <button @click="zoomIn" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
+            <Plus :size="16" />
           </button>
         </div>
       </div>
@@ -55,129 +57,53 @@
     
     <!-- PDF内容区域 -->
     <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="pdfContainer">
-      <div class="flex justify-center">
-        <div 
-          class="bg-white shadow-lg rounded-xl max-w-[210mm] w-full"
+      <!-- 加载状态 -->
+      <div v-if="isLoading" class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-gray-600">正在加载PDF文档...</p>
+        </div>
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">加载失败</h3>
+          <p class="text-gray-600 mb-4">{{ error }}</p>
+          <button @click="loadPDF" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            重试
+          </button>
+        </div>
+      </div>
+
+      <!-- PDF渲染区域 -->
+      <div v-else class="flex justify-center">
+        <div
+          class="bg-white shadow-lg rounded-xl"
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top center' }"
         >
-          <!-- 模拟PDF页面内容 -->
-          <div 
-            class="p-8 min-h-[297mm] text-gray-800 leading-relaxed select-text"
+          <!-- 调试信息 -->
+          <div class="p-4 text-sm text-gray-500 border-b">
+            <p>调试信息:</p>
+            <p>isLoading: {{ isLoading }}</p>
+            <p>error: {{ error }}</p>
+            <p>totalPages: {{ totalPages }}</p>
+            <p>currentPage: {{ currentPage }}</p>
+            <p>canvas ref: {{ pdfCanvas ? '已获取' : '未获取' }}</p>
+          </div>
+
+          <!-- PDF页面画布 -->
+          <canvas
+            ref="pdfCanvas"
+            class="block rounded-xl"
             @mouseup="handleTextSelection"
             @contextmenu="handleContextMenu"
-          >
-            <div v-if="currentPage === 1">
-              <h1 class="text-3xl font-bold mb-6 text-center">{{ fileName.replace('.pdf', '') }}</h1>
-              
-              <div class="mb-6">
-                <h2 class="text-xl font-semibold mb-3">概述</h2>
-                <p class="mb-4">
-                  这是一个PDF文档的预览界面。在实际应用中，这里会显示真实的PDF内容。
-                  本文档演示了PDF查看器的基本功能，包括页面导航、缩放控制等。
-                </p>
-                <p class="mb-4">
-                  您可以使用顶部工具栏中的按钮来：
-                </p>
-                <ul class="list-disc list-inside mb-4 space-y-1">
-                  <li>前进或后退页面</li>
-                  <li>查看当前页面和总页数</li>
-                  <li>放大或缩小文档</li>
-                  <li>返回文档列表</li>
-                </ul>
-              </div>
-              
-              <div class="mb-6">
-                <h2 class="text-xl font-semibold mb-3">主要特性</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="border border-gray-200 p-4 rounded">
-                    <h3 class="font-medium mb-2">响应式设计</h3>
-                    <p class="text-sm text-gray-600">保持A4纸张比例，支持缩放查看</p>
-                  </div>
-                  <div class="border border-gray-200 p-4 rounded">
-                    <h3 class="font-medium mb-2">键盘快捷键</h3>
-                    <p class="text-sm text-gray-600">支持方向键翻页和缩放操作</p>
-                  </div>
-                  <div class="border border-gray-200 p-4 rounded">
-                    <h3 class="font-medium mb-2">文本选择</h3>
-                    <p class="text-sm text-gray-600">支持文本选择、复制和翻译功能</p>
-                  </div>
-                  <div class="border border-gray-200 p-4 rounded">
-                    <h3 class="font-medium mb-2">标准格式</h3>
-                    <p class="text-sm text-gray-600">保持原始文档的页面比例</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div v-else-if="currentPage === 2">
-              <h1 class="text-2xl font-bold mb-6">第二页内容</h1>
-              
-              <div class="mb-6">
-                <h2 class="text-xl font-semibold mb-3">技术实现</h2>
-                <p class="mb-4">
-                  该PDF查看器使用Vue 3和TypeScript构建，保持标准A4纸张比例显示。
-                </p>
-                
-                <div class="bg-gray-50 p-4 rounded mb-4">
-                  <h3 class="font-medium mb-2">前端技术栈</h3>
-                  <ul class="list-disc list-inside space-y-1 text-sm">
-                    <li>Vue 3 Composition API</li>
-                    <li>TypeScript 类型安全</li>
-                    <li>Tailwind CSS 样式框架</li>
-                    <li>Lucide Vue 图标库</li>
-                  </ul>
-                </div>
-                
-                <div class="bg-gray-50 p-4 rounded mb-4">
-                  <h3 class="font-medium mb-2">组件特性</h3>
-                  <ul class="list-disc list-inside space-y-1 text-sm">
-                    <li>模块化组件设计</li>
-                    <li>响应式状态管理</li>
-                    <li>事件驱动架构</li>
-                    <li>标准文档格式</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div class="w-full">
-                <h2 class="text-xl font-semibold mb-3">布局特点</h2>
-                <div class="bg-green-50 border border-green-200 p-4 rounded">
-                  <p class="text-green-800">
-                    PDF查看器保持标准A4纸张比例(210mm × 297mm)，确保文档显示的准确性和专业性。
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div v-else>
-              <h1 class="text-2xl font-bold mb-6">第{{ currentPage }}页</h1>
-              
-              <div class="mb-6">
-                <h2 class="text-xl font-semibold mb-3">示例内容</h2>
-                <p class="mb-4">
-                  这是第{{ currentPage }}页的内容。在真实的PDF查看器中，这里会显示PDF文件的实际内容。
-                  文档保持标准的A4比例显示。
-                </p>
-                
-                <div class="bg-blue-50 border border-blue-200 p-4 rounded mb-4">
-                  <h3 class="font-medium text-blue-800 mb-2">💡 快捷键提示</h3>
-                  <p class="text-blue-700 text-sm">
-                    • 使用方向键（←→）或空格键来翻页<br>
-                    • 使用+/-键调整缩放比例<br>
-                    • 使用Ctrl+滚轮进行缩放
-                  </p>
-                </div>
-                
-                <div class="text-center text-gray-500 text-sm mt-8">
-                  <p>页面 {{ currentPage }} / {{ totalPages }}</p>
-                  <p class="mt-2">A4标准格式 (210mm × 297mm)</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          ></canvas>
         </div>
       </div>
     </div>
+
 
     <!-- 右键菜单 -->
     <div
@@ -217,9 +143,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ChevronLeft, ChevronRight, Minus, FileText } from 'lucide-vue-next'
-import { API } from '@/utils/api' // 假设API模块在src/api/index.ts
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-vue-next'
+import { API } from '@/utils/api'
 
 interface Props {
   filePath: string
@@ -235,38 +161,163 @@ defineEmits<{
 
 // 状态
 const currentPage = ref(1)
-const totalPages = ref(5) // 模拟5页文档
+const totalPages = ref(0)
 const scale = ref(1)
 const pdfContainer = ref<HTMLElement>()
+const pdfCanvas = ref<HTMLCanvasElement>()
 const selectedText = ref('')
 const showContextMenu = ref(false)
 const contextMenuPosition = ref({ x: 0, y: 0 })
 const translatedText = ref('')
 const isTranslating = ref(false)
+const isLoading = ref(true)
+const error = ref('')
 
-// 页面导航
-const previousPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
+// PDF相关状态
+let pdfDocument: any = null
+let currentPageObject: any = null
+
+// PDF加载函数
+const loadPDF = async () => {
+  console.log('开始加载PDF，文件路径:', props.filePath)
+
+  try {
+    isLoading.value = true
+    error.value = ''
+
+    console.log('设置加载状态为true')
+
+    // 获取PDF文件的下载URL
+    console.log('调用API获取PDF文件URL')
+    const response = await API.document.getViewUrl(parseInt(props.filePath))
+    console.log('API响应:', response)
+
+    if (!response.data || response.data.code !== 200) {
+      throw new Error('获取PDF文件URL失败')
+    }
+
+    const pdfUrl = response.data.data
+    console.log('获取到PDF URL:', pdfUrl)
+
+    // 动态导入PDF.js (如果已安装)
+    // 注意：这里使用一个简化的实现，实际项目中需要安装pdfjs-dist
+    // const pdfjsLib = await import('pdfjs-dist')
+
+    // 临时使用fetch获取PDF数据并显示提示
+    console.log('开始下载PDF文件')
+    const pdfResponse = await fetch(pdfUrl)
+    if (!pdfResponse.ok) {
+      throw new Error('PDF文件下载失败')
+    }
+
+    console.log('PDF文件下载成功')
+
+    // 这里应该使用PDF.js解析PDF，现在先显示一个占位符
+    totalPages.value = 1
+    currentPage.value = 1
+
+    console.log('设置页面信息，准备渲染')
+
+    // 等待DOM更新后再渲染
+    await nextTick()
+    console.log('DOM更新完成，开始渲染')
+    await renderPage()
+
+  } catch (err: any) {
+    console.error('PDF加载失败:', err)
+    error.value = err.message || 'PDF加载失败'
+  } finally {
+    console.log('设置加载状态为false')
+    isLoading.value = false
   }
 }
 
-const nextPage = () => {
+// 渲染PDF页面
+const renderPage = async () => {
+  console.log('开始渲染PDF页面')
+  console.log('pdfCanvas.value:', pdfCanvas.value)
+
+  if (!pdfCanvas.value) {
+    console.error('Canvas元素未找到')
+    return
+  }
+
+  const canvas = pdfCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    console.error('无法获取Canvas 2D上下文')
+    return
+  }
+
+  console.log('Canvas元素和上下文获取成功')
+
+  // 设置画布大小 (A4比例)
+  const width = 595 // A4宽度 (点)
+  const height = 842 // A4高度 (点)
+
+  canvas.width = width
+  canvas.height = height
+  canvas.style.width = width + 'px'
+  canvas.style.height = height + 'px'
+
+  console.log(`Canvas大小设置为: ${width}x${height}`)
+
+  // 清空画布
+  ctx.fillStyle = 'white'
+  ctx.fillRect(0, 0, width, height)
+
+  // 绘制占位符内容
+  ctx.fillStyle = '#333'
+  ctx.font = '24px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('PDF渲染器', width / 2, 100)
+
+  ctx.font = '16px Arial'
+  ctx.fillText(`文件名: ${props.fileName}`, width / 2, 150)
+  ctx.fillText(`页面: ${currentPage.value} / ${totalPages.value}`, width / 2, 180)
+
+  ctx.font = '14px Arial'
+  ctx.fillStyle = '#666'
+  ctx.fillText('注意：这是一个简化的PDF渲染器', width / 2, 250)
+  ctx.fillText('完整功能需要安装pdfjs-dist库', width / 2, 280)
+
+  // 绘制边框
+  ctx.strokeStyle = '#ddd'
+  ctx.lineWidth = 1
+  ctx.strokeRect(0, 0, width, height)
+
+  console.log('PDF页面渲染完成')
+}
+
+// 页面导航
+const previousPage = async () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    await renderPage()
+  }
+}
+
+const nextPage = async () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++
+    await renderPage()
   }
 }
 
 // 缩放控制
-const zoomIn = () => {
-  if (scale.value < 2) {
-    scale.value = Math.min(2, scale.value + 0.25)
+const zoomIn = async () => {
+  if (scale.value < 3) {
+    scale.value = Math.min(3, scale.value + 0.25)
+    await nextTick()
+    await renderPage()
   }
 }
 
-const zoomOut = () => {
-  if (scale.value > 0.5) {
-    scale.value = Math.max(0.5, scale.value - 0.25)
+const zoomOut = async () => {
+  if (scale.value > 0.25) {
+    scale.value = Math.max(0.25, scale.value - 0.25)
+    await nextTick()
+    await renderPage()
   }
 }
 
@@ -401,10 +452,13 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('wheel', handleWheel, { passive: false })
   document.addEventListener('click', handleClickOutside)
+
+  // 加载PDF文档
+  await loadPDF()
 })
 
 onUnmounted(() => {
