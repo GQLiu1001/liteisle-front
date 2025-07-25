@@ -543,13 +543,23 @@ const translateSelection = async () => {
   
   isTranslating.value = true
   try {
-           const response = await API.translate.translate({
-         file_name: 'selected_text.txt',
-         text: selectedText.value,
-         target_lang: 'zh-CN'
-       })
-    if (response.data) {
-      translatedText.value = response.data.translated_text
+    const response = await API.translate.translate({
+      file_name: 'selected_text.txt',
+      text: selectedText.value,
+      target_lang: 'zh-CN'
+    }) as any; // 强制类型转换为any
+    if (response.data && response.data.data && response.data.data.translated_text) {
+      let text = response.data.data.translated_text;
+      if (typeof text === 'string' && text.startsWith('"') && text.endsWith('"')) {
+        try {
+          text = JSON.parse(text);
+        } catch (e) {
+          // Not a valid JSON string, use as is.
+        }
+      }
+      translatedText.value = text;
+    } else {
+      translatedText.value = response.data?.message || '未返回翻译结果';
     }
   } catch (error) {
     console.error('翻译失败:', error)

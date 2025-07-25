@@ -325,9 +325,24 @@ const translateText = async () => {
     translatedText.value = ''
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      const mockTranslation = `翻译结果: ${selectedText.value}`
-      translatedText.value = mockTranslation
+      const response = await API.translate.translate({
+        file_name: 'selected_text.txt',
+        text: selectedText.value,
+        target_lang: 'zh-CN'
+      }) as any;
+      if (response.data && response.data.data && response.data.data.translated_text) {
+        let text = response.data.data.translated_text;
+        if (typeof text === 'string' && text.startsWith('"') && text.endsWith('"')) {
+          try {
+            text = JSON.parse(text);
+          } catch (e) {
+            // Not a valid JSON string, use as is.
+          }
+        }
+        translatedText.value = text;
+      } else {
+        translatedText.value = response.data?.message || '未返回翻译结果';
+      }
     } catch (error) {
       translatedText.value = '翻译失败，请重试'
     } finally {
