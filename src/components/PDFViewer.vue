@@ -40,17 +40,17 @@
 
         <!-- 缩放控制 -->
         <div class="border-l border-gray-300 pl-3 ml-3 flex items-center gap-2">
-          <button @click="zoomOut" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
-            <Minus :size="16" />
-          </button>
+                  <button @click="() => zoomOut()" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
+          <Minus :size="16" />
+        </button>
 
-          <span class="text-sm text-gray-600 min-w-[4rem] text-center">
-            {{ Math.round(scale * 100) }}%
-          </span>
+        <span class="text-sm text-gray-600 min-w-[4rem] text-center">
+          {{ Math.round(scale * 100) }}%
+        </span>
 
-          <button @click="zoomIn" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
-            <Plus :size="16" />
-          </button>
+        <button @click="() => zoomIn()" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
+          <Plus :size="16" />
+        </button>
         </div>
       </div>
     </div>
@@ -104,7 +104,7 @@
           :class="{ 'cursor-grab': scale > 1 && !isDragging, 'cursor-grabbing': isDragging }"
           :style="{ 
             transform: `scale(${scale})`,
-            transformOrigin: 'center center',
+            transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
             willChange: 'transform'
           }"
         >
@@ -211,6 +211,9 @@ const error = ref('')
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const scrollPosition = ref({ x: 0, y: 0 })
+
+// 缩放相关状态
+const zoomOrigin = ref({ x: 50, y: 50 }) // 缩放原点百分比位置
 
 // PDF相关状态
 let pdfDocument: any = null
@@ -378,17 +381,36 @@ const nextPage = async () => {
 }
 
 // 缩放控制
-const zoomIn = async () => {
+const zoomIn = (event?: MouseEvent) => {
   if (scale.value < 3) {
+    if (event) {
+      updateZoomOrigin(event)
+    }
     scale.value = Math.min(3, scale.value + 0.25)
-    // 不需要重新渲染，CSS transform 会处理缩放
   }
 }
 
-const zoomOut = async () => {
+const zoomOut = (event?: MouseEvent) => {
   if (scale.value > 0.25) {
+    if (event) {
+      updateZoomOrigin(event)
+    }
     scale.value = Math.max(0.25, scale.value - 0.25)
-    // 不需要重新渲染，CSS transform 会处理缩放
+  }
+}
+
+// 更新缩放原点到鼠标位置
+const updateZoomOrigin = (event: MouseEvent) => {
+  const pdfElement = document.querySelector('.bg-white.shadow-lg.rounded-xl') as HTMLElement
+  if (!pdfElement) return
+
+  const rect = pdfElement.getBoundingClientRect()
+  const x = ((event.clientX - rect.left) / rect.width) * 100
+  const y = ((event.clientY - rect.top) / rect.height) * 100
+  
+  zoomOrigin.value = {
+    x: Math.max(0, Math.min(100, x)),
+    y: Math.max(0, Math.min(100, y))
   }
 }
 
@@ -431,10 +453,10 @@ const handleWheel = (event: WheelEvent) => {
     // 滚轮向上为负值，向下为正值
     if (event.deltaY < 0) {
       // 向上滚动，放大
-      zoomIn()
+      zoomIn(event as any)
     } else {
       // 向下滚动，缩小
-      zoomOut()
+      zoomOut(event as any)
     }
   }
 }
