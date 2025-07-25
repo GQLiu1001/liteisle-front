@@ -51,8 +51,9 @@
     <!-- Excel内容区域 -->
     <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="excelContainer">
       <div 
+        ref="scaledElement"
         class="bg-white shadow-lg rounded-xl inline-block min-w-full"
-        :style="{ transform: `scale(${scale})`, transformOrigin: 'top left' }"
+        :style="{ transform: `scale(${scale})`, transformOrigin: '0 0' }"
       >
         <!-- 表格头部 -->
         <div class="flex border-b border-gray-300">
@@ -147,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ChevronLeft, Minus, Plus, Maximize } from 'lucide-vue-next'
 import { API } from '@/utils/api'
 
@@ -167,6 +168,7 @@ defineEmits<{
 const currentSheet = ref('sheet1')
 const scale = ref(1)
 const excelContainer = ref<HTMLElement>()
+const scaledElement = ref<HTMLElement>()
 const selectedCell = ref({ row: -1, col: -1 })
 const selectedText = ref('')
 const showContextMenu = ref(false)
@@ -240,19 +242,45 @@ const selectCell = (row: number, col: number) => {
 
 const zoomIn = () => {
   if (scale.value < 2) {
-    scale.value = Math.min(2, scale.value + 0.25)
+    const newScale = Math.min(2, scale.value + 0.25)
+    centerZoom(newScale)
   }
 }
 
 const zoomOut = () => {
   if (scale.value > 0.5) {
-    scale.value = Math.max(0.5, scale.value - 0.25)
+    const newScale = Math.max(0.5, scale.value - 0.25)
+    centerZoom(newScale)
   }
 }
 
 const fitToWindow = () => {
-  scale.value = 1
+  centerZoom(1)
 }
+
+const centerZoom = (newScale: number) => {
+  const container = excelContainer.value
+  if (!container) return
+
+  const oldScale = scale.value
+  const rect = container.getBoundingClientRect()
+
+  const containerCenterX = rect.width / 2
+  const containerCenterY = rect.height / 2
+
+  const pointX = (container.scrollLeft + containerCenterX) / oldScale
+  const pointY = (container.scrollTop + containerCenterY) / oldScale
+
+  scale.value = newScale
+
+  nextTick(() => {
+    const newPointX = pointX * newScale
+    const newPointY = pointY * newScale
+    container.scrollLeft = newPointX - containerCenterX
+    container.scrollTop = newPointY - containerCenterY
+  })
+}
+
 
 // 文本选择和右键菜单功能
 const handleTextSelection = () => {
@@ -346,12 +374,44 @@ const handleKeydown = (event: KeyboardEvent) => {
 // Ctrl+滚轮缩放
 const handleWheel = (event: WheelEvent) => {
   if (event.ctrlKey) {
-    event.preventDefault()
-    if (event.deltaY < 0) {
-      zoomIn()
-    } else {
-      zoomOut()
-    }
+    event.preventDefault();
+
+    const container = excelContainer.value;
+    if (!container) return;
+
+    // 1. 获取缩放前的信息
+    const oldScale = scale.value;
+    const rect = container.getBoundingClientRect();
+    
+    // 鼠标在容器内的坐标 (相对于视口)
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // 鼠标指向的内容在缩放前的绝对坐标 (考虑了当前的滚动)
+    const pointX = (container.scrollLeft + mouseX) / oldScale;
+    const pointY = (container.scrollTop + mouseY) / oldScale;
+
+    // 2. 计算新的缩放比例
+    const delta = event.deltaY < 0 ? 0.15 : -0.15; // 调整缩放步长
+    const newScale = Math.max(0.25, Math.min(2, oldScale + delta));
+    
+    if (Math.abs(newScale - oldScale) < 0.001) return; // 缩放比例没有变化
+
+    scale.value = newScale;
+
+    // 3. 计算并设置新的滚动位置，以保持内容点在鼠标下
+    nextTick(() => {
+        // a. 内容点在缩放后的新绝对坐标
+        const newPointX = pointX * newScale;
+        const newPointY = pointY * newScale;
+
+        // b. 计算新的 scrollLeft/scrollTop
+        const newScrollLeft = newPointX - mouseX;
+        const newScrollTop = newPointY - mouseY;
+        
+        container.scrollLeft = newScrollLeft;
+        container.scrollTop = newScrollTop;
+    });
   }
 }
 
@@ -370,16 +430,25 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-  document.addEventListener('wheel', handleWheel, { passive: false })
+  const viewerElement = document.querySelector('.excel-viewer') as HTMLElement
+  if (viewerElement) {
+    viewerElement.setAttribute('tabindex', '-1')
+    viewerElement.focus()
+    viewerElement.addEventListener('keydown', handleKeydown as EventListener)
+    viewerElement.addEventListener('wheel', handleWheel as EventListener, { passive: false })
+  }
+
   document.addEventListener('click', handleClickOutside)
   // 默认选择第一个单元格
   selectCell(0, 0)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  document.removeEventListener('wheel', handleWheel)
+  const viewerElement = document.querySelector('.excel-viewer')
+  if (viewerElement) {
+    viewerElement.removeEventListener('keydown', handleKeydown as EventListener)
+    viewerElement.removeEventListener('wheel', handleWheel as EventListener)
+  }
   document.removeEventListener('click', handleClickOutside)
 })
 </script>

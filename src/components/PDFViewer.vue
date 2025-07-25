@@ -100,11 +100,12 @@
         }"
       >
         <div
+          ref="scaledElement"
           class="bg-white shadow-lg rounded-xl relative"
           :class="{ 'cursor-grab': scale > 1 && !isDragging, 'cursor-grabbing': isDragging }"
           :style="{ 
             transform: `scale(${scale})`,
-            transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+            transformOrigin: '0 0',
             willChange: 'transform'
           }"
         >
@@ -212,8 +213,10 @@ const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const scrollPosition = ref({ x: 0, y: 0 })
 
+const scaledElement = ref<HTMLElement>()
+
 // 缩放相关状态
-const zoomOrigin = ref({ x: 50, y: 50 }) // 缩放原点百分比位置
+const zoomOrigin = ref({ x: 50, y: 50 }) // 缩放原点百分比位置, 按钮缩放时使用
 
 // PDF相关状态
 let pdfDocument: any = null
@@ -381,38 +384,43 @@ const nextPage = async () => {
 }
 
 // 缩放控制
-const zoomIn = (event?: MouseEvent) => {
+const zoomIn = () => {
   if (scale.value < 3) {
-    if (event) {
-      updateZoomOrigin(event)
-    }
-    scale.value = Math.min(3, scale.value + 0.25)
+    const newScale = Math.min(3, scale.value + 0.25)
+    centerZoom(newScale)
   }
 }
 
-const zoomOut = (event?: MouseEvent) => {
+const zoomOut = () => {
   if (scale.value > 0.25) {
-    if (event) {
-      updateZoomOrigin(event)
-    }
-    scale.value = Math.max(0.25, scale.value - 0.25)
+    const newScale = Math.max(0.25, scale.value - 0.25)
+    centerZoom(newScale)
   }
 }
 
-// 更新缩放原点到鼠标位置
-const updateZoomOrigin = (event: MouseEvent) => {
-  const pdfElement = document.querySelector('.bg-white.shadow-lg.rounded-xl') as HTMLElement
-  if (!pdfElement) return
+const centerZoom = (newScale: number) => {
+  const container = pdfContainer.value
+  if (!container) return
 
-  const rect = pdfElement.getBoundingClientRect()
-  const x = ((event.clientX - rect.left) / rect.width) * 100
-  const y = ((event.clientY - rect.top) / rect.height) * 100
-  
-  zoomOrigin.value = {
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y))
-  }
+  const oldScale = scale.value
+  const rect = container.getBoundingClientRect()
+
+  const containerCenterX = rect.width / 2
+  const containerCenterY = rect.height / 2
+
+  const pointX = (container.scrollLeft + containerCenterX) / oldScale
+  const pointY = (container.scrollTop + containerCenterY) / oldScale
+
+  scale.value = newScale
+
+  nextTick(() => {
+    const newPointX = pointX * newScale
+    const newPointY = pointY * newScale
+    container.scrollLeft = newPointX - containerCenterX
+    container.scrollTop = newPointY - containerCenterY
+  })
 }
+
 
 // 键盘快捷键
 const handleKeydown = (event: KeyboardEvent) => {
@@ -448,18 +456,46 @@ const handleKeydown = (event: KeyboardEvent) => {
 const handleWheel = (event: WheelEvent) => {
   // 只有在按住Ctrl键时才进行缩放
   if (event.ctrlKey) {
-    event.preventDefault()
+    event.preventDefault();
+
+    const container = pdfContainer.value;
+    if (!container) return;
+
+    // 1. 获取缩放前的信息
+    const oldScale = scale.value;
+    const rect = container.getBoundingClientRect();
     
-    // 滚轮向上为负值，向下为正值
-    if (event.deltaY < 0) {
-      // 向上滚动，放大
-      zoomIn(event as any)
-    } else {
-      // 向下滚动，缩小
-      zoomOut(event as any)
-    }
+    // 鼠标在容器内的坐标 (相对于视口)
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // 鼠标指向的内容在缩放前的绝对坐标 (考虑了当前的滚动)
+    const pointX = (container.scrollLeft + mouseX) / oldScale;
+    const pointY = (container.scrollTop + mouseY) / oldScale;
+
+    // 2. 计算新的缩放比例
+    const delta = event.deltaY < 0 ? 0.15 : -0.15; // 调整缩放步长
+    const newScale = Math.max(0.25, Math.min(3, oldScale + delta));
+    
+    if (Math.abs(newScale - oldScale) < 0.001) return; // 缩放比例没有变化
+
+    scale.value = newScale;
+
+    // 3. 计算并设置新的滚动位置，以保持内容点在鼠标下
+    nextTick(() => {
+        // a. 内容点在缩放后的新绝对坐标
+        const newPointX = pointX * newScale;
+        const newPointY = pointY * newScale;
+
+        // b. 计算新的 scrollLeft/scrollTop
+        const newScrollLeft = newPointX - mouseX;
+        const newScrollTop = newPointY - mouseY;
+        
+        container.scrollLeft = newScrollLeft;
+        container.scrollTop = newScrollTop;
+    });
   }
-}
+};
 
 // 文本选择处理
 const handleTextSelection = () => {
@@ -579,8 +615,14 @@ const handleClickOutside = (event: MouseEvent) => {
 }
 
 onMounted(async () => {
-  document.addEventListener('keydown', handleKeydown)
-  document.addEventListener('wheel', handleWheel, { passive: false })
+  const viewerElement = document.querySelector('.pdf-viewer') as HTMLElement;
+  if (viewerElement) {
+    viewerElement.addEventListener('wheel', handleWheel as EventListener, { passive: false });
+    viewerElement.setAttribute('tabindex', '-1'); // 使其可聚焦
+    viewerElement.addEventListener('keydown', handleKeydown as EventListener);
+    viewerElement.focus();
+  }
+  
   document.addEventListener('click', handleClickOutside)
 
   // 加载PDF文档
@@ -588,8 +630,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  document.removeEventListener('wheel', handleWheel)
+  const viewerElement = document.querySelector('.pdf-viewer');
+  if (viewerElement) {
+    viewerElement.removeEventListener('wheel', handleWheel as EventListener);
+    viewerElement.removeEventListener('keydown', handleKeydown as EventListener);
+  }
   document.removeEventListener('click', handleClickOutside)
 })
 </script>

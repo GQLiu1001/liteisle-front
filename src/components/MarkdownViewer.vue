@@ -121,7 +121,7 @@
     <!-- 主内容区 -->
     <div class="flex-1 flex overflow-hidden" @contextmenu="handleContextMenu">
       <!-- 编辑器容器 -->
-      <div class="flex-1 overflow-hidden relative">
+      <div class="flex-1 overflow-hidden relative" ref="scaledElement">
         <div ref="vditorElement" class="h-full w-full"></div>
         
         <!-- PicGo上传状态提示 -->
@@ -210,9 +210,11 @@ const currentContent = ref(props.content || '')
 const zoomLevel = ref(1) // 添加缩放级别状态
 const showShortcuts = ref(false) // 添加快捷键提示状态
 const showOutline = ref(true) // 大纲显示状态
+const transformOrigin = ref('50% 50%') // 缩放原点
 
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
+const scaledElement = ref<HTMLElement>()
 
 // Vditor 实例和Store
 let vditor: Vditor | null = null
@@ -635,43 +637,26 @@ const handleZoom = (event: WheelEvent) => {
   // 检查是否按下 Ctrl 键
   if (event.ctrlKey) {
     event.preventDefault()
+
+    if (scaledElement.value) {
+      const rect = scaledElement.value.getBoundingClientRect()
+      const x = ((event.clientX - rect.left) / rect.width) * 100
+      const y = ((event.clientY - rect.top) / rect.height) * 100
+      transformOrigin.value = `${x.toFixed(2)}% ${y.toFixed(2)}%`
+    }
     
     // 根据滚轮方向调整缩放级别
     const delta = event.deltaY > 0 ? -0.1 : 0.1
     const newZoomLevel = Math.max(0.5, Math.min(3, zoomLevel.value + delta))
     
     zoomLevel.value = newZoomLevel
-    
-    // 应用缩放到编辑器内容区域（不包括大纲）
-    if (vditorElement.value) {
-      // 查找编辑器的主要内容区域
-      const vditorIr = vditorElement.value.querySelector('.vditor-ir .vditor-reset') as HTMLElement
-      const vditorContent = vditorElement.value.querySelector('.vditor-content .vditor-reset') as HTMLElement
-      
-      // 应用缩放到找到的内容区域
-      const targetElement = vditorIr || vditorContent
-      if (targetElement) {
-        targetElement.style.fontSize = `${newZoomLevel}rem`
-        targetElement.style.lineHeight = '1.6'
-      }
-    }
   }
 }
 
 // 重置缩放
 const resetZoom = () => {
   zoomLevel.value = 1
-  if (vditorElement.value) {
-    // 重置编辑器内容区域的缩放
-    const vditorIr = vditorElement.value.querySelector('.vditor-ir .vditor-reset') as HTMLElement
-    const vditorContent = vditorElement.value.querySelector('.vditor-content .vditor-reset') as HTMLElement
-    
-    const targetElement = vditorIr || vditorContent
-    if (targetElement) {
-      targetElement.style.fontSize = '1rem'
-      targetElement.style.lineHeight = '1.6'
-    }
-  }
+  transformOrigin.value = '50% 50%'
 }
 
 // 键盘快捷键
@@ -1142,19 +1127,23 @@ const handleClickOutside = (event: MouseEvent) => {
 
 // 生命周期
 onMounted(async () => {
+  const viewerElement = document.querySelector('.markdown-viewer') as HTMLElement;
+  if (viewerElement) {
+    viewerElement.addEventListener('wheel', handleZoom as EventListener, { passive: false });
+  }
+
   document.addEventListener('keydown', handleGlobalKeydown)
   await nextTick()
   await initVditor()
-  
-  // 添加滚轮事件监听
-  if (vditorElement.value) {
-    vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
-  }
   
   document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
+  const viewerElement = document.querySelector('.markdown-viewer');
+  if (viewerElement) {
+    viewerElement.removeEventListener('wheel', handleZoom as EventListener)
+  }
   document.removeEventListener('keydown', handleGlobalKeydown)
   if (vditorElement.value) {
     vditorElement.value.removeEventListener('wheel', handleZoom)
@@ -1246,6 +1235,9 @@ onBeforeUnmount(() => {
   margin: 0 auto !important;
   padding: 2rem !important;
   border: none !important;
+  transform-origin: center center;
+  transform: scale(v-bind(zoomLevel));
+  transition: transform 0.1s;
 }
 
 /* 工具栏样式 */
