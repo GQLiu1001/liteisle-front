@@ -42,13 +42,14 @@ export const useShareStore = defineStore('share', () => {
       isLoading.value = true
       const response = await API.share.create(data)
       
-      if (response.data) {
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const shareData = (response.data as any).data
         toast.success('分享链接创建成功')
         
         // 复制到剪贴板
         const shareText = data.is_encrypted 
-          ? `${response.data.share_token} & ${response.data.share_password}`
-          : response.data.share_token
+          ? `${shareData.share_token}&${shareData.share_password}`
+          : shareData.share_token
         
         try {
           await navigator.clipboard.writeText(shareText)
@@ -60,7 +61,7 @@ export const useShareStore = defineStore('share', () => {
         // 刷新我的分享列表
         await loadMyShares(true)
         
-        return response.data
+        return shareData
       }
       
       return null

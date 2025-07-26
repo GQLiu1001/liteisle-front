@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6 select-none">
+  <div class="min-h-full bg-liteisle-bg p-4 lg:p-6">
     <div class="max-w-7xl mx-auto">
       <!-- 移动端布局 - 垂直堆叠 -->
       <div class="lg:hidden space-y-4">

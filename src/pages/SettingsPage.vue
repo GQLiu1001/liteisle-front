@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6 select-none">
+  <div class="min-h-full bg-liteisle-bg p-6">
     <div class="max-w-7xl mx-auto">
       <div class="h-[calc(100vh-10rem)] flex gap-6">
         <!-- 第一栏：设置分类导航 -->

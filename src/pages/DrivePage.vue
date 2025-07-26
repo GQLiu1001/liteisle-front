@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-full bg-liteisle-bg p-6 select-none">
+  <div class="min-h-full bg-liteisle-bg p-6">
     <div class="max-w-7xl mx-auto">
       <div class="h-[calc(100vh-10rem)]">
         <!-- 主要内容区域 -->
@@ -173,7 +173,7 @@
 
                         <!-- 内容视图 -->
           <div
-            class="flex-1 overflow-auto select-none relative"
+            class="flex-1 overflow-auto relative"
             @contextmenu.prevent="showEmptyContextMenu"
             @mousedown="startSelection"
             ref="scrollContainer"
@@ -197,7 +197,7 @@
                 v-for="item in filteredItems"
                 :key="item.id"
                 :data-item-id="item.id"
-                class="item-card p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer select-none relative"
+                class="item-card p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer relative"
                 :class="getDragOverClass(item)"
                 @click="handleItemClick(item, $event)"
                 @dblclick="handleItemDoubleClick(item)"
@@ -309,7 +309,7 @@
                 v-for="item in filteredItems"
                 :key="item.id"
                 :data-item-id="item.id"
-                class="item-card flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer select-none"
+                class="item-card flex items-center px-4 py-3 rounded-lg border transition-all duration-200 cursor-pointer"
                 :class="getDragOverClass(item, true)"
                 @click="handleItemClick(item, $event)"
                 @dblclick="handleItemDoubleClick(item)"
@@ -1647,13 +1647,16 @@ const showRenameDialog = () => {
     renameValue.value = selectedItem.value.name
     showRenameDialogState.value = true
     
-    // 在下一个tick自动聚焦并选中文本
-    nextTick(() => {
+    // 延迟聚焦，确保DOM完全渲染
+    setTimeout(() => {
       if (renameInput.value) {
         renameInput.value.focus()
         renameInput.value.select()
+        console.log('重命名输入框已聚焦')
+      } else {
+        console.error('重命名输入框未找到')
       }
-    })
+    }, 100)
   }
   closeContextMenuOnly(); // 只关闭菜单但保留selectedItem
 }
@@ -1993,20 +1996,25 @@ const refreshItems = async () => {
   isRefreshing.value = true
   selectedItemId.value = null // 清除选中状态
   
-  // 模拟网络请求延迟
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  // 根据当前模式显示不同的刷新消息
-  if (driveStore.isInRecycleBin) {
-    console.log('回收站刷新完成')
-    toast.success('回收站刷新完成')
-  } else {
-    console.log('云盘刷新完成')
-    toast.success('云盘刷新完成')
+  try {
+    // 调用 DriveStore 的真正刷新方法
+    await driveStore.refresh()
+    
+    // 根据当前模式显示不同的刷新消息
+    if (driveStore.isInRecycleBin) {
+      console.log('回收站刷新完成')
+      toast.success('回收站刷新完成')
+    } else {
+      console.log('云盘刷新完成')
+      toast.success('云盘刷新完成')
+    }
+  } catch (error) {
+    console.error('刷新失败:', error)
+    toast.error('刷新失败，请重试')
+  } finally {
+    isRefreshing.value = false
+    hideContextMenu()
   }
-  
-  isRefreshing.value = false
-  hideContextMenu()
 }
 
 // 排序功能
@@ -2210,27 +2218,7 @@ const generateShareLink = async () => {
     const response = await shareStore.createShare(shareData)
 
     if (response) {
-      // 准备复制内容 - 使用 token&password 格式
-      let copyContent = response.share_token
-      if (response.share_password) {
-        copyContent += `&${response.share_password}`
-      }
-
-      // 复制到剪贴板
-      try {
-        await navigator.clipboard.writeText(copyContent)
-        toast.success('分享链接已复制到剪贴板')
-      } catch (err) {
-        // 降级方案
-        const textArea = document.createElement('textarea')
-        textArea.value = copyContent
-        document.body.appendChild(textArea)
-        textArea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textArea)
-        toast.success('分享链接已复制到剪贴板')
-      }
-
+      // ShareStore.createShare 已经处理了剪贴板复制，这里不需要重复操作
       // 关闭分享对话框
       closeShareDialog()
     }

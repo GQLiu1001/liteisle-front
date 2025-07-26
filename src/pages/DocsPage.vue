@@ -1,7 +1,7 @@
 <template>
   <div 
     :class="[
-      'h-full bg-liteisle-bg select-none',
+      'h-full bg-liteisle-bg',
       'p-4 lg:p-6',
       { 'pb-[10px]': docsStore.currentDocument }
     ]"
@@ -1093,7 +1093,7 @@ const showRenameDocumentDialog = () => {
   }
 }
 
-const confirmRenameDocument = () => {
+const confirmRenameDocument = async () => {
   const newName = renameDocValue.value.trim()
   if (!newName || !selectedDocument.value) return
 
@@ -1112,12 +1112,19 @@ const confirmRenameDocument = () => {
 
   const oldName = selectedDocument.value.file_name
   
-  // 调用DocsStore的重命名方法（如果有的话，或者直接修改）
-  selectedDocument.value.file_name = newName
-  
-  showRenameDocDialog.value = false
-  renameDocValue.value = ''
-  toast.success(`"${oldName}" 已重命名为 "${newName}"`)
+  try {
+    // 调用DocsStore的真正重命名方法
+    const success = await docsStore.renameDocument(selectedDocument.value.id, newName)
+    
+    if (success) {
+      showRenameDocDialog.value = false
+      renameDocValue.value = ''
+      // DocsStore 已经显示了成功提示
+    }
+  } catch (error) {
+    console.error('重命名文档失败:', error)
+    toast.error('重命名文档失败，请重试')
+  }
 }
 
 const cancelRenameDocument = () => {
@@ -1125,13 +1132,15 @@ const cancelRenameDocument = () => {
   renameDocValue.value = ''
 }
 
-const deleteDocument = () => {
+const deleteDocument = async () => {
   if (selectedDocument.value) {
     const docName = selectedDocument.value.file_name
     if (confirm(`确定要删除文档 "${docName}" 吗？`)) {
       // 调用DocsStore的删除方法
-      docsStore.deleteDocument(selectedDocument.value.id)
-      toast.success(`文档 "${docName}" 已删除`)
+      const success = await docsStore.deleteDocument(selectedDocument.value.id)
+      if (success) {
+        toast.success(`文档 "${docName}" 已删除`)
+      }
     }
   }
 }

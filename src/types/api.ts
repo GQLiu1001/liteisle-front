@@ -390,6 +390,7 @@ export interface FileStatusUpdatedEvent {
 
 export interface TransferLogUpdatedEvent {
   log_id: number
+  logId?: number // 兼容camelCase
   log_status: TransferStatusEnum
   error_message?: string
 }

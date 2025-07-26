@@ -479,14 +479,78 @@ export const useDocsStore = defineStore('docs', () => {
     searchQuery.value = ''
     lastUpdated.value = null
   }
+
+  /**
+   * 重命名文档
+   */
+  const renameDocument = async (fileId: number, newName: string): Promise<boolean> => {
+    try {
+      await API.item.rename({
+        file_id: fileId,
+        folder_id: null,
+        new_name: newName
+      })
+      
+      // 更新本地状态中的文档名称
+      const docIndex = allDocuments.value.findIndex(doc => doc.id === fileId)
+      if (docIndex > -1) {
+        allDocuments.value[docIndex].file_name = newName
+      }
+      
+      // 如果是当前选中的文档，也要更新
+      if (selectedDocument.value && selectedDocument.value.id === fileId) {
+        selectedDocument.value.file_name = newName
+      }
+      
+      toast.success('文档重命名成功')
+      return true
+    } catch (error) {
+      console.error('文档重命名失败:', error)
+      toast.error('文档重命名失败')
+      return false
+    }
+  }
+
+  /**
+   * 删除文档
+   */
+  const deleteDocument = async (fileId: number): Promise<boolean> => {
+    try {
+      await API.item.delete({
+        file_ids: [fileId],
+        folder_ids: []
+      })
+      
+      // 从本地状态中移除被删除的文档
+      allDocuments.value = allDocuments.value.filter(doc => doc.id !== fileId)
+      
+      // 如果删除的是当前选中的文档，清除选择
+      if (selectedDocument.value && selectedDocument.value.id === fileId) {
+        selectedDocument.value = null
+        currentMarkdownContent.value = ''
+        currentMarkdownVersion.value = 0
+        isMarkdownMode.value = false
+        hasUnsavedChanges.value = false
+      }
+      
+      toast.success('文档删除成功')
+      return true
+    } catch (error) {
+      console.error('删除文档失败:', error)
+      toast.error('删除文档失败')
+      return false
+    }
+  }
   
   /**
    * 从云盘加载分类（笔记本）
    */
   const loadCategoriesFromDrive = async (): Promise<void> => {
     try {
+      console.log('📄 开始刷新文档库数据...')
       isLoading.value = true
       const response = await API.document.getDocumentView()
+      console.log('📄 文档库API响应:', response)
 
       if (response.data) {
         // 检查数据结构，适配不同的响应格式
@@ -499,6 +563,7 @@ export const useDocsStore = defineStore('docs', () => {
         booklists.value = actualData.booklists || []
         allDocuments.value = actualData.files || []
         lastUpdated.value = new Date()
+        console.log('📄 文档库数据刷新完成')
       }
     } catch (error) {
       console.error('加载文档数据失败:', error)
@@ -712,6 +777,8 @@ export const useDocsStore = defineStore('docs', () => {
     loadDocumentByPath,
     setCurrentDocument,
     reorderCategories,
-    reorderDocumentsInCurrentCategory
+    reorderDocumentsInCurrentCategory,
+    renameDocument,
+    deleteDocument
   }
 }) 

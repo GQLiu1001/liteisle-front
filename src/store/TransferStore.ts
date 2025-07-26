@@ -4,6 +4,8 @@ import { API } from '@/utils/api'
 import { onTransferLogUpdated, onFileStatusUpdated, connectWebSocket } from '@/utils/websocket'
 import { useToast } from 'vue-toastification'
 import { TransferTypeEnum, TransferStatusEnum } from '@/types/api'
+import { useMusicStore } from '@/store/MusicStore' // 导入MusicStore
+import { useDocsStore } from '@/store/DocsStore' // 导入DocsStore
 import type {
   TransferSummaryResp,
   TransferLogPageResp,
@@ -21,10 +23,13 @@ export interface ExtendedTransferItem extends TransferLogItem {
   speed?: string             // 传输速度
   error_message?: string     // 错误信息
   file_path?: string         // 本地文件路径（下载任务）
+  transfer_status?: TransferStatusEnum // 任务状态
 }
 
 export const useTransferStore = defineStore('transfer', () => {
   const toast = useToast()
+  const musicStore = useMusicStore()
+  const docsStore = useDocsStore()
   
   // === 传输统计状态 ===
   const uploadCount = ref(0)
@@ -76,8 +81,8 @@ export const useTransferStore = defineStore('transfer', () => {
   const setupWebSocketListeners = () => {
     onTransferLogUpdated((payload) => {
       console.log('📋 收到传输日志更新:', payload)
-      if (payload && payload.log_id) {
-        updateTransferTaskStatus(payload.log_id, payload.log_status, payload.error_message)
+      if (payload && payload.logId) {
+        updateTransferTaskStatus(payload.logId, payload.log_status, payload.error_message)
       }
     })
 
@@ -229,10 +234,51 @@ export const useTransferStore = defineStore('transfer', () => {
         // 如果有 initial_file_data，可以在这里处理文件的初始状态
         if (uploadData.initial_file_data) {
           console.log('文件初始数据:', uploadData.initial_file_data)
-          // 这里可以根据需要更新相关的文件列表状态
+          
+          // 检查文件是否直接变成 available 状态（如文档文件）
+          const fileData = uploadData.initial_file_data
+          if (fileData.file_status === 'available') {
+            console.log('📄 文件上传后直接可用，立即检查是否需要刷新页面')
+            
+            // 检查是否为音乐文件
+            const isMusicFile = fileData.name?.endsWith('.mp3') || 
+                                fileData.name?.endsWith('.flac') || 
+                                fileData.name?.endsWith('.wav') ||
+                                fileData.name?.endsWith('.m4a') ||
+                                fileData.name?.endsWith('.aac');
+            
+            // 检查是否为文档文件
+            const isDocumentFile = fileData.name?.endsWith('.pdf') ||
+                                    fileData.name?.endsWith('.doc') ||
+                                    fileData.name?.endsWith('.docx') ||
+                                    fileData.name?.endsWith('.txt') ||
+                                    fileData.name?.endsWith('.md') ||
+                                    fileData.name?.endsWith('.xls') ||
+                                    fileData.name?.endsWith('.xlsx') ||
+                                    fileData.name?.endsWith('.ppt') ||
+                                    fileData.name?.endsWith('.pptx');
+            
+            console.log(`🎵 是否为音乐文件: ${isMusicFile}`);
+            console.log(`📄 是否为文档文件: ${isDocumentFile}`);
+            
+            if (isMusicFile) {
+              console.log('🎵 音乐文件直接可用，正在刷新音乐库...');
+              musicStore.loadPlaylistsFromDrive();
+            }
+            
+            if (isDocumentFile) {
+              console.log('📄 文档文件直接可用，正在刷新文档库...');
+              docsStore.loadCategoriesFromDrive();
+            }
+            
+            toast.success(`文件 "${fileData.name}" 上传成功`)
+          } else {
+            toast.success('文件已接收，正在后台处理')
+          }
+        } else {
+          toast.success('文件已接收，正在后台处理')
         }
 
-        toast.success('文件已接收，正在后台处理')
         return uploadData
       } else {
         console.warn('上传文件API响应格式错误:', response.data)
@@ -708,14 +754,19 @@ export const useTransferStore = defineStore('transfer', () => {
    * 更新任务进度
    */
   const updateTaskProgress = (logId: number, progress: number): void => {
-    const processingTask = processingTasks.value.find(task => task.log_id === logId)
-    if (processingTask) {
-      processingTask.progress = progress
-      console.log(`📊 更新任务进度: ${processingTask.item_name} -> ${progress}%`)
+    let task = processingTasks.value.find(t => t.log_id === logId);
+    
+    if (!task) {
+      task = completedTasks.value.find(t => t.log_id === logId);
+    }
+
+    if (task) {
+      task.progress = progress
+      console.log(`📊 更新任务进度: ${task.item_name} -> ${progress}%`)
 
       // 如果进度达到100%，任务即将完成
       if (progress === 100) {
-        console.log(`✅ 任务即将完成: ${processingTask.item_name}`)
+        console.log(`✅ 任务即将完成: ${task.item_name}`)
       }
     } else {
       console.warn(`⚠️ 未找到任务: logId=${logId}`)
@@ -730,6 +781,8 @@ export const useTransferStore = defineStore('transfer', () => {
     status: TransferStatusEnum,
     errorMessage?: string
   ): void => {
+    const musicStore = useMusicStore() // 获取MusicStore实例
+    const docsStore = useDocsStore() // 获取DocsStore实例
     const taskIndex = processingTasks.value.findIndex(task => task.log_id === logId)
     
     if (taskIndex > -1) {
@@ -738,24 +791,62 @@ export const useTransferStore = defineStore('transfer', () => {
       if (status === TransferStatusEnum.SUCCESS || 
           status === TransferStatusEnum.FAILED || 
           status === TransferStatusEnum.CANCELED) {
-        // 移动到已完成列表
+        
+        // 1. 同步地将任务从"进行中"移动到"已完成"
         processingTasks.value.splice(taskIndex, 1)
         processingPagination.value.total--
         
         const completedTask: ExtendedTransferItem = {
           ...task,
+          transfer_status: status,
           progress: status === TransferStatusEnum.SUCCESS ? 100 : task.progress || 0,
           error_message: errorMessage
         }
-        
         completedTasks.value.unshift(completedTask)
         completedPagination.value.total++
         
-        // 清理活动任务状态
+        // 2. 清理活动的传输状态
         activeUploads.value.delete(logId)
         activeDownloads.value.delete(logId)
+
+        // 3. 如果是成功的上传任务，根据文件类型刷新对应的页面
+        if (status === TransferStatusEnum.SUCCESS && task.transfer_type === TransferTypeEnum.UPLOAD) {
+          console.log(`🔍 检查上传文件: ${task.item_name}, 类型: ${task.transfer_type}, 状态: ${status}`);
+          
+          // 检查是否为音乐文件
+          const isMusicFile = task.item_name?.endsWith('.mp3') || 
+                              task.item_name?.endsWith('.flac') || 
+                              task.item_name?.endsWith('.wav') ||
+                              task.item_name?.endsWith('.m4a') ||
+                              task.item_name?.endsWith('.aac');
+          
+          // 检查是否为文档文件
+          const isDocumentFile = task.item_name?.endsWith('.pdf') ||
+                                  task.item_name?.endsWith('.doc') ||
+                                  task.item_name?.endsWith('.docx') ||
+                                  task.item_name?.endsWith('.txt') ||
+                                  task.item_name?.endsWith('.md') ||
+                                  task.item_name?.endsWith('.xls') ||
+                                  task.item_name?.endsWith('.xlsx') ||
+                                  task.item_name?.endsWith('.ppt') ||
+                                  task.item_name?.endsWith('.pptx');
+          
+          console.log(`🎵 是否为音乐文件: ${isMusicFile}`);
+          console.log(`📄 是否为文档文件: ${isDocumentFile}`);
+          
+          if (isMusicFile) {
+            console.log('🎵 音乐文件上传成功，正在刷新音乐库...');
+            musicStore.loadPlaylistsFromDrive();
+          }
+          
+          if (isDocumentFile) {
+            console.log('📄 文档文件上传成功，正在刷新文档库...');
+            docsStore.loadCategoriesFromDrive();
+          }
+        }
       } else {
-        // 更新处理中任务的状态
+        // 仅更新进行中任务的状态
+        task.transfer_status = status
         if (errorMessage) {
           task.error_message = errorMessage
         }
