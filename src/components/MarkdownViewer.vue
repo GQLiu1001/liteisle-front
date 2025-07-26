@@ -215,6 +215,10 @@ const showShortcuts = ref(false) // 添加快捷键提示状态
 const showOutline = ref(true) // 大纲显示状态
 const transformOrigin = ref('50% 50%') // 缩放原点
 
+// 缓存机制
+const documentCache = new Map<string, { content: string, version: number, timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+
 // DOM 引用
 const vditorElement = ref<HTMLElement>()
 const scaledElement = ref<HTMLElement>()
@@ -244,31 +248,65 @@ const uploadProgress = ref('')
 // 加载文档内容和版本信息
 const loadDocument = async () => {
   if (!props.filePath) return
-  
+
   try {
     const fileId = parseInt(props.filePath)
     if (isNaN(fileId)) {
       console.error('无效的文件ID:', props.filePath)
       return
     }
-    
+
+    const cacheKey = props.filePath
+    const now = Date.now()
+
+    // 检查缓存
+    const cached = documentCache.get(cacheKey)
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      console.log('使用缓存的文档内容')
+      currentContent.value = cached.content
+      currentVersion.value = cached.version
+
+      // 优化：只在 vditor 存在且内容不同时才更新
+      if (vditor && vditor.getValue() !== cached.content) {
+        console.time('缓存内容渲染')
+        try {
+          vditor.setValue(cached.content)
+          console.timeEnd('缓存内容渲染')
+        } catch (err) {
+          console.error('设置Vditor内容失败:', err)
+        }
+      }
+      return
+    }
+
+    console.time('API请求')
     const response: any = await API.document.getMarkdownContent(fileId)
+    console.timeEnd('API请求')
+
     const apiRes = response.data
     if (apiRes && apiRes.code === 200 && apiRes.data) {
       const mdData = apiRes.data
       currentContent.value = mdData.content
       currentVersion.value = mdData.version
-      
-      // 在loadDocument函数中仅在vditor已初始化时才调用setValue
-      // 更新Vditor内容
-      if (vditor) {
+
+      // 更新缓存
+      documentCache.set(cacheKey, {
+        content: mdData.content,
+        version: mdData.version,
+        timestamp: now
+      })
+
+      // 优化：只在 vditor 存在且内容不同时才更新
+      if (vditor && vditor.getValue() !== mdData.content) {
+        console.time('内容渲染')
         try {
           vditor.setValue(mdData.content)
+          console.timeEnd('内容渲染')
         } catch (err) {
-          // 如果Vditor尚未完全就绪，忽略错误
+          console.error('设置Vditor内容失败:', err)
         }
       }
-      
+
       console.log('Markdown文档加载成功，版本:', currentVersion.value)
     } else {
       console.error('Markdown文档加载失败:', apiRes?.message || '未知错误')
@@ -283,6 +321,8 @@ const initVditor = async () => {
   if (!vditorElement.value) return
 
   try {
+    console.time('Vditor初始化')
+
     // 使用全局VditorStore创建实例，确保依赖已预加载
     vditor = await vditorStore.createVditorInstance(vditorElement.value, {
       height: '100%',
@@ -295,7 +335,8 @@ const initVditor = async () => {
       preview: {
         theme: {
           current: 'light',
-          path: 'https://unpkg.com/vditor/dist/css/content-theme'
+          // 使用本地路径避免CDN延迟
+          path: '/node_modules/vditor/dist/css/content-theme'
         },
         hljs: {
           enable: true,
@@ -308,16 +349,16 @@ const initVditor = async () => {
         },
         markdown: {
           codeBlockPreview: false, // 禁用代码块预览以避免点击时的弹窗问题
-          mathBlockPreview: true, // 启用数学公式预览
-          autoSpace: true, // 自动在中西文之间添加空格
-          fixTermTypo: true, // 自动矫正术语
-          toc: true, // 支持目录
-          footnotes: true, // 支持脚注
+          mathBlockPreview: false, // 暂时禁用数学公式预览以提升性能
+          autoSpace: false, // 暂时禁用自动空格以提升性能
+          fixTermTypo: false, // 暂时禁用术语矫正以提升性能
+          toc: false, // 暂时禁用目录以提升性能
+          footnotes: false, // 暂时禁用脚注以提升性能
           paragraphBeginningSpace: false, // 段落开头不自动空格
           listStyle: true, // 启用列表样式以正确显示列表标记
           linkBase: '',
           linkPrefix: '',
-          mark: true // 支持标记高亮
+          mark: false // 暂时禁用标记高亮以提升性能
         }
       },
       toolbar: [], // 完全隐藏工具栏以获得纯净的 IR 体验
@@ -572,72 +613,47 @@ const initVditor = async () => {
         emit('update:content', value)
       },
       after: () => {
-        // 设置编辑器背景并确保焦点正确
-        setTimeout(() => {
-          const setWhiteBackground = () => {
-            const elements = document.querySelectorAll('.vditor-content, .vditor-ir, .vditor-ir .vditor-reset')
-            elements.forEach((el: any) => {
-              if (el instanceof HTMLElement) {
-                el.style.backgroundColor = 'white'
-                el.style.setProperty('background-color', 'white', 'important')
-              }
-            })
-          }
-          
-          setWhiteBackground()
-          // 定期检查并设置背景
-          const interval = setInterval(setWhiteBackground, 500)
-          setTimeout(() => clearInterval(interval), 5000)
-          
-          // 确保编辑器获得焦点和显示光标
-          if (vditor && vditorElement.value) {
-            // 监听整个编辑器区域的滚轮事件
-            const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
-            const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
-            
-            const targetElement = vditorIr || vditorContent
-            if (targetElement) {
-              targetElement.addEventListener('wheel', handleZoom, { passive: false })
+        console.timeEnd('Vditor初始化')
+        console.time('文档加载')
+
+        // 简化背景设置，只执行一次
+        const setWhiteBackground = () => {
+          const elements = document.querySelectorAll('.vditor-content, .vditor-ir, .vditor-ir .vditor-reset')
+          elements.forEach((el: any) => {
+            if (el instanceof HTMLElement) {
+              el.style.backgroundColor = 'white'
+              el.style.setProperty('background-color', 'white', 'important')
             }
-            
-                      // 延迟设置焦点确保编辑器完全加载，避免剪贴板访问干扰
+          })
+        }
+
+        // 立即设置背景，不使用轮询
+        setWhiteBackground()
+
+        // 设置滚轮事件监听
+        if (vditor && vditorElement.value) {
+          const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
+          const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
+
+          const targetElement = vditorIr || vditorContent
+          if (targetElement) {
+            targetElement.addEventListener('wheel', handleZoom, { passive: false })
+          }
+        }
+
+        // 立即加载文档内容，不延迟
+        loadDocument().then(() => {
+          console.timeEnd('文档加载')
+
+          // 延迟设置焦点，但减少延迟时间
           setTimeout(() => {
             try {
-              // 尝试聚焦到编辑器
               vditor?.focus()
-              
-              // 如果仍然没有焦点，尝试直接聚焦到编辑区域
-              const editableArea = vditorElement.value?.querySelector('.vditor-ir .vditor-reset') || 
-                                 vditorElement.value?.querySelector('.vditor-content .vditor-reset')
-              if (editableArea && editableArea instanceof HTMLElement) {
-                editableArea.focus()
-                
-                // 确保光标可见
-                if (editableArea.getAttribute('contenteditable') !== 'true') {
-                  editableArea.setAttribute('contenteditable', 'true')
-                }
-                
-                // 如果有内容，将光标移动到内容末尾
-                if (currentContent.value) {
-                  const range = document.createRange()
-                  const selection = window.getSelection()
-                  if (selection && editableArea.lastChild) {
-                    range.setStartAfter(editableArea.lastChild)
-                    range.collapse(true)
-                    selection.removeAllRanges()
-                    selection.addRange(range)
-                  }
-                }
-              }
             } catch (error) {
               // 如果焦点设置失败，不影响正常使用
             }
-          }, 500) // 增加延迟时间，确保所有初始化完成后再设置焦点
-          }
-        }, 100)
-
-        // 在编辑器完全就绪后加载文档内容
-        loadDocument().catch(err => console.error('加载文档失败:', err))
+          }, 100) // 减少延迟时间
+        }).catch(err => console.error('加载文档失败:', err))
       }
     })
   } catch (error) {
@@ -1207,6 +1223,14 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+// 监听 filePath 变化，重新加载文档
+watch(() => props.filePath, async (newFilePath, oldFilePath) => {
+  if (newFilePath && newFilePath !== oldFilePath) {
+    console.log('文档路径变化，重新加载:', newFilePath)
+    await loadDocument()
+  }
+}, { immediate: false })
+
 // 生命周期
 onMounted(async () => {
   const viewerElement = document.querySelector('.markdown-viewer') as HTMLElement;
@@ -1216,10 +1240,10 @@ onMounted(async () => {
 
   document.addEventListener('keydown', handleGlobalKeydown)
   await nextTick()
-  
+
   // 先初始化编辑器，再加载文档内容
   await initVditor() // loadDocument 会在 after 钩子里触发
-  
+
   document.addEventListener('click', handleClickOutside)
 })
 

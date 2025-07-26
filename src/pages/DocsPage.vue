@@ -47,8 +47,7 @@
 
         <!-- Markdown 展示 -->
         <div v-else-if="docsStore.selectedDocument.file_name.toLowerCase().endsWith('.md')" class="h-full">
-          <MarkdownViewer 
-            :key="docsStore.selectedDocument.id"
+          <MarkdownViewer
             :file-path="docsStore.selectedDocument.id?.toString() || ''"
             :file-name="docsStore.selectedDocument.file_name"
             v-model:content="docsStore.currentMarkdownContent"

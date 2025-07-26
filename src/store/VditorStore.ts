@@ -152,7 +152,7 @@ export const useVditorStore = defineStore('vditor', () => {
       await initializeVditor()
     }
 
-    // 创建新的Vditor实例
+    // 优化的默认配置，减少不必要的功能以提升性能
     const defaultOptions = {
       height: '100%',
       mode: 'ir',
@@ -160,11 +160,12 @@ export const useVditorStore = defineStore('vditor', () => {
       placeholder: '开始编写 Markdown...',
       theme: 'classic',
       typewriterMode: false,
-      undoDelay: 300, // 撤销延迟，以毫秒为单位，控制撤销粒度
+      undoDelay: 300,
       preview: {
         theme: {
           current: 'light',
-          path: 'https://unpkg.com/vditor/dist/css/content-theme'
+          // 使用本地路径避免CDN延迟
+          path: '/node_modules/vditor/dist/css/content-theme'
         },
         hljs: {
           enable: true,
@@ -177,16 +178,16 @@ export const useVditorStore = defineStore('vditor', () => {
         },
         markdown: {
           codeBlockPreview: false,
-          mathBlockPreview: true,
-          autoSpace: true,
-          fixTermTypo: true,
-          toc: true,
-          footnotes: true,
+          mathBlockPreview: false, // 禁用以提升性能
+          autoSpace: false, // 禁用以提升性能
+          fixTermTypo: false, // 禁用以提升性能
+          toc: false, // 禁用以提升性能
+          footnotes: false, // 禁用以提升性能
           paragraphBeginningSpace: false,
           listStyle: true,
           linkBase: '',
           linkPrefix: '',
-          mark: true
+          mark: false // 禁用以提升性能
         }
       },
       toolbar: [],
@@ -194,10 +195,10 @@ export const useVditorStore = defineStore('vditor', () => {
         enable: false
       },
       cache: {
-        enable: false
+        enable: false // 禁用缓存以避免初始化延迟
       },
       outline: {
-        enable: true,
+        enable: false, // 暂时禁用大纲以提升性能
         position: 'left'
       },
       tab: '\t',

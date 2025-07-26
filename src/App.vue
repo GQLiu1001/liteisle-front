@@ -52,16 +52,16 @@ const settingsStore = useSettingsStore()
 onMounted(async () => {
   // 初始化认证状态
   await authStore.initializeAuth()
-  
-  // 预加载 Vditor 依赖（如果方法存在）
+
+  // 预加载 Vditor 依赖，提前初始化以减少后续加载时间
   try {
-    if (typeof vditorStore.preloadDependencies === 'function') {
-      vditorStore.preloadDependencies()
-    }
+    console.time('Vditor预加载')
+    await vditorStore.initializeVditor()
+    console.timeEnd('Vditor预加载')
   } catch (error) {
     console.warn('Vditor预加载失败:', error)
   }
-  
+
   // 加载设置
   await settingsStore.loadSettings()
 })
