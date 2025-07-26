@@ -550,7 +550,7 @@
               恢复{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
             </button>
             <button
-              @click.stop="selectedItemIds.size === 1 ? deleteItem() : deleteMultipleItems()"
+              @click.stop="handleDeleteClick"
               class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
             >
               删除{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
@@ -562,7 +562,7 @@
             <!-- 打开 - 多选时禁用 -->
             <button
               :disabled="selectedItemIds.size > 1"
-              @click.stop="selectedItemIds.size === 1 ? openItem() : null"
+              @click.stop="handleOpenClick"
               :class="[
                 'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
                 selectedItemIds.size > 1 
@@ -575,7 +575,7 @@
             
             <!-- 下载 - 支持多选 -->
             <button
-              @click.stop="selectedItemIds.size === 1 ? downloadItem() : downloadMultipleItems()"
+              @click.stop="handleDownloadClick"
               class="w-full px-4 py-2 text-left text-sm text-morandi-700 hover:bg-morandi-50 flex items-center gap-2"
             >
               下载{{ selectedItemIds.size > 1 ? ` (${selectedItemIds.size})` : '' }}
@@ -584,7 +584,7 @@
             <!-- 分享 - 多选时禁用，一级文件夹也禁用 -->
             <button
               :disabled="selectedItemIds.size > 1 || isFirstLevelFolder(selectedItem)"
-              @click.stop="selectedItemIds.size === 1 && !isFirstLevelFolder(selectedItem) ? showShareDialog() : null"
+              @click.stop="handleShareClick"
               :class="[
                 'w-full px-4 py-2 text-left text-sm flex items-center gap-2',
                 selectedItemIds.size > 1 || isFirstLevelFolder(selectedItem)
@@ -975,6 +975,7 @@ import { useDriveStore } from '../store/DriveStore'
 import { useTransferStore } from '../store/TransferStore'
 import { useSettingsStore } from '../store/SettingsStore'
 import { useShareStore } from '../store/ShareStore'
+import { useContextMenuStore } from '../store/ContextMenuStore'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import type { FolderInfo, FileInfo } from '@/types/api'
@@ -1015,6 +1016,7 @@ const driveStore = useDriveStore()
 const transferStore = useTransferStore()
 const settingsStore = useSettingsStore()
 const shareStore = useShareStore()
+const contextMenuStore = useContextMenuStore()
 const router = useRouter()
 
 // 响应式数据
@@ -1608,17 +1610,136 @@ const preventHide = () => {
 }
 
 // 下载功能
-const downloadItem = () => {
-  if (selectedItem.value) {
-    const downloadDir = settingsStore.settings.downloadDirectory || 'C:\\Users\\Public\\Downloads';
-    if (selectedItem.value.type === 'folder') {
-      alert(`开始下载文件夹: ${selectedItem.value.name}\n保存至: ${downloadDir}`)
-    } else {
-      alert(`开始下载文件: ${selectedItem.value.name}\n保存至: ${downloadDir}`)
+const downloadItem = async () => {
+  if (!selectedItem.value) return
+  
+  try {
+    // 构建选择参数
+    const selection = {
+      file_ids: selectedItem.value.type === 'folder' ? [] : [selectedItem.value.id],
+      folder_id: selectedItem.value.type === 'folder' ? selectedItem.value.id : null
     }
-    console.log('下载:', selectedItem.value.name, '到:', downloadDir)
+    
+    console.log('🔽 开始下载:', selectedItem.value.name, '选择参数:', selection)
+    
+    // 创建下载会话
+    const downloadSession = await transferStore.createDownloadSession(selection)
+    
+    if (downloadSession && downloadSession.files_d && downloadSession.files_d.length > 0) {
+      // 开始下载每个文件
+      for (const fileItem of downloadSession.files_d) {
+        await transferStore.downloadFile(fileItem)
+      }
+      
+      console.log('🎉 下载任务全部启动')
+    } else {
+      toast.error('下载会话创建失败或没有可下载的文件')
+    }
+  } catch (error) {
+    console.error('下载失败:', error)
+    toast.error('下载失败，请重试')
+  } finally {
+    hideContextMenu()
   }
-  hideContextMenu()
+}
+
+// 多选下载功能
+const downloadMultipleItems = async () => {
+  if (selectedItemIds.value.size === 0) return
+  
+  try {
+    // 构建选择参数 - API只支持单个文件夹或多个文件
+    const fileIds: number[] = []
+    let folderId: number | null = null
+    
+    selectedItemIds.value.forEach(itemId => {
+      const item = filteredItems.value.find(item => item.id === itemId)
+      if (item) {
+        if (item.type === 'folder') {
+          // API只支持单个文件夹，取第一个
+          if (folderId === null) {
+            folderId = item.id
+          }
+        } else {
+          // 所有非文件夹类型（file、audio、document）都当作文件处理
+          fileIds.push(item.id)
+        }
+      }
+    })
+    
+    // 如果选择了多个文件夹，需要分别创建下载会话
+    if (folderId && fileIds.length > 0) {
+      toast.info('检测到同时选择了文件和文件夹，将分别处理')
+    }
+    
+    const selection = {
+      file_ids: fileIds.length > 0 ? fileIds : undefined,
+      folder_id: folderId
+    }
+    
+    console.log('🔽 开始多选下载:', selection)
+    
+    // 创建下载会话
+    const downloadSession = await transferStore.createDownloadSession(selection)
+    
+    if (downloadSession && downloadSession.files_d && downloadSession.files_d.length > 0) {
+      // 开始下载每个文件
+      for (const fileItem of downloadSession.files_d) {
+        await transferStore.downloadFile(fileItem)
+      }
+      
+      console.log('🎉 多选下载任务全部启动')
+    } else {
+      toast.error('下载会话创建失败或没有可下载的文件')
+    }
+  } catch (error) {
+    console.error('多选下载失败:', error)
+    toast.error('多选下载失败，请重试')
+  } finally {
+    // 清除选择状态
+    selectedItemIds.value.clear()
+  }
+}
+
+// 右键菜单点击处理函数
+const handleDownloadClick = () => {
+  // 下载操作需要selectedItem.value，所以使用closeContextMenuOnly保留状态
+  if (selectedItemIds.value.size === 1) {
+    downloadItem().then(() => {
+      selectedItem.value = null // 下载完成后清理状态
+    })
+  } else {
+    downloadMultipleItems()
+  }
+  closeContextMenuOnly() // 只关闭菜单但保留selectedItem
+}
+
+const handleOpenClick = () => {
+  // 打开操作会在内部处理菜单隐藏
+  if (selectedItemIds.value.size === 1) {
+    openItem()
+  } else {
+    hideContextMenu()
+  }
+}
+
+const handleShareClick = () => {
+  // showShareDialog内部已经处理菜单隐藏，所以这里只需要执行操作
+  if (selectedItemIds.value.size === 1 && selectedItem.value && !isFirstLevelFolder(selectedItem.value)) {
+    showShareDialog()
+  } else {
+    // 如果条件不满足，手动隐藏菜单
+    hideContextMenu()
+  }
+}
+
+const handleDeleteClick = () => {
+  // 删除操作会在内部处理菜单隐藏
+  if (selectedItemIds.value.size === 1) {
+    deleteItem()
+  } else {
+    deleteMultipleItems()
+  }
 }
 
 // 复制功能

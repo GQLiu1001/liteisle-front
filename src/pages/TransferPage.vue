@@ -54,13 +54,12 @@
                 </button>
               </div>
               <button
+                v-if="hasCompletedTasks && activeStatus === 'completed'"
                 @click="showClearConfirm = true"
-                :class="[activeStatus === 'completed' ? 'visible' : 'invisible']"
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="!hasCompletedTasks"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors shadow-sm"
               >
                 <Trash2 :size="14" />
-                <span>清空全部记录</span>
+                <span>{{ isDownloadCategory ? '清空下载记录' : '清空上传记录' }}</span>
               </button>
             </div>
 
@@ -112,7 +111,7 @@
                               <span class="ml-2 text-xs text-gray-500">处理中</span>
                             </div>
                           </div>
-                          <span v-if="activeStatus === 'progressing'">{{ task.speed }}</span>
+                          <span v-if="activeStatus === 'progressing' && task.category === 'download'">{{ task.speed || '计算中...' }}</span>
                           <span :class="getStatusClass(task)">{{ getStatusText(task) }}</span>
                         </div>
                       </div>
@@ -121,7 +120,7 @@
                       <button v-if="task.status === 'progressing'" @click="cancelTask(task.id)" class="text-gray-400 hover:text-red-500 transition-colors" title="取消任务">
                         <X :size="18" />
                       </button>
-                      <button v-if="task.status === 'completed'" @click="showDeleteConfirmDialog(task)" class="text-gray-400 hover:text-red-500 transition-colors" title="删除记录">
+                      <button v-if="task.status === 'completed'" @click="showDeleteConfirmDialog(task)" class="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="删除记录">
                         <Trash2 :size="18" />
                       </button>
                     </div>
@@ -175,20 +174,34 @@
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-96 shadow-xl">
         <h3 class="text-lg font-bold mb-2">确认删除</h3>
-        <p class="text-sm text-gray-600 mb-6">您要如何处理这条记录？</p>
+        <p class="text-sm text-gray-600 mb-6">
+          {{ taskToDelete?.category === 'download' ? '确认删除这条下载记录？' : '您要如何处理这条记录？' }}
+        </p>
         <div class="flex flex-col gap-3">
-          <button
-            @click="handleDeleteTask(true)"
-            class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            同时删除文件和记录
-          </button>
-          <button
-            @click="handleDeleteTask(false)"
-            class="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            仅删除记录
-          </button>
+          <!-- 下载记录只显示删除记录选项 -->
+          <template v-if="taskToDelete?.category === 'download'">
+            <button
+              @click="handleDeleteTask(false)"
+              class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              删除下载记录
+            </button>
+          </template>
+          <!-- 其他记录显示两个选项 -->
+          <template v-else>
+            <button
+              @click="handleDeleteTask(true)"
+              class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              同时删除文件和记录
+            </button>
+            <button
+              @click="handleDeleteTask(false)"
+              class="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              仅删除记录
+            </button>
+          </template>
         </div>
         <div class="flex justify-end mt-6">
           <button
@@ -204,15 +217,26 @@
     <!-- 清空确认对话框 -->
     <div v-if="showClearConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-96 shadow-xl">
-        <h3 class="text-lg font-bold mb-2">清空已完成记录</h3>
-        <p class="text-sm text-gray-600 mb-6">您要如何处理这些记录？此操作不可逆。</p>
+        <h3 class="text-lg font-bold mb-2">清空{{ isDownloadCategory ? '下载' : '上传' }}记录</h3>
+        <p class="text-sm text-gray-600 mb-6">
+          {{ isDownloadCategory ? '确认清空当前分类下的所有下载记录？' : '您要如何处理当前分类下的这些记录？此操作不可逆。' }}
+        </p>
         <div class="flex flex-col gap-3">
-          <button @click="handleClearCompleted(true)" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-            同时删除文件和记录
-          </button>
-          <button @click="handleClearCompleted(false)" class="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-            仅删除记录
-          </button>
+          <!-- 下载记录只显示清空记录选项 -->
+          <template v-if="isDownloadCategory">
+            <button @click="handleClearCompleted(false)" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              清空下载记录
+            </button>
+          </template>
+          <!-- 上传记录显示两个选项 -->
+          <template v-else>
+            <button @click="handleClearCompleted(true)" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              同时删除文件和记录
+            </button>
+            <button @click="handleClearCompleted(false)" class="w-full px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+              仅删除记录
+            </button>
+          </template>
         </div>
         <div class="flex justify-end mt-6">
           <button @click="showClearConfirm = false" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -361,8 +385,19 @@ const getStatusCount = (status: StatusType) => {
   ).length;
 };
 
+// 检查当前分类下是否有已完成任务
 const hasCompletedTasks = computed(() => {
-  return transferStore.completedTasks.length > 0;
+  const completedTasks = transferStore.completedTasks;
+  const currentCategoryTasks = completedTasks.filter((task: any) => {
+    const taskType = task.transfer_type?.toLowerCase();
+    return taskType === activeCategory.value;
+  });
+  return currentCategoryTasks.length > 0;
+});
+
+// 检查当前分类是否为下载
+const isDownloadCategory = computed(() => {
+  return activeCategory.value === 'download';
 });
 
 const filteredTasks = computed(() => {
@@ -377,12 +412,12 @@ const filteredTasks = computed(() => {
   const mappedTasks = storeTasks.map((task: any) => ({
     id: task.log_id || Math.random(),
     name: task.item_name || '未知文件',
-    category: task.transfer_type as CategoryType,
+    category: task.transfer_type?.toLowerCase() as CategoryType,
     status: activeStatus.value as StatusType,
     size: transferStore.formatFileSize(task.item_size || 0),
     speed: task.speed || '0 KB/s',
     progress: task.progress || 0,
-    icon: task.transfer_type === 'upload' ? Upload : Download
+    icon: task.transfer_type === 'UPLOAD' ? Upload : Download
   }))
 
   return mappedTasks.filter((t: any) =>
@@ -411,17 +446,23 @@ const handleFileSelect = async (event: Event) => {
 
 const handleClearCompleted = async (deleteFiles: boolean) => {
     try {
-        const success = await transferStore.clearCompletedTasks(deleteFiles);
+        // 根据当前分类清空对应的任务
+        const category = activeCategory.value; // 'upload' 或 'download'
+        const categoryName = isDownloadCategory.value ? '下载' : '上传';
+        
+        const success = await transferStore.clearCompletedTasks(deleteFiles, category);
         if (success) {
-            if (deleteFiles) {
-                toast.success(`已清空所有已完成记录并删除关联文件`);
+            if (deleteFiles && !isDownloadCategory.value) {
+                toast.success(`已清空所有${categoryName}记录并删除关联文件`);
             } else {
-                toast.success(`已清空所有已完成记录`);
+                toast.success(`已清空所有${categoryName}记录`);
             }
+        } else {
+            toast.error(`清空${categoryName}记录失败`);
         }
     } catch (error) {
-        console.error('清空已完成记录失败:', error);
-        toast.error('清空已完成记录失败');
+        console.error(`清空${isDownloadCategory.value ? '下载' : '上传'}记录失败:`, error);
+        toast.error(`清空${isDownloadCategory.value ? '下载' : '上传'}记录失败`);
     }
     showClearConfirm.value = false;
 };
@@ -635,7 +676,7 @@ const getStatusText = (task: any) => {
   } else if (task.progress === 100) {
     return '完成';
   } else {
-    return '上传中';
+    return task.category === 'upload' ? '上传中' : '下载中';
   }
 };
 
@@ -687,6 +728,17 @@ onMounted(async () => {
 
   // 加载传输记录
   console.log('传输页面加载，开始获取传输记录');
+  
+  // 检查是否有卡住的活跃任务状态
+  const stats = transferStore.getTransferStats()
+  console.log('📊 传输状态统计:', stats)
+  
+  // 如果有活跃任务但没有进行中的任务，可能是状态卡住了
+  if (stats.totalActive > 0 && stats.totalProcessing === 0) {
+    console.warn('⚠️ 检测到可能的状态异常：有活跃任务但无进行中任务，将自动清理')
+    transferStore.debugClearAllActiveTasks()
+  }
+  
   await transferStore.loadTransferSummary();
   await transferStore.loadTransferHistory('processing', true);
   await transferStore.loadTransferHistory('success', true);

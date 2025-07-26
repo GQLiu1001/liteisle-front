@@ -613,6 +613,7 @@ import { useMusicStore } from '../store/MusicStore'
 import { useDriveStore } from '../store/DriveStore'
 import { useTransferStore } from '../store/TransferStore'
 import { useContextMenuStore, type ContextMenuItem } from '@/store/ContextMenuStore'
+import { useDocsStore } from '@/store/DocsStore'
 import { useToast } from 'vue-toastification'
 import draggable from 'vuedraggable'
 import type { MusicFileInfo } from '@/types/api'
@@ -626,6 +627,7 @@ const musicStore = useMusicStore()
 const driveStore = useDriveStore()
 const transferStore = useTransferStore()
 const contextMenuStore = useContextMenuStore()
+const docsStore = useDocsStore()
 const toast = useToast()
 const route = useRoute()
 
@@ -697,6 +699,10 @@ const currentPlaylistsList = computed({
 
 // 拖动开始事件
 const onDragStart = (event: any) => {
+  // 清除可能的文档状态污染
+  if (docsStore.selectedDocument) {
+    docsStore.setCurrentDocument(null)
+  }
   // 开始全局拖拽监听
   startGlobalDragListening()
 };
@@ -824,6 +830,11 @@ const loadMusicFromDrive = () => {
 }
 
 onMounted(() => {
+  // 确保进入音乐页面时清除文档状态，防止PDF查看器误显示
+  if (docsStore.selectedDocument) {
+    console.log('清除文档页面状态，防止PDF误显示')
+    docsStore.setCurrentDocument(null)
+  }
   loadMusicFromDrive()
   const { playlist, song } = route.query
   // 只有没有当前播放才根据 query 设置当前播放，否则保持现有播放状态（不重置进度）

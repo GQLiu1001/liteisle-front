@@ -6,6 +6,7 @@ import { useToast } from 'vue-toastification'
 import { TransferTypeEnum, TransferStatusEnum } from '@/types/api'
 import { useMusicStore } from '@/store/MusicStore' // 导入MusicStore
 import { useDocsStore } from '@/store/DocsStore' // 导入DocsStore
+import { useSettingsStore } from '@/store/SettingsStore' // 导入SettingsStore
 import type {
   TransferSummaryResp,
   TransferLogPageResp,
@@ -30,6 +31,11 @@ export const useTransferStore = defineStore('transfer', () => {
   const toast = useToast()
   const musicStore = useMusicStore()
   const docsStore = useDocsStore()
+  const settingsStore = useSettingsStore()
+  
+  // 防抖定时器
+  let musicRefreshTimer: number | null = null
+  let docsRefreshTimer: number | null = null
   
   // === 传输统计状态 ===
   const uploadCount = ref(0)
@@ -58,7 +64,7 @@ export const useTransferStore = defineStore('transfer', () => {
   
   // === 当前活动的传输任务 ===
   const activeUploads = ref<Map<number, { file: File; progress: number; xhr?: XMLHttpRequest }>>(new Map())
-  const activeDownloads = ref<Map<number, { progress: number; controller?: AbortController }>>(new Map())
+  const activeDownloads = ref<Map<number, { progress: number; controller?: AbortController; startTime?: number }>>(new Map())
   
   // === 计算属性 ===
   const totalProcessingTasks = computed(() => processingTasks.value.length)
@@ -99,6 +105,13 @@ export const useTransferStore = defineStore('transfer', () => {
         if (payload.transferStatus) {
           console.log(`🔄 更新任务状态: logId=${payload.logId}, status=${payload.transferStatus}`)
           updateTransferTaskStatus(payload.logId, payload.transferStatus, payload.errorMessage)
+          
+          // 如果任务完成（成功或失败），确保清理活跃任务状态
+          if (payload.transferStatus === 'success' || payload.transferStatus === 'failed') {
+            console.log(`🧹 WebSocket完成清理: logId=${payload.logId}, status=${payload.transferStatus}`)
+            activeUploads.value.delete(payload.logId)
+            activeDownloads.value.delete(payload.logId)
+          }
         }
       }
     })
@@ -227,6 +240,14 @@ export const useTransferStore = defineStore('transfer', () => {
         }
 
         processingTasks.value.unshift(newTask)
+        
+        // 添加到活跃上传任务列表以触发左边栏高亮
+        activeUploads.value.set(uploadData.log_id, {
+          file,
+          progress: 0
+        })
+        
+        console.log(`📤 上传任务添加: ${file.name}, logId=${uploadData.log_id}, 活跃任务数=${totalActiveTasks.value}`)
 
         // 更新统计
         uploadCount.value++
@@ -262,13 +283,29 @@ export const useTransferStore = defineStore('transfer', () => {
             console.log(`📄 是否为文档文件: ${isDocumentFile}`);
             
             if (isMusicFile) {
-              console.log('🎵 音乐文件直接可用，正在刷新音乐库...');
-              musicStore.loadPlaylistsFromDrive();
+              console.log('🎵 音乐文件直接可用，正在安排刷新音乐库...');
+              // 使用防抖机制，避免频繁刷新
+              if (musicRefreshTimer) {
+                clearTimeout(musicRefreshTimer)
+              }
+              musicRefreshTimer = setTimeout(() => {
+                console.log('🎵 执行音乐库刷新');
+                musicStore.loadPlaylistsFromDrive();
+                musicRefreshTimer = null
+              }, 500) // 500ms防抖延迟
             }
             
             if (isDocumentFile) {
-              console.log('📄 文档文件直接可用，正在刷新文档库...');
-              docsStore.loadCategoriesFromDrive();
+              console.log('📄 文档文件直接可用，正在安排刷新文档库...');
+              // 使用防抖机制，避免频繁刷新
+              if (docsRefreshTimer) {
+                clearTimeout(docsRefreshTimer)
+              }
+              docsRefreshTimer = setTimeout(() => {
+                console.log('📄 执行文档库刷新');
+                docsStore.loadCategoriesFromDrive();
+                docsRefreshTimer = null
+              }, 500) // 500ms防抖延迟
             }
             
             toast.success(`文件 "${fileData.name}" 上传成功`)
@@ -509,31 +546,44 @@ export const useTransferStore = defineStore('transfer', () => {
   ): Promise<DownloadSessionResp | null> => {
     try {
       const response = await API.download.createDownloadSession(selection)
+      console.log('📥 下载会话API响应:', response)
       
-      if (response.data) {
+      if (response.data && (response.data as any).code === 200 && (response.data as any).data) {
+        const downloadData = (response.data as any).data
+        console.log('📥 下载会话数据:', downloadData)
+        
         // 为每个文件创建下载任务记录
-        response.data.files_d.forEach(fileItem => {
-          const newTask: ExtendedTransferItem = {
-            log_id: fileItem.log_id,
-            item_name: fileItem.file_name,
-            item_size: fileItem.size,
-            transfer_type: TransferTypeEnum.DOWNLOAD,
-            create_time: new Date().toISOString(),
-            progress: 0,
-            file_path: fileItem.relative_path
-          }
+        if (downloadData.files_d && Array.isArray(downloadData.files_d)) {
+          downloadData.files_d.forEach((fileItem: any) => {
+            const newTask: ExtendedTransferItem = {
+              log_id: fileItem.log_id,
+              item_name: fileItem.file_name,
+              item_size: fileItem.size,
+              transfer_type: TransferTypeEnum.DOWNLOAD,
+              create_time: new Date().toISOString(),
+              progress: 0,
+              file_path: fileItem.relative_path,
+              speed: '0 KB/s' // 初始化速度
+            }
+            
+            processingTasks.value.unshift(newTask)
+          })
           
-          processingTasks.value.unshift(newTask)
-        })
-        
-        // 更新统计
-        downloadCount.value += (response.data.files_d || []).length
-        
-        toast.success(`创建了 ${(response.data.files_d || []).length} 个下载任务`)
-        return response.data
+          // 更新统计
+          downloadCount.value += downloadData.files_d.length
+          
+          toast.success(`创建了 ${downloadData.files_d.length} 个下载任务`)
+          return downloadData
+        } else {
+          console.warn('下载会话响应中没有files_d字段或不是数组:', downloadData)
+          toast.error('下载会话响应格式错误')
+          return null
+        }
+      } else {
+        console.warn('下载会话API响应格式错误:', response.data)
+        toast.error((response.data as any)?.message || '创建下载会话失败')
+        return null
       }
-      
-      return null
     } catch (error) {
       console.error('创建下载会话失败:', error)
       toast.error('创建下载会话失败')
@@ -551,10 +601,12 @@ export const useTransferStore = defineStore('transfer', () => {
     try {
       const controller = new AbortController()
       
-      // 记录下载状态
+      // 记录下载状态和开始时间
+      const startTime = Date.now()
       activeDownloads.value.set(downloadItem.log_id, {
         progress: 0,
-        controller
+        controller,
+        startTime
       })
       
       const response = await fetch(downloadItem.download_url, {
@@ -579,29 +631,81 @@ export const useTransferStore = defineStore('transfer', () => {
         chunks.push(value)
         receivedLength += value.length
         
-        // 更新进度
+        // 更新进度和速度
         const progress = contentLength > 0 ? (receivedLength / contentLength) * 100 : 0
         const downloadState = activeDownloads.value.get(downloadItem.log_id)
         if (downloadState) {
           downloadState.progress = progress
+          
+          // 计算下载速度
+          if (downloadState.startTime) {
+            const elapsedTime = (Date.now() - downloadState.startTime) / 1000 // 秒
+            const speed = elapsedTime > 0 ? receivedLength / elapsedTime : 0 // 字节/秒
+            const speedText = formatTransferSpeed(speed)
+            
+            // 更新任务中的速度信息
+            const taskIndex = processingTasks.value.findIndex(task => task.log_id === downloadItem.log_id)
+            if (taskIndex > -1) {
+              processingTasks.value[taskIndex].speed = speedText
+            }
+          }
         }
         
         // 更新任务列表中的进度
         updateTaskProgress(downloadItem.log_id, progress)
+        
+        // 移除延迟，提升下载速度
       }
       
-             // 合并数据
-       const blob = new Blob(chunks as BlobPart[])
+                   // 合并数据
+      const blob = new Blob(chunks as BlobPart[])
       
-      // 触发下载
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = downloadItem.file_name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // 使用用户配置的下载目录
+      const downloadDirectory = settingsStore.settings.downloadDirectory || 'C:\\Users\\Public\\Downloads'
+      console.log(`📁 下载到目录: ${downloadDirectory}`)
+      
+      // 检查是否在Electron环境中
+      if (window.electronAPI && window.electronAPI.saveFileToDirectory) {
+        // Electron环境：保存到指定目录
+        try {
+          const arrayBuffer = await blob.arrayBuffer()
+          const result = await window.electronAPI.saveFileToDirectory({
+            fileName: downloadItem.file_name,
+            arrayBuffer,
+            downloadDirectory
+          })
+          
+          if (result.success) {
+            console.log(`✅ 文件已保存到: ${result.filePath}`)
+            toast.success(`文件已下载到: ${downloadDirectory}`)
+          } else {
+            throw new Error(result.error || '保存文件失败')
+          }
+        } catch (electronError) {
+          console.error('Electron下载失败，回退到浏览器下载:', electronError)
+          // 回退到浏览器下载
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = downloadItem.file_name
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          toast.success(`文件已下载到浏览器默认目录`)
+        }
+      } else {
+        // 浏览器环境：使用默认下载
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = downloadItem.file_name
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        toast.success(`文件已下载到浏览器默认目录`)
+      }
       
       // 更新任务状态为成功
       await updateTransferStatus(downloadItem.log_id, {
@@ -611,6 +715,15 @@ export const useTransferStore = defineStore('transfer', () => {
       
       // 清理下载状态
       activeDownloads.value.delete(downloadItem.log_id)
+      
+      // 延迟后自动移除已完成的下载任务
+      setTimeout(() => {
+        const taskIndex = processingTasks.value.findIndex(task => task.log_id === downloadItem.log_id)
+        if (taskIndex > -1) {
+          processingTasks.value.splice(taskIndex, 1)
+          console.log(`🗑️ 已自动清除下载记录: ${downloadItem.file_name}`)
+        }
+      }, 3000) // 3秒后清除
       
       toast.success(`"${downloadItem.file_name}" 下载完成`)
       return true
@@ -625,6 +738,15 @@ export const useTransferStore = defineStore('transfer', () => {
       
       // 清理下载状态
       activeDownloads.value.delete(downloadItem.log_id)
+      
+      // 延迟后自动移除失败的下载任务
+      setTimeout(() => {
+        const taskIndex = processingTasks.value.findIndex(task => task.log_id === downloadItem.log_id)
+        if (taskIndex > -1) {
+          processingTasks.value.splice(taskIndex, 1)
+          console.log(`🗑️ 已自动清除失败的下载记录: ${downloadItem.file_name}`)
+        }
+      }, 5000) // 失败的任务5秒后清除，让用户有时间看到错误
       
       toast.error(`"${downloadItem.file_name}" 下载失败`)
       return false
@@ -733,19 +855,37 @@ export const useTransferStore = defineStore('transfer', () => {
   /**
    * 清空已完成的传输记录
    */
-  const clearCompletedTasks = async (deleteFile = false): Promise<boolean> => {
+  const clearCompletedTasks = async (deleteFile = false, category?: string): Promise<boolean> => {
     try {
       await API.transfer.clearCompleted(deleteFile)
       
-      const count = completedTasks.value.length
-      completedTasks.value = []
-      completedPagination.value.total = 0
+      let tasksToRemove = completedTasks.value
       
-      toast.success(`已清空 ${count} 条已完成的记录`)
+      // 如果指定了分类，只清空该分类的任务
+      if (category) {
+        tasksToRemove = completedTasks.value.filter(task => {
+          const taskType = task.transfer_type?.toLowerCase()
+          return taskType === category
+        })
+        
+        // 从已完成任务中移除指定分类的任务
+        completedTasks.value = completedTasks.value.filter(task => {
+          const taskType = task.transfer_type?.toLowerCase()
+          return taskType !== category
+        })
+      } else {
+        // 清空所有已完成任务
+        completedTasks.value = []
+      }
+      
+      const count = tasksToRemove.length
+      completedPagination.value.total = Math.max(0, completedPagination.value.total - count)
+      
+      const categoryText = category ? (category === 'download' ? '下载' : '上传') : '已完成'
+      // 不显示toast，让调用者处理
       return true
     } catch (error) {
       console.error('清空已完成记录失败:', error)
-      toast.error('清空已完成记录失败')
       return false
     }
   }
@@ -806,8 +946,12 @@ export const useTransferStore = defineStore('transfer', () => {
         completedPagination.value.total++
         
         // 2. 清理活动的传输状态
+        const wasActiveUpload = activeUploads.value.has(logId)
+        const wasActiveDownload = activeDownloads.value.has(logId)
         activeUploads.value.delete(logId)
         activeDownloads.value.delete(logId)
+        
+        console.log(`🧹 任务状态更新清理: logId=${logId}, 上传任务=${wasActiveUpload}, 下载任务=${wasActiveDownload}, 剩余活跃任务=${totalActiveTasks.value}`)
 
         // 3. 如果是成功的上传任务，根据文件类型刷新对应的页面
         if (status === TransferStatusEnum.SUCCESS && task.transfer_type === TransferTypeEnum.UPLOAD) {
@@ -835,13 +979,29 @@ export const useTransferStore = defineStore('transfer', () => {
           console.log(`📄 是否为文档文件: ${isDocumentFile}`);
           
           if (isMusicFile) {
-            console.log('🎵 音乐文件上传成功，正在刷新音乐库...');
-            musicStore.loadPlaylistsFromDrive();
+            console.log('🎵 音乐文件上传成功，正在安排刷新音乐库...');
+            // 使用防抖机制，避免频繁刷新
+            if (musicRefreshTimer) {
+              clearTimeout(musicRefreshTimer)
+            }
+            musicRefreshTimer = setTimeout(() => {
+              console.log('🎵 执行音乐库刷新');
+              musicStore.loadPlaylistsFromDrive();
+              musicRefreshTimer = null
+            }, 500) // 500ms防抖延迟
           }
           
           if (isDocumentFile) {
-            console.log('📄 文档文件上传成功，正在刷新文档库...');
-            docsStore.loadCategoriesFromDrive();
+            console.log('📄 文档文件上传成功，正在安排刷新文档库...');
+            // 使用防抖机制，避免频繁刷新
+            if (docsRefreshTimer) {
+              clearTimeout(docsRefreshTimer)
+            }
+            docsRefreshTimer = setTimeout(() => {
+              console.log('📄 执行文档库刷新');
+              docsStore.loadCategoriesFromDrive();
+              docsRefreshTimer = null
+            }, 500) // 500ms防抖延迟
           }
         }
       } else {
@@ -957,6 +1117,36 @@ export const useTransferStore = defineStore('transfer', () => {
     // === 工具方法 ===
     formatFileSize,
     formatTransferSpeed,
-    reset
+    reset,
+    
+    // === 获取统计信息 ===
+    getTransferStats: () => {
+      return {
+        totalProcessing: totalProcessingTasks.value,
+        totalCompleted: totalCompletedTasks.value,
+        totalActive: totalActiveTasks.value,
+        hasAnyTasks: hasTasks.value
+      }
+    },
+    
+    // === 内部清理方法 ===
+    clearRefreshTimers: () => {
+      if (musicRefreshTimer) {
+        clearTimeout(musicRefreshTimer)
+        musicRefreshTimer = null
+      }
+      if (docsRefreshTimer) {
+        clearTimeout(docsRefreshTimer)
+        docsRefreshTimer = null
+      }
+    },
+    
+    // === 调试方法 ===
+    debugClearAllActiveTasks: () => {
+      console.log(`🚨 手动清理所有活跃任务: 上传=${activeUploads.value.size}, 下载=${activeDownloads.value.size}`)
+      activeUploads.value.clear()
+      activeDownloads.value.clear()
+      console.log(`✅ 清理完成, 剩余活跃任务=${totalActiveTasks.value}`)
+    }
   }
 }) 

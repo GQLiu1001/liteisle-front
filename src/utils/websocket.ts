@@ -170,17 +170,19 @@ class WebSocketManager {
     const handlers = this.eventHandlers.get(message.event as WebSocketEventType)
 
     if (handlers) {
-      console.log(`📢 找到 ${handlers.size} 个事件处理器`)
-      handlers.forEach(handler => {
+      console.log(`📢 找到 ${handlers.size} 个事件处理器 for ${message.event}`)
+      handlers.forEach((handler, index) => {
         try {
+          console.log(`🎯 执行处理器 ${index + 1}/${handlers.size}:`, message.event)
           // 使用 message.data 而不是 message.payload
           handler(message.data || message.payload)
         } catch (error) {
-          console.error('WebSocket事件处理器错误:', error)
+          console.error(`WebSocket事件处理器错误 (${index + 1}):`, error)
         }
       })
     } else {
-      console.warn('⚠️ 没有找到事件处理器:', message.event)
+      console.warn(`❌ 未找到事件处理器: ${message.event}`)
+      console.log('📋 当前已注册的事件:', Array.from(this.eventHandlers.keys()))
     }
   }
 

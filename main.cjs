@@ -261,4 +261,30 @@ ipcMain.handle('get-username', () => {
     console.error('获取用户名失败:', error)
     return 'YourUsername'
   }
+})
+
+// 保存文件到指定目录
+ipcMain.handle('save-file-to-directory', async (event, { fileName, arrayBuffer, downloadDirectory }) => {
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    
+    // 确保下载目录存在
+    if (!fs.existsSync(downloadDirectory)) {
+      fs.mkdirSync(downloadDirectory, { recursive: true })
+    }
+    
+    // 构建完整文件路径
+    const filePath = path.join(downloadDirectory, fileName)
+    
+    // 写入文件
+    const buffer = Buffer.from(arrayBuffer)
+    fs.writeFileSync(filePath, buffer)
+    
+    console.log(`文件已保存到: ${filePath}`)
+    return { success: true, filePath }
+  } catch (error) {
+    console.error('保存文件失败:', error)
+    return { success: false, error: error.message }
+  }
 }) 

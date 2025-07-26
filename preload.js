@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // 文件系统操作
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  saveFileToDirectory: (data) => ipcRenderer.invoke('save-file-to-directory', data),
   
   // 系统信息
   getUsername: () => ipcRenderer.invoke('get-username')

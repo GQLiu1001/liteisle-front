@@ -291,7 +291,7 @@
 import { ref, computed } from 'vue'
 import { Repeat1, Shuffle, Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, List, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { useMusicStore } from '../store/MusicStore'
-import { useDocsStore } from '@/store/DocsStore'
+// 移除不必要的DocsStore导入
 import { useRoute, useRouter } from 'vue-router'
 import { useUIStore } from '@/store/UIStore'
 import { storeToRefs } from 'pinia'
@@ -308,10 +308,9 @@ const showPlaylistPanel = ref(false)
 const showPlaylistSelector = ref(false)
 const showFullMusicBar = ref(false)
 
-// 文档页面检测 - 通过 DocsStore 检查是否有当前文档
-const docsStore = useDocsStore()
+// 文档页面检测 - 通过路由信息判断页面
 const isDocumentPage = computed(() => {
-  return !!docsStore.selectedDocument
+  return route.path === '/docs'
 })
 
 // 菜单引用

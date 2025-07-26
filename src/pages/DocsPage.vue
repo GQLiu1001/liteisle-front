@@ -7,8 +7,8 @@
     ]"
   >
     <div class="mx-auto h-full">
-      <!-- 详情视图 -->
-      <div v-if="docsStore.selectedDocument" class="h-full rounded-2xl bg-white shadow-lg">
+      <!-- 详情视图 - 只在文档页面显示 -->
+      <div v-if="docsStore.selectedDocument && route.path === '/docs'" class="h-full rounded-2xl bg-white shadow-lg">
         <!-- PDF 展示 -->
         <div v-if="docsStore.selectedDocument.file_name.toLowerCase().endsWith('.pdf')" class="h-full">
           <PDFViewer 

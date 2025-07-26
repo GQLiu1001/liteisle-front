@@ -10,6 +10,7 @@ export interface ElectronAPI {
   
   // 文件系统操作
   selectDirectory: () => Promise<Electron.OpenDialogReturnValue>;
+  saveFileToDirectory: (data: { fileName: string; arrayBuffer: ArrayBuffer; downloadDirectory: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
 
   // 窗口状态监听
   onMaximize: (callback: () => void) => void;
