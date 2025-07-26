@@ -448,40 +448,47 @@ const handleRegister = async () => {
 const handleForgotPassword = async () => {
   // 验证密码确认
   if (forgotForm.newPassword !== forgotForm.confirmPassword) {
-    alert('两次输入的密码不一致，请重新输入')
+    toast.error('两次输入的密码不一致，请重新输入')
     return
   }
-  
+
   if (forgotForm.newPassword.length < 6) {
-    alert('密码长度不能少于6位')
+    toast.error('密码长度不能少于6位')
     return
   }
-  
+
+  if (!forgotForm.username || !forgotForm.email || !forgotForm.verificationCode) {
+    toast.error('请填写完整信息')
+    return
+  }
+
   try {
-    await authStore.forgotPassword({
+    const success = await authStore.forgotPassword({
       username: forgotForm.username,
       email: forgotForm.email,
-      verificationCode: forgotForm.verificationCode,
-      newPassword: forgotForm.newPassword,
-      confirmPassword: forgotForm.confirmPassword
+      vcode: forgotForm.verificationCode,
+      new_password: forgotForm.newPassword,
+      confirm_password: forgotForm.confirmPassword
     })
-    
-    alert(`密码重置成功！\n用户名：${forgotForm.username}\n请使用新密码登录`)
-    
-    // 重置成功后切换到登录页面
-    activeTab.value = 'login'
-    loginForm.username = forgotForm.username
-    
-    // 清空忘记密码表单
-    Object.assign(forgotForm, {
-      username: '',
-      email: '',
-      verificationCode: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
+
+    if (success) {
+      toast.success(`密码重置成功！请使用新密码登录`)
+
+      // 重置成功后切换到登录页面
+      activeTab.value = 'login'
+      loginForm.username = forgotForm.username
+
+      // 清空忘记密码表单
+      Object.assign(forgotForm, {
+        username: '',
+        email: '',
+        verificationCode: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+    }
   } catch (error) {
-    alert(`重置密码失败：${error instanceof Error ? error.message : '未知错误'}\n演示验证码：123456`)
+    console.error('重置密码失败:', error)
   }
 }
 

@@ -210,24 +210,18 @@
               
               <!-- 操作按钮 -->
               <div class="flex gap-3">
-                <button 
+                <button
                   @click="showChangePasswordDialog = true"
                   class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm"
                 >
                   修改密码
                 </button>
-                <button 
+                <button
                   v-if="authStore.user?.avatar"
                   @click="resetUserPicture"
                   class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
                 >
                   恢复默认头像
-                </button>
-                <button 
-                  @click="handleLogout"
-                  class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-                >
-                  退出登录
                 </button>
               </div>
             </div>
@@ -558,15 +552,7 @@ const resetUserPicture = async () => {
   }
 };
 
-// 退出登录
-const handleLogout = async () => {
-  if (!confirm('确定退出登录?')) return
-  try {
-    await API.auth.logout()
-  } catch {}
-  localStorage.removeItem('access_token')
-  window.location.href = '#/login'
-}
+
 
 // 修改密码对话框提交
 const submitPasswordChange = async () => {

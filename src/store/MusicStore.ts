@@ -45,10 +45,21 @@ export const useMusicStore = defineStore('music', () => {
   const isMuted = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
+
+  // 随机播放历史记录（避免短时间内重复播放）
+  const shuffleHistory = ref<number[]>([])
+  const maxHistorySize = 10 // 最多记录最近播放的10首歌
   
   // === HTML Audio元素 ===
   const audio = ref<HTMLAudioElement | null>(null)
   let progressTimer: number | null = null
+
+  // 切换歌曲防抖
+  let lastTrackChangeTime = 0
+  const TRACK_CHANGE_DEBOUNCE = 50 // 50ms 防抖，更快响应
+
+  // 播放URL缓存
+  const playUrlCache = new Map<number, string>()
   
   // === 计算属性 ===
   const sortedPlaylists = computed(() => {
@@ -169,7 +180,11 @@ export const useMusicStore = defineStore('music', () => {
     
     if (!audio.value) {
       audio.value = new Audio()
-      
+
+      // 优化音频元素设置
+      audio.value.preload = 'auto' // 自动预加载
+      audio.value.volume = volume.value
+
       // 音频事件监听
       audio.value.addEventListener('loadstart', () => {
         playState.value = PlayState.LOADING
@@ -212,6 +227,75 @@ export const useMusicStore = defineStore('music', () => {
   }
   
   /**
+   * 获取播放URL（带缓存）
+   */
+  const getPlayUrl = async (trackId: number): Promise<string | null> => {
+    // 检查缓存
+    if (playUrlCache.has(trackId)) {
+      return playUrlCache.get(trackId)!
+    }
+
+    try {
+      const response = await API.music.getPlayUrl(trackId)
+      console.log('播放URL API响应:', response)
+
+      const responseData = response.data as any
+      if (responseData.code === 200 && responseData.data) {
+        // 缓存URL（5分钟过期）
+        playUrlCache.set(trackId, responseData.data)
+        setTimeout(() => {
+          playUrlCache.delete(trackId)
+        }, 5 * 60 * 1000)
+
+        return responseData.data
+      }
+    } catch (error) {
+      console.error('获取播放URL失败:', error)
+    }
+
+    return null
+  }
+
+  /**
+   * 预加载播放URL
+   */
+  const preloadPlayUrl = async (trackId: number): Promise<void> => {
+    // 如果已经缓存，不需要预加载
+    if (playUrlCache.has(trackId)) {
+      return
+    }
+
+    try {
+      await getPlayUrl(trackId)
+    } catch (error) {
+      // 预加载失败不影响主流程
+      console.warn('预加载播放URL失败:', error)
+    }
+  }
+
+  /**
+   * 预加载相邻歌曲
+   */
+  const preloadAdjacentTracks = (): void => {
+    const tracks = currentPlaylistTracks.value
+    const currentIndex = currentTrackIndex.value
+
+    if (tracks.length === 0 || currentIndex === -1) return
+
+    // 预加载下一首
+    const nextIndex = (currentIndex + 1) % tracks.length
+    if (tracks[nextIndex]) {
+      preloadPlayUrl(tracks[nextIndex].id)
+    }
+
+    // 预加载上一首
+    const prevIndex = currentIndex === 0 ? tracks.length - 1 : currentIndex - 1
+    if (tracks[prevIndex]) {
+      preloadPlayUrl(tracks[prevIndex].id)
+    }
+  }
+
+  /**
    * 播放指定歌曲
    */
   const playTrack = async (track: MusicFileInfo, playlist?: FolderInfo): Promise<void> => {
@@ -223,47 +307,59 @@ export const useMusicStore = defineStore('music', () => {
       stopProgressTimer()
       playState.value = PlayState.STOPPED
     }
+
     try {
       if (playlist) {
         currentPlaylist.value = playlist
       }
 
       currentTrack.value = track
-      
-      // 设置为加载状态
+
+      // 立即设置为加载状态
       playState.value = PlayState.LOADING
 
       if (!audio.value) {
         initializeAudio()
       }
 
-      // 获取播放URL
-      const response = await API.music.getPlayUrl(track.id)
-      console.log('播放URL API响应:', response)
+      // 获取播放URL（可能来自缓存）
+      const playUrl = await getPlayUrl(track.id)
 
-      if (response.data && response.data.code === 200 && response.data.data && audio.value) {
-        audio.value.src = response.data.data
+      if (playUrl && audio.value) {
+        // 立即设置音频源
+        audio.value.src = playUrl
         audio.value.currentTime = 0
-        try {
-          await audio.value.play()
-          // 播放成功后才设置为播放状态
+
+        // 立即尝试播放，不等待
+        audio.value.play().then(() => {
+          // 播放成功后设置状态
           playState.value = PlayState.PLAYING
           startProgressTimer()
           console.log('音频开始播放，状态设置为PLAYING')
-        } catch (playError) {
+
+          // 预加载相邻歌曲
+          setTimeout(() => {
+            preloadAdjacentTracks()
+          }, 500) // 500ms后开始预加载
+        }).catch((playError) => {
           console.error('播放失败:', playError)
           playState.value = PlayState.STOPPED
-          toast.error('播放失败')
-        }
+          // 只在非中断错误时显示提示
+          if (playError instanceof Error && !playError.message.includes('interrupted')) {
+            toast.error('播放失败')
+          }
+        })
       } else {
-        console.warn('获取播放URL失败:', response.data)
-        toast.error(response.data?.message || '获取播放链接失败')
+        console.warn('获取播放URL失败')
+        toast.error('获取播放链接失败')
         playState.value = PlayState.STOPPED
       }
     } catch (error) {
       console.error('播放失败:', error)
-      toast.error('播放失败')
       playState.value = PlayState.STOPPED
+      if (error instanceof Error && !error.message.includes('interrupted')) {
+        toast.error('播放失败')
+      }
     }
   }
   
@@ -321,17 +417,72 @@ export const useMusicStore = defineStore('music', () => {
   }
   
   /**
+   * 智能随机选择：避免重复播放最近播放过的歌曲
+   */
+  const getSmartRandomIndex = (tracks: MusicFileInfo[], currentIndex: number): number => {
+    if (tracks.length <= 1) {
+      return currentIndex
+    }
+
+    // 如果歌曲数量较少，只避免当前歌曲
+    if (tracks.length <= 3) {
+      let randomIndex: number
+      do {
+        randomIndex = Math.floor(Math.random() * tracks.length)
+      } while (randomIndex === currentIndex)
+      return randomIndex
+    }
+
+    // 对于较多歌曲，避免最近播放过的歌曲
+    const availableIndices = []
+    for (let i = 0; i < tracks.length; i++) {
+      if (i !== currentIndex && !shuffleHistory.value.includes(i)) {
+        availableIndices.push(i)
+      }
+    }
+
+    // 如果所有歌曲都在历史记录中，清空历史记录重新开始
+    if (availableIndices.length === 0) {
+      shuffleHistory.value = []
+      for (let i = 0; i < tracks.length; i++) {
+        if (i !== currentIndex) {
+          availableIndices.push(i)
+        }
+      }
+    }
+
+    // 随机选择一个可用的索引
+    const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)]
+
+    // 更新历史记录
+    shuffleHistory.value.push(randomIndex)
+    if (shuffleHistory.value.length > maxHistorySize) {
+      shuffleHistory.value.shift() // 移除最旧的记录
+    }
+
+    return randomIndex
+  }
+
+  /**
    * 下一首
    */
   const nextTrack = async (): Promise<void> => {
+    // 简单防抖：避免过快的连续点击
+    const now = Date.now()
+    if (now - lastTrackChangeTime < TRACK_CHANGE_DEBOUNCE) {
+      console.log('下一首操作被防抖限制')
+      return
+    }
+    lastTrackChangeTime = now
+
     const tracks = currentPlaylistTracks.value
     if (tracks.length === 0) return
-    
+
     let nextIndex: number
-    
+
     switch (playMode.value) {
       case PlayMode.SHUFFLE:
-        nextIndex = Math.floor(Math.random() * tracks.length)
+        nextIndex = getSmartRandomIndex(tracks, currentTrackIndex.value)
         break
       case PlayMode.REPEAT:
         nextIndex = currentTrackIndex.value
@@ -342,7 +493,7 @@ export const useMusicStore = defineStore('music', () => {
           nextIndex = 0 // 循环到第一首
         }
     }
-    
+
     const nextTrack = tracks[nextIndex]
     if (nextTrack) {
       await playTrack(nextTrack)
@@ -353,14 +504,22 @@ export const useMusicStore = defineStore('music', () => {
    * 上一首
    */
   const previousTrack = async (): Promise<void> => {
+    // 简单防抖：避免过快的连续点击
+    const now = Date.now()
+    if (now - lastTrackChangeTime < TRACK_CHANGE_DEBOUNCE) {
+      console.log('上一首操作被防抖限制')
+      return
+    }
+    lastTrackChangeTime = now
+
     const tracks = currentPlaylistTracks.value
     if (tracks.length === 0) return
-    
+
     let prevIndex: number
-    
+
     switch (playMode.value) {
       case PlayMode.SHUFFLE:
-        prevIndex = Math.floor(Math.random() * tracks.length)
+        prevIndex = getSmartRandomIndex(tracks, currentTrackIndex.value)
         break
       case PlayMode.REPEAT:
         prevIndex = currentTrackIndex.value
@@ -371,7 +530,7 @@ export const useMusicStore = defineStore('music', () => {
           prevIndex = tracks.length - 1 // 循环到最后一首
         }
     }
-    
+
     const prevTrack = tracks[prevIndex]
     if (prevTrack) {
       await playTrack(prevTrack)
@@ -382,7 +541,13 @@ export const useMusicStore = defineStore('music', () => {
    * 设置播放模式
    */
   const setPlayMode = (mode: PlayMode): void => {
+    const oldMode = playMode.value
     playMode.value = mode
+
+    // 如果切换到或从随机播放模式，清空历史记录
+    if (oldMode === PlayMode.SHUFFLE || mode === PlayMode.SHUFFLE) {
+      shuffleHistory.value = []
+    }
   }
   
   /**
@@ -432,6 +597,9 @@ export const useMusicStore = defineStore('music', () => {
   const selectPlaylist = async (playlist: FolderInfo): Promise<void> => {
     console.log('选择歌单:', playlist)
     currentPlaylist.value = playlist
+
+    // 清空随机播放历史记录，为新播放列表提供干净的开始
+    shuffleHistory.value = []
 
     // 重新加载音乐数据以获取最新的歌曲列表
     await loadPlaylistsFromDrive()
@@ -625,6 +793,18 @@ export const useMusicStore = defineStore('music', () => {
   
   // 防止重复排序的标志
   let isReordering = false
+
+  /**
+   * 调试方法：获取随机播放历史记录
+   */
+  const getShuffleHistory = () => {
+    return {
+      history: shuffleHistory.value,
+      maxSize: maxHistorySize,
+      currentTrackIndex: currentTrackIndex.value,
+      playMode: playMode.value
+    }
+  }
   
   /**
    * 重新排序播放列表（歌单）
@@ -777,6 +957,9 @@ export const useMusicStore = defineStore('music', () => {
     playSongFromDrive,
     reorderPlaylists,
     reorderTracksInCurrentPlaylist,
+
+    // === 调试方法 ===
+    getShuffleHistory,
 
     // === 枚举 ===
     PlayMode,

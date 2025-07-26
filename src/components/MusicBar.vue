@@ -190,10 +190,12 @@
           </div>
           
           <!-- 播放模式循环按钮 -->
-          <button 
-            @click="musicStore.setPlayMode(musicStore.playMode === 'order' ? 'shuffle' : musicStore.playMode === 'shuffle' ? 'repeat' : 'order')" 
-            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center"
-            :class="{ 'bg-white/60': musicStore.playMode !== 'order' }"
+          <button
+            @click="musicStore.setPlayMode(musicStore.playMode === 'order' ? 'shuffle' : musicStore.playMode === 'shuffle' ? 'repeat' : 'order')"
+            class="w-10 h-10 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-all duration-200"
+            :class="{
+              'bg-white/60': musicStore.playMode !== 'order'
+            }"
             :title="getPlayModeText()"
           >
             <Repeat v-if="musicStore.playMode === 'order'" :size="20" />

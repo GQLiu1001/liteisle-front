@@ -317,15 +317,24 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.warn('后端退出登录失败:', error)
     }
-    
+
+    // 停止音乐播放
+    try {
+      const { useMusicStore } = await import('./MusicStore')
+      const musicStore = useMusicStore()
+      musicStore.stop()
+    } catch (error) {
+      console.warn('停止音乐播放失败:', error)
+    }
+
     // 清理本地状态
     token.value = null
     user.value = null
     localStorage.removeItem('access_token')
-    
+
     // 断开WebSocket连接
     disconnectWebSocket()
-    
+
     toast.info('已退出登录')
   }
   
