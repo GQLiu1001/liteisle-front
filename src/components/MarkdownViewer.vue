@@ -442,23 +442,21 @@ const initVditor = async () => {
             }
             
             uploadProgress.value = '上传成功！'
-            
+
             // 3秒后清除状态提示
             setTimeout(() => {
               isUploadingImage.value = false
               uploadProgress.value = ''
             }, 3000)
-            
-            // 返回成功的结果给Vditor
-            return {
-              msg: '上传成功',
-              code: 0,
-              data: {
-                succMap: {
-                  [file.name]: imageUrl
-                }
-              }
+
+            // 手动插入图片的 Markdown 语法到编辑器
+            if (vditor) {
+              const imageMarkdown = `![${file.name}](${imageUrl})\n`
+              vditor.insertValue(imageMarkdown)
             }
+
+            // 返回 null 表示我们已经手动处理了插入
+            return null
             
           } catch (error) {
             uploadProgress.value = `上传失败: ${error instanceof Error ? error.message : '未知错误'}`
@@ -479,39 +477,33 @@ const initVditor = async () => {
               const base64URL = await readPromise
               
               uploadProgress.value = '已插入本地预览（建议修复PicGo配置）'
-              
+
               // 10秒后清除提示
               setTimeout(() => {
                 isUploadingImage.value = false
                 uploadProgress.value = ''
               }, 10000)
-              
-              // 返回base64结果给Vditor
-              return {
-                msg: '使用本地预览',
-                code: 0,
-                data: {
-                  succMap: {
-                    [file.name]: base64URL
-                  }
-                }
+
+              // 手动插入base64图片的 Markdown 语法到编辑器
+              if (vditor) {
+                const imageMarkdown = `![${file.name}](${base64URL})\n`
+                vditor.insertValue(imageMarkdown)
               }
+
+              // 返回 null 表示我们已经手动处理了插入
+              return null
               
             } catch (fallbackError) {
               uploadProgress.value = `图片处理失败: ${error instanceof Error ? error.message : '未知错误'}`
-              
+
               // 10秒后清除错误提示
               setTimeout(() => {
                 isUploadingImage.value = false
                 uploadProgress.value = ''
               }, 10000)
-              
-              // 返回错误给Vditor
-              return {
-                msg: error instanceof Error ? error.message : '上传失败',
-                code: 1,
-                data: {}
-              }
+
+              // 返回 null 表示上传失败，Vditor 不会插入任何内容
+              return null
             }
           }
         }

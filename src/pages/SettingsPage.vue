@@ -558,55 +558,46 @@ const resetUserPicture = async () => {
   }
 };
 
-// 退出登录处理 - 与顶部栏注销功能一样
-const handleLogout = () => {
-  if (confirm('确定要退出登录吗？')) {
-    // 清空本地存储
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('username');
-    
-    // 跳转到登录页
-    window.location.href = '#/login';
-  }
-};
-
-// 提交密码修改
-const submitPasswordChange = async () => {
-  // 验证密码
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    alert('新密码与确认密码不一致');
-    return;
-  }
-  
-  if (passwordForm.value.newPassword.length < 6) {
-    alert('新密码长度至少6位');
-    return;
-  }
-
-  isChangingPassword.value = true;
-  
+// 退出登录
+const handleLogout = async () => {
+  if (!confirm('确定退出登录?')) return
   try {
-    // 调用store的修改密码方法
-    await settingsStore.changePassword(
-      passwordForm.value.currentPassword, 
-      passwordForm.value.newPassword
-    );
-    
-    alert('密码修改成功');
-    showChangePasswordDialog.value = false;
-    
-    // 清空表单
-    passwordForm.value = {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    };
-  } catch (error) {
-    alert(error || '密码修改失败');
-  } finally {
-    isChangingPassword.value = false;
+    await API.auth.logout()
+  } catch {}
+  localStorage.removeItem('access_token')
+  window.location.href = '#/login'
+}
+
+// 修改密码对话框提交
+const submitPasswordChange = async () => {
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    toast.error('新密码与确认密码不一致')
+    return
   }
-};
+  if (passwordForm.value.newPassword.length < 6) {
+    toast.error('新密码长度至少6位')
+    return
+  }
+  isChangingPassword.value = true
+  try {
+    const resp: any = await API.auth.resetPassword({
+      old_password: passwordForm.value.currentPassword,
+      new_password: passwordForm.value.newPassword,
+      confirm_password: passwordForm.value.confirmPassword
+    })
+    if (resp.data && resp.data.code === 200) {
+      toast.success('密码修改成功')
+      showChangePasswordDialog.value = false
+      passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
+    } else {
+      toast.error(resp.data?.message || '密码修改失败')
+    }
+  } catch (e: any) {
+    toast.error(e.response?.data?.message || '密码修改失败')
+  } finally {
+    isChangingPassword.value = false
+  }
+}
 
 // 专注记录相关状态
 const currentFocusPage = ref(1)

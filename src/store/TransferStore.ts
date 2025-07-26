@@ -230,26 +230,27 @@ export const useTransferStore = defineStore('transfer', () => {
         const uploadData = (response.data as any).data
 
         // 添加到处理中的任务列表
-        const newTask: ExtendedTransferItem = {
+
+        const baseTask: ExtendedTransferItem = {
           log_id: uploadData.log_id,
           item_name: file.name,
           item_size: file.size,
           transfer_type: TransferTypeEnum.UPLOAD,
           create_time: new Date().toISOString(),
-          progress: 0
+          progress: uploadData.log_status === 'success' ? 100 : 0
         }
 
-        processingTasks.value.unshift(newTask)
-        
-        // 添加到活跃上传任务列表以触发左边栏高亮
-        activeUploads.value.set(uploadData.log_id, {
-          file,
-          progress: 0
-        })
-        
-        console.log(`📤 上传任务添加: ${file.name}, logId=${uploadData.log_id}, 活跃任务数=${totalActiveTasks.value}`)
+        if (uploadData.log_status === 'success') {
+          // 秒传直接完成
+          completedTasks.value.unshift(baseTask)
+          console.log('⚡ 秒传完成，直接标记任务成功')
+        } else {
+          // 正常上传流程
+          processingTasks.value.unshift(baseTask)
+          activeUploads.value.set(uploadData.log_id, { file, progress: 0 })
+          console.log(`📤 上传任务添加: ${file.name}, logId=${uploadData.log_id}, 活跃任务数=${totalActiveTasks.value}`)
+        }
 
-        // 更新统计
         uploadCount.value++
 
         // 如果有 initial_file_data，可以在这里处理文件的初始状态

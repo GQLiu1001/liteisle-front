@@ -985,6 +985,7 @@ import {
   Upload, FolderClosed, ChevronRight, Music, FileText, Trash2, Shredder, RefreshCcw, RotateCw, ListOrdered, Logs, Grid2x2, 
   FileMusic, LibraryBig, FileUp, Share2
 } from 'lucide-vue-next'
+import { useMusicStore } from '@/store/MusicStore'
 
 const toast = useToast()
 
@@ -1018,6 +1019,7 @@ const settingsStore = useSettingsStore()
 const shareStore = useShareStore()
 const contextMenuStore = useContextMenuStore()
 const router = useRouter()
+const musicStore = useMusicStore()
 
 // 响应式数据
 const showCreateFolderDialog = ref(false)
@@ -1331,7 +1333,7 @@ const handleItemClick = (item: DriveItem, event: MouseEvent) => {
 
 
 
-const handleItemDoubleClick = (item: DriveItem) => {
+const handleItemDoubleClick = async (item: DriveItem) => {
   const now = Date.now()
   if (now - lastFolderOpenTime.value < 300) {
     return
@@ -1365,20 +1367,17 @@ const handleItemDoubleClick = (item: DriveItem) => {
     // 双击文件夹进入该文件夹
     driveStore.navigateToFolder(item.id)
   } else if (item.type === 'audio') {
-    const pathParts = item.path.split('/').filter(p => p)
-    // 路径结构: /音乐/歌单名/歌曲名.mp3
-    if (pathParts.length >= 3) {
-      const playlistName = pathParts[1]
-      const songName = item.name
-      router.push({
-        path: '/music',
-        query: { playlist: playlistName, song: songName }
-      })
-    } else {
-      console.warn('该音频文件不在一个有效的歌单目录结构中:', item.path)
-      // 如果没有歌单信息，只带歌曲名跳转
-      router.push({ path: '/music', query: { song: item.name } })
+    const parts = item.path.split('/').filter(p=>p)
+    let playlistName = ''
+    if (parts.length>=2) {
+      playlistName = parts[parts.length-2]
     }
+    const songName = item.name
+    // 立即在 MusicStore 播放
+    try {
+      await musicStore.playSongFromDrive(playlistName, songName)
+    } catch {}
+    router.push({ path:'/music', query:{ playlist: playlistName, song: songName }})
   } else if (item.type === 'document') {
     console.log('跳转到文档页面，文档信息:', item)
     router.push({

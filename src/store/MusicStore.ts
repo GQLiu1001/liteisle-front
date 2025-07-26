@@ -215,6 +215,14 @@ export const useMusicStore = defineStore('music', () => {
    * 播放指定歌曲
    */
   const playTrack = async (track: MusicFileInfo, playlist?: FolderInfo): Promise<void> => {
+    // 如果已有音频在加载或播放，先停止
+    if (audio.value) {
+      try {
+        audio.value.pause()
+      } catch {}
+      stopProgressTimer()
+      playState.value = PlayState.STOPPED
+    }
     try {
       if (playlist) {
         currentPlaylist.value = playlist
