@@ -34,10 +34,11 @@ export const useVditorStore = defineStore('vditor', () => {
         mode: 'ir',
         value: '',
         theme: 'classic',
+        lang: 'en_US', // 使用英文避免加载中文语言包
         preview: {
           theme: {
             current: 'light',
-            path: 'https://unpkg.com/vditor/dist/css/content-theme'
+            path: '/node_modules/vditor/dist/css/content-theme' // 使用本地路径
           },
           hljs: {
             enable: true,

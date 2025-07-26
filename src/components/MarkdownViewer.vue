@@ -3,8 +3,8 @@
     <!-- 顶部工具栏 -->
     <div class="flex-shrink-0 border-b p-4 flex items-center justify-between bg-gray-50">
       <div class="flex items-center space-x-4">
-        <button 
-          @click="$emit('close')"
+        <button
+          @click="handleClose"
           class="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
         >
           <span>返回</span>
@@ -48,7 +48,7 @@
         </button>
 
         <!-- 保存按钮 -->
-        <button 
+        <button
           @click="saveContent"
           class="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           title="保存 (Ctrl+S)"
@@ -56,6 +56,8 @@
           <CheckIcon class="w-4 h-4" />
           <span>保存</span>
         </button>
+
+
       </div>
     </div>
 
@@ -179,6 +181,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
 // Icon imports
 import CheckIcon from 'lucide-vue-next/dist/esm/icons/check'
 import Vditor from 'vditor'
@@ -207,13 +210,16 @@ const emit = defineEmits<{
   'update:content': [content: string]
 }>()
 
+// 路由实例
+const router = useRouter()
+let removeRouterGuard: (() => void) | null = null
+
 // 状态管理
 const currentContent = ref(props.content || '')
 const currentVersion = ref(0) // 修复：初始化为0，与服务器保持一致
 const zoomLevel = ref(1) // 添加缩放级别状态
 const showShortcuts = ref(false) // 添加快捷键提示状态
 const showOutline = ref(true) // 大纲显示状态
-const transformOrigin = ref('50% 50%') // 缩放原点
 
 // 缓存机制
 const documentCache = new Map<string, { content: string, version: number, timestamp: number }>()
@@ -301,6 +307,9 @@ const loadDocument = async () => {
         console.time('内容渲染')
         try {
           vditor.setValue(mdData.content)
+
+
+
           console.timeEnd('内容渲染')
         } catch (err) {
           console.error('设置Vditor内容失败:', err)
@@ -326,10 +335,11 @@ const initVditor = async () => {
     // 使用全局VditorStore创建实例，确保依赖已预加载
     vditor = await vditorStore.createVditorInstance(vditorElement.value, {
       height: '100%',
-      mode: 'ir', // 即时渲染模式 - 类似 Typora 的优雅编辑方式
+      mode: 'ir', // 即时渲染模式 - 配合CSS强制显示空白行
       value: currentContent.value,
       placeholder: '开始编写 Markdown...',
       theme: 'classic',
+      lang: 'en_US', // 使用英文避免加载中文语言包
       typewriterMode: false, // 打字机模式，可选启用
       undoDelay: 300, // 撤销延迟，以毫秒为单位，控制撤销粒度
       preview: {
@@ -348,17 +358,17 @@ const initVditor = async () => {
           inlineDigit: false
         },
         markdown: {
-          codeBlockPreview: false, // 禁用代码块预览以避免点击时的弹窗问题
-          mathBlockPreview: false, // 暂时禁用数学公式预览以提升性能
-          autoSpace: false, // 暂时禁用自动空格以提升性能
-          fixTermTypo: false, // 暂时禁用术语矫正以提升性能
-          toc: false, // 暂时禁用目录以提升性能
-          footnotes: false, // 暂时禁用脚注以提升性能
-          paragraphBeginningSpace: false, // 段落开头不自动空格
-          listStyle: true, // 启用列表样式以正确显示列表标记
+          codeBlockPreview: false,
+          mathBlockPreview: true,
+          autoSpace: false,
+          fixTermTypo: false,
+          toc: true,
+          footnotes: true,
+          paragraphBeginningSpace: false,
+          listStyle: true,
           linkBase: '',
           linkPrefix: '',
-          mark: false // 暂时禁用标记高亮以提升性能
+          mark: true
         }
       },
       toolbar: [], // 完全隐藏工具栏以获得纯净的 IR 体验
@@ -630,15 +640,9 @@ const initVditor = async () => {
         // 立即设置背景，不使用轮询
         setWhiteBackground()
 
-        // 设置滚轮事件监听
-        if (vditor && vditorElement.value) {
-          const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
-          const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
-
-          const targetElement = vditorIr || vditorContent
-          if (targetElement) {
-            targetElement.addEventListener('wheel', handleZoom, { passive: false })
-          }
+        // 设置滚轮事件监听 - 只在编辑器容器上监听
+        if (vditorElement.value) {
+          vditorElement.value.addEventListener('wheel', handleZoom, { passive: false })
         }
 
         // 立即加载文档内容，不延迟
@@ -661,6 +665,8 @@ const initVditor = async () => {
   }
 }
 
+
+
 // 保存内容
 const saveContent = async () => {
   if (vditor) {
@@ -675,16 +681,16 @@ const saveContent = async () => {
            console.error('无效的文件ID:', props.filePath)
            return
          }
-         
+
          const updateData = {
            content: content,
            version: currentVersion.value
          }
-         
+
          const saveRes: any = await API.document.updateMarkdownContent(fileId, updateData)
          if (saveRes && saveRes.data && saveRes.data.code === 200) {
            console.log('Markdown文档保存成功')
-           
+
            // 保存成功后获取最新版本号
            try {
              const versionResponse: any = await API.document.getMarkdownVersion(fileId)
@@ -694,6 +700,14 @@ const saveContent = async () => {
              }
            } catch (versionError) {
              console.warn('获取最新版本号失败:', versionError)
+           }
+
+           // 重新加载文档内容以确保显示最新的保存结果
+           try {
+             console.log('🔄 重新加载文档内容以刷新显示...')
+             await loadDocument()
+           } catch (reloadError) {
+             console.warn('重新加载文档失败:', reloadError)
            }
          } else {
            console.error('Markdown文档保存失败:', (saveRes.data?.message) || saveRes?.message || '未知错误')
@@ -706,6 +720,62 @@ const saveContent = async () => {
      }
   }
 }
+
+// 处理关闭事件（退出时自动保存）
+const handleClose = async () => {
+  try {
+    // 直接调用保存，不做复杂检测
+    await saveContent()
+  } catch (error) {
+    console.error('保存失败:', error)
+  } finally {
+    // 无论保存是否成功，都执行关闭操作
+    emit('close')
+  }
+}
+
+// 页面卸载前的保存逻辑（针对 Electron 优化）
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  console.log('🌐 beforeunload 事件触发')
+
+  // 检查是否有未保存的内容
+  if (vditor) {
+    const currentEditorContent = vditor.getValue()
+    console.log('📝 检查内容变化:', {
+      current: currentEditorContent.length,
+      saved: currentContent.value.length,
+      changed: currentEditorContent !== currentContent.value
+    })
+
+    if (currentEditorContent !== currentContent.value) {
+      console.log('🔍 检测到未保存内容，执行自动保存...')
+
+      // 有未保存的内容，尝试保存
+      saveContent().then(() => {
+        console.log('✅ beforeunload 自动保存完成')
+      }).catch((error) => {
+        console.error('❌ beforeunload 自动保存失败:', error)
+      })
+
+      // 在 Electron 中，可能需要不同的处理方式
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        // Electron 环境
+        console.log('🖥️ 检测到 Electron 环境')
+        event.preventDefault()
+        return false
+      } else {
+        // 浏览器环境
+        console.log('🌐 检测到浏览器环境')
+        event.preventDefault()
+        const message = '您有未保存的更改，确定要离开吗？'
+        event.returnValue = message
+        return message
+      }
+    }
+  }
+}
+
+
 
 // 切换大纲显示状态
 const toggleOutline = () => {
@@ -720,23 +790,16 @@ const toggleOutline = () => {
   }
 }
 
-// 缩放功能
+// 优化的缩放功能
 const handleZoom = (event: WheelEvent) => {
   // 检查是否按下 Ctrl 键
   if (event.ctrlKey) {
     event.preventDefault()
 
-    if (scaledElement.value) {
-      const rect = scaledElement.value.getBoundingClientRect()
-      const x = ((event.clientX - rect.left) / rect.width) * 100
-      const y = ((event.clientY - rect.top) / rect.height) * 100
-      transformOrigin.value = `${x.toFixed(2)}% ${y.toFixed(2)}%`
-    }
-    
-    // 根据滚轮方向调整缩放级别
-    const delta = event.deltaY > 0 ? -0.1 : 0.1
-    const newZoomLevel = Math.max(0.5, Math.min(3, zoomLevel.value + delta))
-    
+    // 根据滚轮方向调整缩放级别，使用更平滑的步长
+    const delta = event.deltaY > 0 ? -0.05 : 0.05
+    const newZoomLevel = Math.max(0.3, Math.min(2.5, zoomLevel.value + delta))
+
     zoomLevel.value = newZoomLevel
   }
 }
@@ -744,7 +807,6 @@ const handleZoom = (event: WheelEvent) => {
 // 重置缩放
 const resetZoom = () => {
   zoomLevel.value = 1
-  transformOrigin.value = '50% 50%'
 }
 
 // 键盘快捷键
@@ -1129,14 +1191,7 @@ const insertQuote = () => {
   }
 }
 
-// 辅助函数：获取选中的文本
-const getSelectedText = (): string => {
-  const selection = window.getSelection()
-  if (selection && selection.rangeCount > 0) {
-    return selection.toString()
-  }
-  return ''
-}
+
 
 // 监听 props 变化
 watch(() => props.content, (newContent) => {
@@ -1233,11 +1288,6 @@ watch(() => props.filePath, async (newFilePath, oldFilePath) => {
 
 // 生命周期
 onMounted(async () => {
-  const viewerElement = document.querySelector('.markdown-viewer') as HTMLElement;
-  if (viewerElement) {
-    viewerElement.addEventListener('wheel', handleZoom as EventListener, { passive: false });
-  }
-
   document.addEventListener('keydown', handleGlobalKeydown)
   await nextTick()
 
@@ -1245,27 +1295,48 @@ onMounted(async () => {
   await initVditor() // loadDocument 会在 after 钩子里触发
 
   document.addEventListener('click', handleClickOutside)
+
+  // 添加页面卸载前的保存逻辑
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // 添加路由导航守卫（针对 Electron 环境）
+  removeRouterGuard = router.beforeEach(async (to: any, from: any, next: any) => {
+    console.log('🧭 路由导航守卫触发:', { from: from.path, to: to.path })
+
+    // 检查是否有未保存的内容
+    if (vditor) {
+      const currentEditorContent = vditor.getValue()
+      if (currentEditorContent !== currentContent.value) {
+        console.log('🔍 路由切换时检测到未保存内容，执行自动保存...')
+
+        try {
+          await saveContent()
+          console.log('✅ 路由切换前自动保存完成')
+        } catch (error) {
+          console.error('❌ 路由切换前自动保存失败:', error)
+        }
+      }
+    }
+
+    next()
+  })
 })
 
 onBeforeUnmount(() => {
-  const viewerElement = document.querySelector('.markdown-viewer');
-  if (viewerElement) {
-    viewerElement.removeEventListener('wheel', handleZoom as EventListener)
-  }
   document.removeEventListener('keydown', handleGlobalKeydown)
+
+  // 清理 beforeunload 事件监听器
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+
+  // 清理路由守卫
+  if (typeof removeRouterGuard === 'function') {
+    removeRouterGuard()
+  }
+
   if (vditorElement.value) {
     vditorElement.value.removeEventListener('wheel', handleZoom)
-    
-    // 清理内容区域的事件监听器
-    const vditorIr = vditorElement.value.querySelector('.vditor-ir') as HTMLElement
-    const vditorContent = vditorElement.value.querySelector('.vditor-content') as HTMLElement
-    
-    const targetElement = vditorIr || vditorContent
-    if (targetElement) {
-      targetElement.removeEventListener('wheel', handleZoom)
-    }
   }
-  // 注意：不再需要清理粘贴事件监听器，因为现在使用Vditor内置处理器
+
   vditor?.destroy()
   document.removeEventListener('click', handleClickOutside)
 })
@@ -1336,6 +1407,7 @@ onBeforeUnmount(() => {
   padding: 0 !important;
 }
 
+/* 编辑器内容区域 - 优化缩放 */
 :deep(.vditor-ir .vditor-reset) {
   background-color: white !important;
   width: 80% !important;
@@ -1343,9 +1415,9 @@ onBeforeUnmount(() => {
   margin: 0 auto !important;
   padding: 2rem !important;
   border: none !important;
-  transform-origin: center center;
-  transform: scale(v-bind(zoomLevel));
-  transition: transform 0.1s;
+  transform-origin: top center !important;
+  transform: scale(v-bind(zoomLevel)) !important;
+  transition: transform 0.2s ease-out !important;
 }
 
 /* 工具栏样式 */
@@ -1583,17 +1655,79 @@ onBeforeUnmount(() => {
   border-radius: 3px !important;
 }
 
-/* 确保大纲视图不受缩放影响 */
+/* 优化大纲样式 */
 :deep(.vditor-outline) {
   font-size: 14px !important;
+  padding: 16px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__title) {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid #e5e7eb !important;
 }
 
 :deep(.vditor-outline .vditor-outline__item) {
   font-size: 14px !important;
+  line-height: 1.5 !important;
+  margin: 4px 0 !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+  color: #6b7280 !important;
+  text-decoration: none !important;
+  display: block !important;
+  position: relative !important;
 }
 
-:deep(.vditor-outline .vditor-outline__title) {
-  font-size: 14px !important;
+:deep(.vditor-outline .vditor-outline__item:hover) {
+  background-color: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item.vditor-outline__item--current) {
+  background-color: #dbeafe !important;
+  color: #1d4ed8 !important;
+  font-weight: 500 !important;
+}
+
+/* 移除大纲项目前面的点和缩进标记 */
+:deep(.vditor-outline .vditor-outline__item::before) {
+  display: none !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item::after) {
+  display: none !important;
+}
+
+/* 根据标题级别设置缩进，但不显示点 */
+:deep(.vditor-outline .vditor-outline__item[data-level="1"]) {
+  padding-left: 8px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item[data-level="2"]) {
+  padding-left: 20px !important;
+  font-weight: 500 !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item[data-level="3"]) {
+  padding-left: 32px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item[data-level="4"]) {
+  padding-left: 44px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item[data-level="5"]) {
+  padding-left: 56px !important;
+}
+
+:deep(.vditor-outline .vditor-outline__item[data-level="6"]) {
+  padding-left: 68px !important;
 }
 
 /* 列表样式 */
@@ -1658,4 +1792,8 @@ onBeforeUnmount(() => {
 :deep(.vditor-content .vditor-reset ul ul ul) {
   list-style-type: square !important;
 }
+
+
+
+
 </style>
