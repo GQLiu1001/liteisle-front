@@ -192,11 +192,13 @@ import { API } from '@/utils/api'
 interface Props {
   content: string
   title?: string
+  filePath?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   content: '',
-  title: ''
+  title: '',
+  filePath: ''
 })
 
 const emit = defineEmits<{
@@ -207,6 +209,7 @@ const emit = defineEmits<{
 
 // 状态管理
 const currentContent = ref(props.content || '')
+const currentVersion = ref(0) // 修复：初始化为0，与服务器保持一致
 const zoomLevel = ref(1) // 添加缩放级别状态
 const showShortcuts = ref(false) // 添加快捷键提示状态
 const showOutline = ref(true) // 大纲显示状态
@@ -238,6 +241,43 @@ const uploadProgress = ref('')
 
 // 注意：图片粘贴上传现在通过Vditor的upload配置处理，不再需要单独的粘贴事件处理函数
 
+// 加载文档内容和版本信息
+const loadDocument = async () => {
+  if (!props.filePath) return
+  
+  try {
+    const fileId = parseInt(props.filePath)
+    if (isNaN(fileId)) {
+      console.error('无效的文件ID:', props.filePath)
+      return
+    }
+    
+    const response: any = await API.document.getMarkdownContent(fileId)
+    const apiRes = response.data
+    if (apiRes && apiRes.code === 200 && apiRes.data) {
+      const mdData = apiRes.data
+      currentContent.value = mdData.content
+      currentVersion.value = mdData.version
+      
+      // 在loadDocument函数中仅在vditor已初始化时才调用setValue
+      // 更新Vditor内容
+      if (vditor) {
+        try {
+          vditor.setValue(mdData.content)
+        } catch (err) {
+          // 如果Vditor尚未完全就绪，忽略错误
+        }
+      }
+      
+      console.log('Markdown文档加载成功，版本:', currentVersion.value)
+    } else {
+      console.error('Markdown文档加载失败:', apiRes?.message || '未知错误')
+    }
+  } catch (error) {
+    console.error('Markdown文档加载失败:', error)
+  }
+}
+
 // 初始化 Vditor
 const initVditor = async () => {
   if (!vditorElement.value) return
@@ -251,6 +291,7 @@ const initVditor = async () => {
       placeholder: '开始编写 Markdown...',
       theme: 'classic',
       typewriterMode: false, // 打字机模式，可选启用
+      undoDelay: 300, // 撤销延迟，以毫秒为单位，控制撤销粒度
       preview: {
         theme: {
           current: 'light',
@@ -602,6 +643,9 @@ const initVditor = async () => {
           }, 500) // 增加延迟时间，确保所有初始化完成后再设置焦点
           }
         }, 100)
+
+        // 在编辑器完全就绪后加载文档内容
+        loadDocument().catch(err => console.error('加载文档失败:', err))
       }
     })
   } catch (error) {
@@ -610,12 +654,48 @@ const initVditor = async () => {
 }
 
 // 保存内容
-const saveContent = () => {
+const saveContent = async () => {
   if (vditor) {
     const content = vditor.getValue()
     currentContent.value = content
-    emit('save', content)
     emit('update:content', content)
+
+         if (props.filePath) {
+       try {
+         const fileId = parseInt(props.filePath)
+         if (isNaN(fileId)) {
+           console.error('无效的文件ID:', props.filePath)
+           return
+         }
+         
+         const updateData = {
+           content: content,
+           version: currentVersion.value
+         }
+         
+         const saveRes: any = await API.document.updateMarkdownContent(fileId, updateData)
+         if (saveRes && saveRes.data && saveRes.data.code === 200) {
+           console.log('Markdown文档保存成功')
+           
+           // 保存成功后获取最新版本号
+           try {
+             const versionResponse: any = await API.document.getMarkdownVersion(fileId)
+             if (versionResponse && versionResponse.data && versionResponse.data.code === 200) {
+               currentVersion.value = versionResponse.data.data
+               console.log('版本号已更新为:', currentVersion.value)
+             }
+           } catch (versionError) {
+             console.warn('获取最新版本号失败:', versionError)
+           }
+         } else {
+           console.error('Markdown文档保存失败:', (saveRes.data?.message) || saveRes?.message || '未知错误')
+         }
+       } catch (error) {
+         console.error('Markdown文档保存失败:', error)
+       }
+     } else {
+       emit('save', content)
+     }
   }
 }
 
@@ -1144,7 +1224,9 @@ onMounted(async () => {
 
   document.addEventListener('keydown', handleGlobalKeydown)
   await nextTick()
-  await initVditor()
+  
+  // 先初始化编辑器，再加载文档内容
+  await initVditor() // loadDocument 会在 after 钩子里触发
   
   document.addEventListener('click', handleClickOutside)
 })

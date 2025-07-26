@@ -108,7 +108,6 @@ import { API } from '@/utils/api'
 interface Props {
   filePath: string
   fileName: string
-  fileDescription?: string
 }
 
 const props = defineProps<Props>()

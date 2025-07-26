@@ -312,16 +312,7 @@
                 <option value="txt">文本</option>
               </select>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-2">摘要</label>
-              <textarea
-                v-model="newDocumentSummary"
-                placeholder="简要描述文档内容"
-                rows="3"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 select-text"
-                style="user-select: text !important;"
-              />
-            </div>
+
           </div>
           <div class="flex justify-end gap-3 mt-6">
             <button
@@ -431,16 +422,6 @@
                 placeholder="请输入文档名称"
                 class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
                 @keydown.enter="createMarkdownDocument"
-                style="user-select: text !important;"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-morandi-700 mb-2">文档摘要</label>
-              <textarea
-                v-model="newDocumentSummary"
-                placeholder="简要描述文档内容（可选）"
-                rows="3"
-                class="w-full px-4 py-2 border border-morandi-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 select-text"
                 style="user-select: text !important;"
               />
             </div>
@@ -611,7 +592,7 @@ const showAddMarkdownDialog = ref(false);
 const showCreateCategoryDialog = ref(false);
 const newDocumentName = ref('');
 const newDocumentType = ref('markdown');
-const newDocumentSummary = ref('');
+
 const newCategoryName = ref('');
 const selectedDocumentFiles = ref<File[]>([]);
 const documentFileInput = ref<HTMLInputElement | null>(null);
@@ -903,7 +884,7 @@ const addDocument = () => {
     modifiedAt: new Date(),
     path: `/文档/${docsStore.currentCategoryData?.folder_name}/${newDocumentName.value}`,
     categoryId: docsStore.currentCategory,
-    summary: newDocumentSummary.value || '用户添加的文档',
+    summary: '用户添加的文档',
     content: newDocumentType.value === 'markdown' ? '# ' + newDocumentName.value + '\n\n这是一个新文档，请开始编辑内容。' : undefined
   }
   
@@ -913,7 +894,7 @@ const addDocument = () => {
   showAddDocumentDialog.value = false
   newDocumentName.value = ''
   newDocumentType.value = 'markdown'
-  newDocumentSummary.value = ''
+
 }
 
 // 创建新分类的方法
@@ -1013,26 +994,28 @@ const uploadDocumentFiles = async () => {
 }
 
 // 新建Markdown文档的方法
-const createMarkdownDocument = () => {
+const createMarkdownDocument = async () => {
   const docName = newDocumentName.value.trim()
   if (!docName) return
 
-  const newDoc = {
-    name: docName + '.md',
-    type: 'markdown',
-    size: 0,
-    modifiedAt: new Date(),
-    path: `/文档/${docsStore.currentCategoryData?.folder_name}/${docName}`,
-    categoryId: docsStore.currentCategory,
-    summary: newDocumentSummary.value || '新建的Markdown文档',
-    content: `# ${docName}\n\n这是一个新的Markdown文档，请开始编辑内容。`
+  try {
+    // 获取当前笔记本的ID
+    const currentBooklist = docsStore.currentBooklist
+    if (!currentBooklist?.id) {
+      console.error('当前没有选中的笔记本')
+      return
+    }
+
+    // 调用DocsStore的API创建Markdown文档
+    const success = await docsStore.createMarkdownDocument(docName, currentBooklist.id)
+
+    if (success) {
+      showAddMarkdownDialog.value = false
+      newDocumentName.value = ''
+    }
+  } catch (error) {
+    console.error('创建Markdown文档失败:', error)
   }
-  
-  docsStore.addDocument(docsStore.currentCategory, newDoc)
-  
-  showAddMarkdownDialog.value = false
-  newDocumentName.value = ''
-  newDocumentSummary.value = ''
 }
 
 // 处理文档文件选择

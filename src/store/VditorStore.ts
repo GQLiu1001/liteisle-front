@@ -160,6 +160,7 @@ export const useVditorStore = defineStore('vditor', () => {
       placeholder: '开始编写 Markdown...',
       theme: 'classic',
       typewriterMode: false,
+      undoDelay: 300, // 撤销延迟，以毫秒为单位，控制撤销粒度
       preview: {
         theme: {
           current: 'light',

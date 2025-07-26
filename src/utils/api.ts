@@ -201,6 +201,11 @@ export const documentAPI = {
   // 新建MD文档
   createMarkdown: (data: MarkdownCreateReq): Promise<ApiResponse<number>> => {
     return http.post('/documents/md', data)
+  },
+
+  // 获取MD文档版本号
+  getMarkdownVersion: (fileId: number): Promise<ApiResponse<number>> => {
+    return http.get(`/documents/md-version/${fileId}`)
   }
 }
 
