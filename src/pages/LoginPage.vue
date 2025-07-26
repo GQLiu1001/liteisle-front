@@ -161,6 +161,20 @@
             />
           </div>
 
+          <!-- 确认密码输入框 -->
+          <div>
+            <label for="register-confirm-password" class="block text-sm font-medium text-morandi-700 mb-2">确认密码</label>
+            <input
+              id="register-confirm-password"
+              v-model="registerForm.confirmPassword"
+              type="password"
+              required
+              class="w-full px-4 py-3 border border-morandi-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all select-text"
+              placeholder="请再次输入密码"
+              style="user-select: text !important;"
+            />
+          </div>
+
           <!-- 邮箱验证码 -->
           <div>
             <label for="register-code" class="block text-sm font-medium text-morandi-700 mb-2">邮箱验证码</label>
@@ -318,6 +332,7 @@ const registerForm = reactive({
   username: '',
   email: '',
   password: '',
+  confirmPassword: '',
   verificationCode: ''
 })
 
@@ -406,7 +421,7 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   if (!registerForm.username || !registerForm.email || 
       !registerForm.password || !registerForm.confirmPassword || 
-      !registerForm.vcode) {
+      !registerForm.verificationCode) {
     toast.error('请填写所有必填项')
     return
   }
@@ -420,7 +435,7 @@ const handleRegister = async () => {
     username: registerForm.username,
     email: registerForm.email,
     password: registerForm.password,
-    vcode: registerForm.vcode
+    vcode: registerForm.verificationCode
   })
 
   if (success) {

@@ -1,7 +1,7 @@
 <template>
-  <div class="powerpoint-viewer h-full flex flex-col bg-gray-800 text-white rounded-2xl overflow-hidden">
+  <div class="powerpoint-viewer h-full flex flex-col bg-white rounded-2xl overflow-hidden">
     <!-- 工具栏 -->
-    <div class="flex-shrink-0 bg-gray-900 p-3 flex items-center justify-between">
+    <div class="flex-shrink-0 bg-gray-50 border-b border-gray-200 p-3 flex items-center justify-between">
       <div class="flex items-center gap-4 flex-1 min-w-0">
         <button @click="$emit('close')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 flex-shrink-0">
           <ChevronLeft :size="20" />
@@ -11,34 +11,27 @@
         <!-- 文档信息 -->
         <div class="flex-1 min-w-0 ml-4 border-l border-gray-300 pl-4">
           <h3 class="font-medium text-gray-900 truncate">{{ fileName }}</h3>
+          <div v-if="isLoading" class="text-xs text-gray-500">正在加载PowerPoint...</div>
+          <div v-else-if="error" class="text-xs text-red-500">{{ error }}</div>
+          <div v-else class="text-xs text-gray-500">PowerPoint演示文稿</div>
         </div>
       </div>
       
-      <!-- 幻灯片控制 -->
+      <!-- 控制按钮 -->
       <div class="flex items-center gap-3">
+        <!-- 下载按钮 -->
         <button 
-          @click="previousSlide" 
-          :disabled="currentSlide <= 1"
-          class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          v-if="previewUrl" 
+          @click="downloadFile"
+          class="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
         >
-          <ChevronLeft :size="20" />
-        </button>
-        
-        <span class="text-sm text-gray-600">
-          {{ currentSlide }} / {{ totalSlides }}
-        </span>
-        
-        <button 
-          @click="nextSlide" 
-          :disabled="currentSlide >= totalSlides"
-          class="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronRight :size="20" />
+          <Download :size="16" />
+          下载
         </button>
         
         <!-- 缩放控制 -->
         <div class="border-l border-gray-300 pl-3 ml-3 flex items-center gap-2">
-          <button @click="zoomOut" class="p-2 rounded hover:bg-gray-200">
+          <button @click="zoomOut" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
             <Minus :size="16" />
           </button>
           
@@ -46,158 +39,103 @@
             {{ Math.round(scale * 100) }}%
           </span>
           
-          <button @click="zoomIn" class="p-2 rounded hover:bg-gray-200">
+          <button @click="zoomIn" class="p-2 rounded hover:bg-gray-200" :disabled="isLoading">
             <Plus :size="16" />
           </button>
           
+          <!-- 适合窗口 -->
+          <button @click="fitToWindow" class="p-2 rounded hover:bg-gray-200 ml-2" :disabled="isLoading">
+            <RefreshCcw :size="16" />
+          </button>
+          
           <!-- 全屏按钮 -->
-          <button @click="toggleFullscreen" class="p-2 rounded hover:bg-gray-200 ml-2">
+          <button @click="toggleFullscreen" class="p-2 rounded hover:bg-gray-200">
             <Maximize :size="16" />
           </button>
         </div>
       </div>
     </div>
     
-    <!-- PPT内容区域 -->
-    <div class="flex-1 overflow-auto bg-gray-800 p-4 flex items-center justify-center" ref="pptContainer">
-      <div 
-        class="bg-white shadow-lg rounded-xl w-full max-w-[1200px]"
-        :style="{ 
-          transform: `scale(${scale})`, 
-          transformOrigin: 'top center',
-          aspectRatio: '16/9'
-        }"
-      >
-        <!-- 模拟PPT幻灯片内容 -->
-        <div 
-          class="w-full h-full p-8 text-gray-800 flex flex-col justify-center select-text"
-          @mouseup="handleTextSelection"
-          @contextmenu="handleContextMenu"
-        >
-          <div v-if="currentSlide === 1" class="text-center">
-            <h1 class="text-4xl font-bold mb-6 text-blue-600">{{ fileName.replace(/\.(ppt|pptx)$/, '') }}</h1>
-            <hr class="border-blue-300 mb-8 w-1/2 mx-auto">
-            <h2 class="text-2xl text-gray-700 mb-4">演示文稿</h2>
-            <p class="text-lg text-gray-600">PowerPoint文档预览 - 标准16:9比例</p>
-            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div class="bg-blue-100 rounded-lg p-4">
-                <p class="text-blue-800 text-sm font-medium">共 {{ totalSlides }} 张幻灯片</p>
-              </div>
-              <div class="bg-green-100 rounded-lg p-4">
-                <p class="text-green-800 text-sm font-medium">16:9 标准比例</p>
-              </div>
-              <div class="bg-purple-100 rounded-lg p-4">
-                <p class="text-purple-800 text-sm font-medium">快捷键操作</p>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else-if="currentSlide === 2">
-            <h1 class="text-3xl font-bold mb-8 text-orange-600">功能介绍</h1>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-              <div class="bg-orange-50 p-6 rounded-lg">
-                <h3 class="text-xl font-semibold mb-4 text-orange-700">📊 演示文稿查看</h3>
-                <ul class="text-gray-700 space-y-2">
-                  <li>• 幻灯片导航</li>
-                  <li>• 缩放控制</li>
-                  <li>• 全屏模式</li>
-                  <li>• 标准比例显示</li>
-                </ul>
-              </div>
-              <div class="bg-blue-50 p-6 rounded-lg">
-                <h3 class="text-xl font-semibold mb-4 text-blue-700">🔧 交互功能</h3>
-                <ul class="text-gray-700 space-y-2">
-                  <li>• 文本选择</li>
-                  <li>• 复制翻译</li>
-                  <li>• 键盘快捷键</li>
-                  <li>• 专业布局</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else-if="currentSlide === 3">
-            <h1 class="text-3xl font-bold mb-8 text-green-600">技术特性</h1>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div class="bg-green-50 border-l-4 border-green-500 p-6">
-                <h3 class="text-xl font-semibold mb-3 text-green-700">标准比例</h3>
-                <p class="text-gray-700 text-sm">保持16:9标准幻灯片比例，确保演示效果的专业性</p>
-              </div>
-              
-              <div class="bg-blue-50 border-l-4 border-blue-500 p-6">
-                <h3 class="text-xl font-semibold mb-3 text-blue-700">快捷键支持</h3>
-                <p class="text-gray-700 text-sm">支持键盘快捷键操作，提高使用效率</p>
-              </div>
-              
-              <div class="bg-purple-50 border-l-4 border-purple-500 p-6">
-                <h3 class="text-xl font-semibold mb-3 text-purple-700">文本交互</h3>
-                <p class="text-gray-700 text-sm">支持文本选择、复制和翻译功能</p>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else>
-            <div class="text-center">
-              <h1 class="text-3xl font-bold mb-8 text-gray-700">第{{ currentSlide }}张幻灯片</h1>
-              
-              <div class="bg-gray-50 rounded-lg p-8 mb-6">
-                <h2 class="text-xl font-semibold mb-4">示例内容</h2>
-                <p class="text-gray-600 mb-4 text-justify">
-                  这是第{{ currentSlide }}张幻灯片的内容。在真实的PowerPoint查看器中，
-                  这里会显示演示文稿的实际内容，包括文本、图片、图表、动画等元素。
-                  幻灯片保持标准16:9比例显示。
-                </p>
-              </div>
-              
-              <div class="bg-yellow-50 border border-yellow-200 p-4 rounded">
-                <h3 class="font-medium text-yellow-800 mb-2">💡 快捷键提示</h3>
-                <div class="text-yellow-700 text-sm space-y-1">
-                  <div>• ← → 切换幻灯片</div>
-                  <div>• + - 调整缩放</div>
-                  <div>• F 全屏模式</div>
-                  <div>• 空格 下一张</div>
-                </div>
-                <div class="mt-3 text-xs text-yellow-600">
-                  标准16:9比例 (1920×1080)
-                </div>
-              </div>
-            </div>
+    <!-- PowerPoint内容区域 -->
+    <div 
+      class="flex-1 bg-gray-100 p-4 overflow-auto" 
+      ref="pptContainer"
+      @wheel="handleWheel"
+    >
+      <!-- 加载状态 -->
+      <div v-if="isLoading" class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-gray-600">正在加载PowerPoint文档...</p>
+        </div>
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="flex items-center justify-center h-full">
+        <div class="text-center max-w-md">
+          <div class="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">加载失败</h3>
+          <p class="text-gray-600 mb-6 text-sm leading-relaxed">{{ error }}</p>
+          <div class="space-y-3">
+            <button 
+              v-if="previewUrl"
+              @click="downloadFile" 
+              class="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center justify-center gap-2"
+            >
+              <Download :size="16" />
+              下载原文件
+            </button>
+            <button 
+              @click="loadDocument" 
+              class="block w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded"
+            >
+              重试
+            </button>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 右键菜单 -->
-    <div
-      v-if="showContextMenu"
-      :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
-      class="context-menu fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-[150px] max-w-[300px]"
-    >
-      <button
-        @click.stop="copyText"
-        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-      >
-        📋 复制{{ translatedText ? '译文' : '' }}
-      </button>
-      <button
-        @click.stop="translateSelection"
-        :disabled="isTranslating"
-        class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
-      >
-        🌐 翻译
-      </button>
-      
-      <!-- 翻译结果区域 -->
-      <div v-if="isTranslating || translatedText" class="border-t border-gray-200 mt-2">
-        <div v-if="isTranslating" class="px-4 py-3 text-xs text-gray-500">
-          <div class="flex items-center gap-2">
-            <div class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-            翻译中...
-          </div>
+      <!-- PowerPoint文档预览 -->
+      <div v-else-if="previewUrl" class="w-full h-full flex items-center justify-center">
+        <div
+          ref="scaledElement"
+          class="bg-white shadow-lg rounded-xl relative"
+          :style="{ 
+            transform: `scale(${scale})`,
+            transformOrigin: '0 0',
+            willChange: 'transform',
+            width: '100%',
+            height: '100%',
+            minWidth: '800px',
+            minHeight: '600px'
+          }"
+        >
+          <!-- 使用Office Online嵌入式查看器 -->
+          <iframe 
+            :src="getOfficeViewerUrl(previewUrl)"
+            class="w-full h-full border-0 rounded-xl"
+            frameborder="0"
+            allowfullscreen
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            @load="onIframeLoad"
+            @error="onIframeError"
+          ></iframe>
+          
+          <!-- 预览层覆盖（用于捕获用户交互） -->
+          <div
+            v-if="scale !== 1"
+            class="absolute inset-0 pointer-events-none"
+            style="background: transparent;"
+          ></div>
         </div>
-        <div v-else-if="translatedText" class="px-4 py-3">
-          <div class="text-xs text-gray-500 mb-1">译文:</div>
-          <div class="text-sm text-gray-800 leading-relaxed">{{ translatedText }}</div>
+      </div>
+
+      <!-- 无内容状态 -->
+      <div v-else class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="text-gray-400 text-6xl mb-4">📊</div>
+          <h3 class="text-lg font-medium text-gray-700 mb-2">无法获取文档内容</h3>
+          <p class="text-gray-500 text-sm">请稍后重试</p>
         </div>
       </div>
     </div>
@@ -205,8 +143,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { ChevronLeft, ChevronRight, Minus, Plus, Maximize } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ChevronLeft, Maximize, Download, Minus, Plus, RefreshCcw } from 'lucide-vue-next'
 import { API } from '@/utils/api'
 
 interface Props {
@@ -222,40 +160,93 @@ defineEmits<{
 }>()
 
 // 状态
-const currentSlide = ref(1)
-const totalSlides = ref(6) // 模拟6张幻灯片
-const scale = ref(1)
 const pptContainer = ref<HTMLElement>()
-const selectedText = ref('')
-const showContextMenu = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-const translatedText = ref('')
-const isTranslating = ref(false)
+const scaledElement = ref<HTMLElement>()
+const isLoading = ref(true)
+const error = ref('')
+const previewUrl = ref('')
+const scale = ref(1)
 
-// 幻灯片导航
-const previousSlide = () => {
-  if (currentSlide.value > 1) {
-    currentSlide.value--
+// 加载文档
+const loadDocument = async () => {
+  try {
+    isLoading.value = true
+    error.value = ''
+
+    // 获取PowerPoint文档的预览URL
+    const response = await API.document.getViewUrl(parseInt(props.filePath))
+    if (!response.data || response.data.code !== 200) {
+      throw new Error('获取PowerPoint文档链接失败')
+    }
+
+    previewUrl.value = response.data.data
+    
+  } catch (err: any) {
+    console.error('PowerPoint文档加载失败:', err)
+    error.value = err.message || 'PowerPoint文档加载失败，请稍后重试'
+  } finally {
+    isLoading.value = false
   }
 }
 
-const nextSlide = () => {
-  if (currentSlide.value < totalSlides.value) {
-    currentSlide.value++
+// 生成Office在线查看器URL
+const getOfficeViewerUrl = (url: string): string => {
+  // 如果URL已经是可以直接嵌入的预览URL，直接使用
+  if (url.includes('embed') || url.includes('preview') || url.includes('view')) {
+    return url
+  }
+  
+  // 使用Office Online Viewer
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+}
+
+// 下载文件
+const downloadFile = () => {
+  if (previewUrl.value) {
+    window.open(previewUrl.value, '_blank')
   }
 }
 
 // 缩放控制
 const zoomIn = () => {
   if (scale.value < 2) {
-    scale.value = Math.min(2, scale.value + 0.25)
+    const newScale = Math.min(2, scale.value + 0.25)
+    centerZoom(newScale)
   }
 }
 
 const zoomOut = () => {
   if (scale.value > 0.5) {
-    scale.value = Math.max(0.5, scale.value - 0.25)
+    const newScale = Math.max(0.5, scale.value - 0.25)
+    centerZoom(newScale)
   }
+}
+
+const fitToWindow = () => {
+  scale.value = 1
+}
+
+const centerZoom = (newScale: number) => {
+  const container = pptContainer.value
+  if (!container) return
+
+  const oldScale = scale.value
+  const rect = container.getBoundingClientRect()
+
+  const containerCenterX = rect.width / 2
+  const containerCenterY = rect.height / 2
+
+  const pointX = (container.scrollLeft + containerCenterX) / oldScale
+  const pointY = (container.scrollTop + containerCenterY) / oldScale
+
+  scale.value = newScale
+
+  nextTick(() => {
+    const newPointX = pointX * newScale
+    const newPointY = pointY * newScale
+    container.scrollLeft = newPointX - containerCenterX
+    container.scrollTop = newPointY - containerCenterY
+  })
 }
 
 // 全屏切换
@@ -267,78 +258,54 @@ const toggleFullscreen = () => {
   }
 }
 
-// 文本选择和右键菜单功能（复用PDF查看器的逻辑）
-const handleTextSelection = () => {
-  const selection = window.getSelection()
-  if (selection && selection.toString().trim()) {
-    selectedText.value = selection.toString().trim()
-  } else {
-    selectedText.value = ''
-    showContextMenu.value = false
-    translatedText.value = ''
-    isTranslating.value = false
-  }
-}
-
-const handleContextMenu = (event: MouseEvent) => {
-  const selection = window.getSelection()
-  if (selection && selection.toString().trim()) {
+// 鼠标滚轮缩放
+const handleWheel = (event: WheelEvent) => {
+  if (event.ctrlKey) {
     event.preventDefault()
-    selectedText.value = selection.toString().trim()
-    contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-    showContextMenu.value = true
+    
+    const container = pptContainer.value
+    if (!container) return
+
+    const oldScale = scale.value
+    const rect = container.getBoundingClientRect()
+    
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
+
+    const pointX = (container.scrollLeft + mouseX) / oldScale
+    const pointY = (container.scrollTop + mouseY) / oldScale
+
+    const delta = event.deltaY < 0 ? 0.15 : -0.15
+    const newScale = Math.max(0.5, Math.min(2, oldScale + delta))
+    
+    if (Math.abs(newScale - oldScale) < 0.001) return
+
+    scale.value = newScale
+
+    nextTick(() => {
+      const newPointX = pointX * newScale
+      const newPointY = pointY * newScale
+      const newScrollLeft = newPointX - mouseX
+      const newScrollTop = newPointY - mouseY
+      
+      container.scrollLeft = newScrollLeft
+      container.scrollTop = newScrollTop
+    })
   }
 }
 
-const copyText = async () => {
-  const textToCopy = translatedText.value || selectedText.value
-  if (textToCopy) {
-    try {
-      await navigator.clipboard.writeText(textToCopy)
-      showContextMenu.value = false
-      translatedText.value = ''
-      isTranslating.value = false
-    } catch (err) {
-      console.error('复制失败:', err)
-    }
-  }
+// iframe事件处理
+const onIframeLoad = () => {
+  console.log('PowerPoint文档加载完成')
 }
 
-const translateSelection = async () => {
-  if (!selectedText.value) return
-  
-  isTranslating.value = true
-  try {
-           const response = await API.translate.translate({
-         file_name: 'selected_text.txt',
-         text: selectedText.value,
-         target_lang: 'zh-CN'
-       })
-    if (response.data) {
-      translatedText.value = response.data.translated_text
-    }
-  } catch (error) {
-    console.error('翻译失败:', error)
-    translatedText.value = '翻译服务暂不可用'
-  } finally {
-    isTranslating.value = false
-  }
+const onIframeError = () => {
+  error.value = 'PowerPoint文档加载失败，可能是网络问题或文档格式不支持'
 }
 
 // 键盘快捷键
 const handleKeydown = (event: KeyboardEvent) => {
   switch (event.key) {
-    case 'ArrowLeft':
-    case 'PageUp':
-      event.preventDefault()
-      previousSlide()
-      break
-    case 'ArrowRight':
-    case 'PageDown':
-    case ' ':
-      event.preventDefault()
-      nextSlide()
-      break
     case '=':
     case '+':
       event.preventDefault()
@@ -348,6 +315,10 @@ const handleKeydown = (event: KeyboardEvent) => {
       event.preventDefault()
       zoomOut()
       break
+    case '0':
+      event.preventDefault()
+      fitToWindow()
+      break
     case 'f':
     case 'F':
       event.preventDefault()
@@ -356,66 +327,21 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
-// Ctrl+滚轮缩放
-const handleWheel = (event: WheelEvent) => {
-  if (event.ctrlKey) {
-    event.preventDefault()
-    if (event.deltaY < 0) {
-      zoomIn()
-    } else {
-      zoomOut()
-    }
-  }
-}
-
-// 点击其他地方关闭右键菜单
-const handleClickOutside = (event: MouseEvent) => {
-  if (showContextMenu.value) {
-    const target = event.target as Element
-    const contextMenu = document.querySelector('.context-menu')
-    
-    if (contextMenu && !contextMenu.contains(target)) {
-      showContextMenu.value = false
-      translatedText.value = ''
-      isTranslating.value = false
-    }
-  }
-}
-
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
-  document.addEventListener('wheel', handleWheel, { passive: false })
-  document.addEventListener('click', handleClickOutside)
+  
+  // 加载文档
+  await loadDocument()
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  document.removeEventListener('wheel', handleWheel)
-  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
 <style scoped>
-.ppt-viewer {
+.powerpoint-viewer {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-}
-
-/* 文本选择样式 */
-.select-text {
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-}
-
-.select-text::selection {
-  background-color: #f59e0b;
-  color: white;
-}
-
-.select-text::-moz-selection {
-  background-color: #f59e0b;
-  color: white;
 }
 
 /* 滚动条样式 */
@@ -425,15 +351,15 @@ onUnmounted(() => {
 }
 
 .overflow-auto::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #f1f1f1;
 }
 
 .overflow-auto::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #c1c1c1;
   border-radius: 4px;
 }
 
 .overflow-auto::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #a8a8a8;
 }
 </style> 
