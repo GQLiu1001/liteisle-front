@@ -111,12 +111,14 @@
           }"
         >
           <!-- 使用Office Online嵌入式查看器 -->
-          <iframe 
+          <iframe
             :src="getOfficeViewerUrl(previewUrl)"
             class="w-full h-full border-0 rounded-xl"
             frameborder="0"
             allowfullscreen
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
+            referrerpolicy="strict-origin-when-cross-origin"
+            loading="lazy"
             @load="onIframeLoad"
             @error="onIframeError"
           ></iframe>
@@ -166,6 +168,8 @@ const isLoading = ref(true)
 const error = ref('')
 const previewUrl = ref('')
 const scale = ref(1)
+const retryCount = ref(0)
+const maxRetries = 3
 
 // 加载Excel文档
 const loadDocument = async () => {
@@ -195,9 +199,16 @@ const getOfficeViewerUrl = (url: string): string => {
   if (url.includes('embed') || url.includes('preview') || url.includes('view')) {
     return url
   }
-  
-  // 使用Office Online Viewer
-  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+
+  // 使用 embed.aspx 格式，专为嵌入设计，更稳定
+  const baseUrl = 'https://view.officeapps.live.com/op/embed.aspx'
+  const params = new URLSearchParams({
+    src: url,
+    wdStartOn: '1',
+    wdEmbedCode: '0'
+  })
+
+  return `${baseUrl}?${params.toString()}`
 }
 
 // 下载文件
@@ -297,10 +308,28 @@ const handleWheel = (event: WheelEvent) => {
 // iframe事件处理
 const onIframeLoad = () => {
   console.log('Excel文档加载完成')
+  retryCount.value = 0 // 重置重试计数
+  isLoading.value = false
+  error.value = ''
 }
 
 const onIframeError = () => {
-  error.value = 'Excel文档加载失败，可能是网络问题或文档格式不支持'
+  console.error('Excel文档iframe加载失败，重试次数:', retryCount.value)
+
+  if (retryCount.value < maxRetries) {
+    retryCount.value++
+    setTimeout(() => {
+      console.log(`正在重试加载Excel文档 (${retryCount.value}/${maxRetries})`)
+      // 强制重新加载iframe
+      const iframe = document.querySelector('iframe')
+      if (iframe && previewUrl.value) {
+        iframe.src = getOfficeViewerUrl(previewUrl.value)
+      }
+    }, 2000 * retryCount.value) // 递增延迟
+  } else {
+    error.value = 'Excel文档加载失败，请检查网络连接或稍后重试'
+    isLoading.value = false
+  }
 }
 
 // 键盘快捷键

@@ -77,23 +77,48 @@
       <!-- Word文档预览 -->
       <div v-else-if="previewUrl" class="w-full h-full">
         <!-- 使用Office Online嵌入式查看器 -->
-        <iframe 
+        <iframe
           :src="getOfficeViewerUrl(previewUrl)"
           class="w-full h-full border-0 rounded-xl bg-white shadow-lg"
           frameborder="0"
           allowfullscreen
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
+          referrerpolicy="strict-origin-when-cross-origin"
+          loading="lazy"
           @load="onIframeLoad"
           @error="onIframeError"
         ></iframe>
       </div>
 
-      <!-- 无内容状态 -->
+      <!-- 错误状态 -->
       <div v-else class="flex items-center justify-center h-full">
         <div class="text-center">
           <div class="text-gray-400 text-6xl mb-4">📄</div>
-          <h3 class="text-lg font-medium text-gray-700 mb-2">无法获取文档内容</h3>
-          <p class="text-gray-500 text-sm">请稍后重试</p>
+          <h3 class="text-lg font-medium text-gray-700 mb-2">
+            {{ error || '无法获取文档内容' }}
+          </h3>
+          <p class="text-gray-500 text-sm mb-4">
+            {{ showDownloadOption ? '您可以下载文档到本地查看' : '请稍后重试' }}
+          </p>
+
+          <!-- 重试和下载按钮 -->
+          <div class="flex gap-2 justify-center">
+            <button
+              v-if="!showDownloadOption && retryCount < maxRetries"
+              @click="retryLoad"
+              class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              重试加载
+            </button>
+
+            <button
+              v-if="showDownloadOption && previewUrl"
+              @click="downloadFile"
+              class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+            >
+              下载文档
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -121,6 +146,9 @@ const wordContainer = ref<HTMLElement>()
 const isLoading = ref(true)
 const error = ref('')
 const previewUrl = ref('')
+const retryCount = ref(0)
+const maxRetries = 3
+const showDownloadOption = ref(false)
 
 // 文档加载函数
 const loadDocument = async () => {
@@ -150,9 +178,16 @@ const getOfficeViewerUrl = (url: string): string => {
   if (url.includes('embed') || url.includes('preview') || url.includes('view')) {
     return url
   }
-  
-  // 使用Office Online Viewer的嵌入模式，隐藏工具栏避免嵌套
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}&wdStartOn=1&wdEmbedCode=0`
+
+  // 使用 embed.aspx 格式，专为嵌入设计，更稳定
+  const baseUrl = 'https://view.officeapps.live.com/op/embed.aspx'
+  const params = new URLSearchParams({
+    src: url,
+    wdStartOn: '1',
+    wdEmbedCode: '0'
+  })
+
+  return `${baseUrl}?${params.toString()}`
 }
 
 // 下载文件
@@ -160,6 +195,17 @@ const downloadFile = () => {
   if (previewUrl.value) {
     window.open(previewUrl.value, '_blank')
   }
+}
+
+// 手动重试加载
+const retryLoad = async () => {
+  retryCount.value++
+  error.value = ''
+  isLoading.value = true
+  showDownloadOption.value = false
+
+  // 重新加载文档
+  await loadDocument()
 }
 
 
@@ -178,10 +224,29 @@ const toggleFullscreen = () => {
 // iframe事件处理
 const onIframeLoad = () => {
   console.log('Word文档加载完成')
+  retryCount.value = 0 // 重置重试计数
+  isLoading.value = false
+  error.value = ''
 }
 
 const onIframeError = () => {
-  error.value = 'Word文档加载失败，可能是网络问题或文档格式不支持'
+  console.error('Word文档iframe加载失败，重试次数:', retryCount.value)
+
+  if (retryCount.value < maxRetries) {
+    retryCount.value++
+    setTimeout(() => {
+      console.log(`正在重试加载Word文档 (${retryCount.value}/${maxRetries})`)
+      // 强制重新加载iframe
+      const iframe = document.querySelector('iframe')
+      if (iframe && previewUrl.value) {
+        iframe.src = getOfficeViewerUrl(previewUrl.value)
+      }
+    }, 2000 * retryCount.value) // 递增延迟
+  } else {
+    error.value = 'Word文档在线预览失败'
+    showDownloadOption.value = true
+    isLoading.value = false
+  }
 }
 
 // 键盘快捷键

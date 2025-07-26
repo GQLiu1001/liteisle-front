@@ -48,6 +48,27 @@ const authStore = useAuthStore()
 const vditorStore = useVditorStore()
 const settingsStore = useSettingsStore()
 
+// 预加载 Office Online 资源
+const preloadOfficeResources = () => {
+  try {
+    // 预加载 Office Online 主域名
+    const link1 = document.createElement('link')
+    link1.rel = 'dns-prefetch'
+    link1.href = '//view.officeapps.live.com'
+    document.head.appendChild(link1)
+
+    // 预加载 Office CDN 资源
+    const link2 = document.createElement('link')
+    link2.rel = 'dns-prefetch'
+    link2.href = '//res-1.cdn.office.net'
+    document.head.appendChild(link2)
+
+    console.log('Office Online 资源预加载完成')
+  } catch (error) {
+    console.warn('Office Online 资源预加载失败:', error)
+  }
+}
+
 // 应用启动时的初始化
 onMounted(async () => {
   // 初始化认证状态
@@ -61,6 +82,9 @@ onMounted(async () => {
   } catch (error) {
     console.warn('Vditor预加载失败:', error)
   }
+
+  // 预加载 Office Online 资源
+  preloadOfficeResources()
 
   // 加载设置
   await settingsStore.loadSettings()
